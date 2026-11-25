@@ -12,6 +12,20 @@
  */
 import type { Dungeon, Finding, Overworld, RepoAnalysis, SaveData, Store } from "@/lib/types";
 
+// ─────────────────────────── Screen size ────────────────────────
+
+/**
+ * The game is drawn at this small internal resolution (25 × 14 tiles) and the
+ * canvas element is then scaled up by a whole number with CSS, which is what
+ * gives it the chunky pixel-art look.
+ *
+ * Division of labour: the ENGINE sets `canvas.width/height` to these values
+ * and never touches CSS; the UI SHELL picks the integer scale that fits the
+ * window and sets the canvas's CSS size (and lays the HUD over it).
+ */
+export const VIEW_W = 400;
+export const VIEW_H = 225;
+
 // ───────────────────────────── Audio ────────────────────────────
 
 export type SfxName =

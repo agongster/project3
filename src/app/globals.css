@@ -1,20 +1,251 @@
 @import "tailwindcss";
 
+/*
+ * Lintlands UI design tokens.
+ * The HTML UI (menus, HUD, overlays) is styled to match the pixel art drawn
+ * on the canvas: cream "paper" panels, deep-plum ink outlines, chunky
+ * 4px borders built from box-shadows so corners look pixel-notched.
+ */
 @theme inline {
   --font-sans: var(--font-body);
   --font-title: var(--font-title);
+
+  --color-ink: #2b1b3d;
+  --color-ink-soft: #6b5a7e;
+  --color-cream: #fff4d9;
+  --color-cream-deep: #f0dcae;
+  --color-wood: #b9774a;
+  --color-wood-deep: #8a5433;
+  --color-night: #1b1630;
+  --color-night-soft: #2a2347;
+  --color-leaf: #7ec850;
+  --color-leaf-deep: #4f9a3a;
+  --color-rose: #ff8fab;
+  --color-sky: #6ec6ff;
+  --color-gold: #ffc93c;
+  --color-berry: #e5484d;
+  --color-grape: #9b6bff;
+
+  --color-common: #9fb4c7;
+  --color-rare: #5aa9ff;
+  --color-epic: #c77dff;
+  --color-legendary: #ffc93c;
 }
 
 html,
 body {
-  background: #1b1630;
-  color: #fff8e7;
+  background: var(--color-night);
+  color: var(--color-cream);
   font-family: var(--font-body), ui-monospace, monospace;
+  font-size: 18px;
+  -webkit-font-smoothing: none;
 }
 
-/* Keep pixel art crisp when canvases are scaled up. */
+/* Keep pixel art crisp when canvases/images are scaled up. */
 canvas,
+img.pixelated,
 .pixelated {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+.font-title {
+  font-family: var(--font-title), ui-monospace, monospace;
+  letter-spacing: 0.02em;
+}
+
+/* ───────────── Pixel panel / button (box-shadow "notched" borders) ───────────── */
+
+.px-panel {
+  --px: 4px;
+  --panel-bg: var(--color-cream);
+  --panel-edge: var(--color-ink);
+  --panel-shade: var(--color-cream-deep);
+  position: relative;
+  background: var(--panel-bg);
+  color: var(--color-ink);
+  margin: var(--px);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--panel-edge),
+    0 var(--px) 0 0 var(--panel-edge),
+    calc(-1 * var(--px)) 0 0 0 var(--panel-edge),
+    var(--px) 0 0 0 var(--panel-edge),
+    inset 0 calc(-1 * var(--px)) 0 0 var(--panel-shade),
+    0 calc(2 * var(--px)) 0 0 rgb(0 0 0 / 0.25);
+}
+.px-panel.dark {
+  --panel-bg: var(--color-night-soft);
+  --panel-shade: #1f1a38;
+  --panel-edge: #0f0b1f;
+  color: var(--color-cream);
+}
+.px-panel.wood {
+  --panel-bg: var(--color-wood);
+  --panel-shade: var(--color-wood-deep);
+  color: var(--color-cream);
+}
+
+.px-btn {
+  --px: 4px;
+  --btn-bg: var(--color-leaf);
+  --btn-shade: var(--color-leaf-deep);
+  --btn-edge: var(--color-ink);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  margin: var(--px);
+  padding: 0.45em 0.9em 0.55em;
+  background: var(--btn-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body), ui-monospace, monospace;
+  font-weight: 700;
+  line-height: 1.1;
+  cursor: pointer;
+  user-select: none;
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--btn-edge),
+    0 var(--px) 0 0 var(--btn-edge),
+    calc(-1 * var(--px)) 0 0 0 var(--btn-edge),
+    var(--px) 0 0 0 var(--btn-edge),
+    inset 0 calc(-1 * var(--px)) 0 0 var(--btn-shade),
+    inset 0 var(--px) 0 0 rgb(255 255 255 / 0.35);
+  transition: transform 60ms steps(2), filter 80ms;
+}
+.px-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+}
+.px-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--btn-edge),
+    0 var(--px) 0 0 var(--btn-edge),
+    calc(-1 * var(--px)) 0 0 0 var(--btn-edge),
+    var(--px) 0 0 0 var(--btn-edge),
+    inset 0 var(--px) 0 0 var(--btn-shade);
+}
+.px-btn:focus-visible {
+  outline: 3px solid var(--color-gold);
+  outline-offset: 6px;
+}
+.px-btn:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.8) brightness(0.85);
+}
+.px-btn.gold { --btn-bg: var(--color-gold); --btn-shade: #d99a12; }
+.px-btn.rose { --btn-bg: var(--color-rose); --btn-shade: #d9597c; }
+.px-btn.sky { --btn-bg: var(--color-sky); --btn-shade: #3b8fd1; }
+.px-btn.grape { --btn-bg: var(--color-grape); --btn-shade: #6a3fd1; color: var(--color-cream); }
+.px-btn.cream { --btn-bg: var(--color-cream); --btn-shade: var(--color-cream-deep); }
+.px-btn.berry { --btn-bg: var(--color-berry); --btn-shade: #a82a2f; color: var(--color-cream); }
+.px-btn.small { padding: 0.25em 0.6em 0.35em; font-size: 0.85em; }
+
+.px-input {
+  --px: 4px;
+  margin: var(--px);
+  padding: 0.5em 0.7em;
+  background: #fffdf5;
+  color: var(--color-ink);
+  font-family: var(--font-body), ui-monospace, monospace;
+  font-weight: 600;
+  outline: none;
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--color-ink),
+    0 var(--px) 0 0 var(--color-ink),
+    calc(-1 * var(--px)) 0 0 0 var(--color-ink),
+    var(--px) 0 0 0 var(--color-ink),
+    inset 0 var(--px) 0 0 #e9dfc4;
+}
+.px-input:focus-visible {
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--color-grape),
+    0 var(--px) 0 0 var(--color-grape),
+    calc(-1 * var(--px)) 0 0 0 var(--color-grape),
+    var(--px) 0 0 0 var(--color-grape),
+    inset 0 var(--px) 0 0 #e9dfc4;
+}
+.px-input::placeholder {
+  color: #b3a58c;
+}
+
+/* A keyboard key, e.g. <kbd class="px-key">E</kbd> */
+.px-key {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 0.35em 0.1em;
+  text-align: center;
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-weight: 700;
+  box-shadow:
+    0 -2px 0 0 var(--color-ink),
+    0 2px 0 0 var(--color-ink),
+    -2px 0 0 0 var(--color-ink),
+    2px 0 0 0 var(--color-ink),
+    inset 0 -3px 0 0 var(--color-cream-deep);
+  margin: 0 4px;
+}
+
+/* Rarity helpers: set `data-rarity` on an element. */
+[data-rarity="common"] { --rarity: var(--color-common); }
+[data-rarity="rare"] { --rarity: var(--color-rare); }
+[data-rarity="epic"] { --rarity: var(--color-epic); }
+[data-rarity="legendary"] { --rarity: var(--color-legendary); }
+.rarity-text { color: var(--rarity); }
+.rarity-ring {
+  box-shadow:
+    0 -4px 0 0 var(--rarity),
+    0 4px 0 0 var(--rarity),
+    -4px 0 0 0 var(--rarity),
+    4px 0 0 0 var(--rarity);
+}
+
+/* Scrollbars inside panels */
+.px-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-wood) transparent;
+}
+
+/* ───────────────────────────── Animations ───────────────────────────── */
+
+@keyframes px-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes px-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes px-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes px-slide-up {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes px-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+@keyframes px-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes px-shine {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.anim-pop { animation: px-pop 220ms steps(6) both; }
+.anim-bob { animation: px-bob 1.2s steps(4) infinite; }
+.anim-fade-in { animation: px-fade-in 200ms steps(4) both; }
+.anim-slide-up { animation: px-slide-up 220ms steps(5) both; }
+.anim-shake { animation: px-shake 240ms steps(4); }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-pop, .anim-bob, .anim-fade-in, .anim-slide-up, .anim-shake { animation: none; }
 }
