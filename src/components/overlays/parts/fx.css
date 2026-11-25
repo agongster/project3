@@ -1,0 +1,228 @@
+/*
+ * Animations for the reward overlays (chest, Wishing Well, victory …).
+ *
+ * Plain global CSS (this project's Turbopack setup does not scope CSS
+ * modules), so every class and keyframe name starts with `fx-` to avoid
+ * clashing with anything else. Use the class names through `FX` in fx.ts.
+ *
+ * Most effects use `steps()` timing instead of smooth easing: the motion
+ * then jumps in a few discrete frames, like a sprite animation, which suits
+ * the pixel art. Colours come from `--rarity` (set by `data-rarity`, see
+ * globals.css) or `--fx-color` when a component passes one inline.
+ */
+
+/* ───────────── Chest ───────────── */
+
+/* A sealed chest rocks from side to side, pausing in between ("it's alive!"). */
+.fx-wobble {
+  animation: fx-wobble 1.4s steps(1) infinite;
+  transform-origin: 50% 100%;
+}
+@keyframes fx-wobble {
+  0%, 46%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-6deg); }
+  56% { transform: rotate(6deg); }
+  62% { transform: rotate(-4deg); }
+  68% { transform: rotate(3deg); }
+  74% { transform: rotate(0deg); }
+}
+
+/* The chest hops when it bursts open. */
+.fx-hop {
+  animation: fx-hop 420ms steps(6) both;
+  transform-origin: 50% 100%;
+}
+@keyframes fx-hop {
+  0% { transform: translateY(0) scale(1.1, 0.85); }
+  35% { transform: translateY(-18px) scale(0.92, 1.12); }
+  70% { transform: translateY(0) scale(1.08, 0.92); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+/* ───────────── Light & rays ───────────── */
+
+/* A flash of light that grows and fades (chest opening, epic/legendary reveal). */
+.fx-burst {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 240px;
+  height: 240px;
+  margin: -120px 0 0 -120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, var(--fx-color, var(--rarity, #ffffff)) 35%, transparent 70%);
+  pointer-events: none;
+  animation: fx-burst 700ms steps(8) both;
+}
+@keyframes fx-burst {
+  0% { transform: scale(0.1); opacity: 1; }
+  60% { opacity: 0.9; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+/* Slowly turning light rays behind a revealed item. */
+.fx-rays {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: var(--rays-size, 360px);
+  height: var(--rays-size, 360px);
+  margin: calc(var(--rays-size, 360px) / -2) 0 0 calc(var(--rays-size, 360px) / -2);
+  background: repeating-conic-gradient(var(--fx-color, var(--rarity, #ffffff)) 0deg 9deg, transparent 9deg 30deg);
+  mask-image: radial-gradient(circle, #000 0%, #000 25%, transparent 68%);
+  opacity: 0.6;
+  pointer-events: none;
+  animation: fx-spin 12s steps(120) infinite;
+}
+@keyframes fx-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* A soft pulsing glow (sealed chest hint, the well while it spins). */
+.fx-glow {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: var(--glow-size, 220px);
+  height: var(--glow-size, 220px);
+  margin: calc(var(--glow-size, 220px) / -2) 0 0 calc(var(--glow-size, 220px) / -2);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--fx-color, var(--rarity, #ffffff)) 0%, transparent 65%);
+  opacity: 0.5;
+  pointer-events: none;
+  animation: fx-glow-pulse 1.2s steps(4) infinite;
+}
+@keyframes fx-glow-pulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.35; }
+  50% { transform: scale(1.1); opacity: 0.7; }
+}
+
+/* Twinkling sparkle (place several with different --delay). */
+.fx-twinkle {
+  position: absolute;
+  pointer-events: none;
+  animation: fx-twinkle 1.6s steps(4) infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes fx-twinkle {
+  0%, 100% { transform: scale(0.4); opacity: 0; }
+  30% { transform: scale(1); opacity: 1; }
+  60% { transform: scale(0.7); opacity: 0.6; }
+}
+
+/* Legendary only: a golden shimmer sweeping across the whole screen. */
+.fx-shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 230 120 / 0.22) 45%, rgb(255 255 255 / 0.32) 50%, rgb(255 230 120 / 0.22) 55%, transparent 70%);
+  background-size: 250% 100%;
+  animation: fx-shimmer 1.8s steps(18) infinite;
+}
+@keyframes fx-shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+
+/* Legendary only: stars drifting down the screen. */
+.fx-starfall {
+  position: absolute;
+  top: -40px;
+  pointer-events: none;
+  animation: fx-starfall var(--duration, 3s) steps(30) infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes fx-starfall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateY(110vh) rotate(180deg); opacity: 0.2; }
+}
+
+/* ───────────── Cards ───────────── */
+
+/* An item card bouncing into view. */
+.fx-card-pop {
+  animation: fx-card-pop 380ms steps(7) both;
+}
+@keyframes fx-card-pop {
+  0% { transform: scale(0.3) rotate(-8deg); opacity: 0; }
+  60% { transform: scale(1.12) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* A face-down wish card turning over. */
+.fx-flip {
+  animation: fx-flip 260ms steps(4) both;
+}
+@keyframes fx-flip {
+  0% { transform: scaleX(0.05); }
+  100% { transform: scaleX(1); }
+}
+
+/* "NEW!" badge: a little bounce that never quite stops. */
+.fx-new-badge {
+  animation: fx-new-badge 900ms steps(3) infinite;
+}
+@keyframes fx-new-badge {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50% { transform: translateY(-3px) rotate(-6deg); }
+}
+
+/* "+12 coins" floating up and away. */
+.fx-float-up {
+  animation: fx-float-up 900ms steps(9) both;
+}
+@keyframes fx-float-up {
+  0% { transform: translateY(6px); opacity: 0; }
+  20% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-20px); opacity: 0; }
+}
+
+/* ───────────── Wishing Well ───────────── */
+
+/* The coin tossed into the well: up, over and down into the water. */
+.fx-coin-arc {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  pointer-events: none;
+  animation: fx-coin-arc 650ms steps(10) both;
+}
+@keyframes fx-coin-arc {
+  0% { transform: translate(-130px, -20px) scale(1.2); opacity: 1; }
+  45% { transform: translate(-60px, -165px) scale(1); }
+  85% { transform: translate(-18px, -100px) scale(0.6); opacity: 1; }
+  100% { transform: translate(-16px, -80px) scale(0.3); opacity: 0; }
+}
+
+/* The well trembling while the wish is decided. */
+.fx-rumble {
+  animation: fx-rumble 140ms steps(2) infinite;
+}
+@keyframes fx-rumble {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-2px, 1px); }
+  75% { transform: translate(2px, -1px); }
+}
+
+/* ───────────── Victory ───────────── */
+
+/* One confetti square: falls while spinning, then stops (no infinite loop). */
+.fx-confetti {
+  position: absolute;
+  top: -16px;
+  pointer-events: none;
+  animation: fx-confetti var(--duration, 2.4s) steps(24) both;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes fx-confetti {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(var(--drift, 0px), 110vh) rotate(var(--turn, 540deg)); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-wobble, .fx-hop, .fx-rays, .fx-glow, .fx-twinkle, .fx-shimmer, .fx-starfall, .fx-card-pop, .fx-flip, .fx-new-badge, .fx-rumble, .fx-float-up {
+    animation: none;
+  }
+  .fx-burst, .fx-coin-arc, .fx-confetti {
+    display: none;
+  }
+}
