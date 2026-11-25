@@ -9,7 +9,7 @@ import type { WorldTarget } from "@/components/app/flow";
 export const MAX_RECENT_REPOS = 3;
 
 /** The repos suggested as one-click examples (all small-to-medium Python projects). */
-export const EXAMPLE_REPOS: readonly string[] = ["karpathy/micrograd", "karpathy/nanoGPT", "psf/requests", "pallets/flask"];
+export const EXAMPLE_REPOS: readonly string[] = ["karpathy/minGPT", "karpathy/nanoGPT", "psf/requests", "pallets/flask"];
 
 /** "owner/repo@sha" → owner and repo, or null for anything else. */
 const REPO_KEY_PATTERN = /^([^/@]+)\/([^/@]+)@/;

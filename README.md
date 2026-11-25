@@ -33,7 +33,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. Click **Play the Demo Kingdom** to try it without any network access, or paste a public Python repo such as `karpathy/micrograd`.
+Open http://localhost:3000. Click **Play the Demo Kingdom** to try it without any network access, or paste a public Python repo such as `karpathy/nanoGPT`.
 
 Requires Node 22. `npm run dev` and `npm run build` first run `scripts/copy-ruff.mjs`, which copies the Ruff WebAssembly files from `node_modules` into `public/ruff/` (that folder is git-ignored).
 
