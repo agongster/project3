@@ -187,6 +187,11 @@ export default function GachaOverlay({ ctx }: OverlayProps<"gacha">) {
                 <PixelButton tone="gold" onClick={() => makeWishes(wasSingle ? 1 : WISH_BUNDLE_SIZE)}>
                   {wasSingle ? `Wish again · ${WISH_COST}` : `10 more · ${WISH_TEN_COST}`}
                 </PixelButton>
+              ) : affordOne ? (
+                // Not enough for another ten, but a single wish is still possible.
+                <PixelButton tone="gold" onClick={() => makeWishes(1)}>
+                  {`One more wish · ${WISH_COST}`}
+                </PixelButton>
               ) : (
                 <p className="text-sm">Out of coins for now. Squash bugs to earn more!</p>
               )}
