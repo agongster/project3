@@ -44,3 +44,11 @@ export { glowSprite } from "./light";
 
 // characters
 export { CHAR_H, CHAR_W, FACINGS, HAT_IDS, randomLook, renderCharacter, WALK_CYCLE, type CharacterSheet, type Facing } from "./character";
+
+// ─────────────── Creatures, loot, UI sprites and the bitmap font ───────────────
+export { monsterSprite, MONSTER_FRAMES, type MonsterVariant } from "./monsters";
+export { itemIcon, ICON_SIZE } from "./items";
+export { weaponSprite, WEAPON_IDS, projectileSprite, PROJECTILE_FRAMES, type ProjectileName } from "./weapons";
+export { petSprite, PET_FRAMES } from "./pets";
+export { uiSprite, rarityGlow, UI_FRAMES, UI_SPRITE_NAMES, type UiSpriteName } from "./ui";
+export { drawText, measureText, FONT_LINE_HEIGHT, FONT_CAP_HEIGHT, type TextOpts } from "./font";
