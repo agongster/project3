@@ -1,1 +1,127 @@
-# project3
+# Lintlands
+
+<!--
+APRIL — this top part of the README has to be written by you (assignment rule:
+"Write this yourself"). Replace this whole comment with your own words.
+
+The assignment asks the README to explain:
+  - what the project does
+  - how to use it
+  - which features you are most proud of
+  - how to run it locally
+  - how secrets (if any) are handled
+  - a brief summary of how you used AI, with citations for anything that
+    produced a substantial portion of the code
+
+Facts you may need (commands, the env variable, the file map) are in the
+AI-generated section below — describe them in your own words up here.
+Also add: the deployed URL and the demo-video link once they exist.
+-->
+
+**TODO (April): write this section yourself.**
+
+---
+
+## AI-generated documentation
+
+> Everything below this heading was written by AI (Claude Code — Claude Fable 5.2 orchestrating Claude Opus 5.5 subagents). See `prompt_log.md` for the prompts.
+
+### Quick start
+
+```bash
+npm install
+npm run dev
+```
+
+Open http://localhost:3000. Click **Play the Demo Kingdom** to try it without any network access, or paste a public Python repo such as `karpathy/micrograd`.
+
+Requires Node 22. `npm run dev` and `npm run build` first run `scripts/copy-ruff.mjs`, which copies the Ruff WebAssembly files from `node_modules` into `public/ruff/` (that folder is git-ignored).
+
+### Environment variables and secrets
+
+| Variable | Required? | What it is |
+|---|---|---|
+| `GITHUB_TOKEN` | optional | A GitHub personal access token with **no scopes** (public read-only). Without it the server can make 60 GitHub API requests per hour; with it, 5,000. |
+
+- Local: copy `.env.example` to `.env.local` and paste the token. `.env*` files are git-ignored (only `.env.example` is committed).
+- Deployed (Vercel): add `GITHUB_TOKEN` under Project → Settings → Environment Variables.
+- The token is only read on the server, in `src/app/api/repo/route.ts`, and is only ever sent to `api.github.com` in an `Authorization` header. It is never sent to the browser and never logged.
+- No user accounts, no database. Progress is saved in the browser's `localStorage`.
+- Source code from the repo being explored is downloaded **by the player's browser** from `raw.githubusercontent.com` and linted there; it never passes through this app's server.
+
+### How it works
+
+```
+ browser                              server                         GitHub
+ ───────                              ──────                         ──────
+ title screen ── GET /api/repo ─────► route.ts ── 3 REST calls ────► api.github.com
+              ◄── list of .py files ─┘  (adds GITHUB_TOKEN)
+ download each file ───────────────────────────────────────────────► raw.githubusercontent.com
+ lint each file with Ruff (WebAssembly, in a Web Worker)
+ findings ─► RepoAnalysis ─► generateOverworld() ─► canvas game
+```
+
+1. **`/api/repo`** resolves the repo to one commit and returns its Python files (filtered: no vendored folders, files ≤ 100 KB, at most 150 files).
+2. The browser downloads the files and runs **Ruff** on each one inside a Web Worker (`public/lint-worker.js`).
+3. Each diagnostic becomes a **Finding** → one monster. Files with no findings get a **quality grade** (S/A/B/C).
+4. **World generation** turns the analysis into a tile map: one region per top-level folder, one building per file. It is seeded by `owner/repo@commit`, so the same commit always makes the same world.
+5. The **engine** draws the world on a 400×225 canvas scaled up by a whole number. React draws the menus and HUD on top.
+
+### Controls
+
+| Key | Action |
+|---|---|
+| WASD / arrow keys | Move |
+| Space / J / click | Attack |
+| Shift / K | Dash |
+| E / Enter | Interact (doors, chests, villagers, the Wishing Well) |
+| I or B | Bag |
+| C | Codex (the bug list) |
+| M | Big map |
+| Esc / Tab | Pause menu |
+
+### Project map
+
+| Path | What lives there |
+|---|---|
+| `src/lib/types.ts` | Every data shape shared between modules. **Start reading here.** |
+| `src/lib/game/catalog.ts` | The design sheet: every item, monster, theme and character option as plain data |
+| `src/app/api/repo/route.ts`, `src/lib/repo/` | The backend endpoint and GitHub client; input parsing; file filtering |
+| `src/lib/analysis/` | Ruff rule → monster table (`rules.ts`), diagnostics → findings (`normalize.ts`), good-code grading (`quality.ts`), the browser pipeline (`analyzeRepo.ts`), the offline demo (`demo.ts`) |
+| `public/lint-worker.js` | The Web Worker that runs Ruff |
+| `src/lib/worldgen/` | Overworld and dungeon generators (deterministic, validated for reachability) |
+| `src/lib/game/` | Save store, reducers, gacha, chest loot, progress, Markdown checklist |
+| `src/game/bridge.ts` | The contract between engine, UI and audio |
+| `src/game/engine/`, `entities/`, `combat/`, `scenes/` | The canvas engine: loop, input, camera, collision, hero, weapons, monsters, overworld and dungeon scenes |
+| `src/game/art/` | All pixel art, generated by code (no image files) |
+| `src/game/audio/` | All sound, synthesized with the Web Audio API (no audio files) |
+| `src/components/app/`, `screens/`, `hud/`, `character/` | React shell: title, hero creator, loading screen, HUD |
+| `src/components/overlays/` | Chest reveal, Wishing Well, bag, codex, notice board, pause, wardrobe, victory |
+| `src/components/loading/` | "Bug Catch", the loading mini-game |
+| `src/app/dev/*` | Developer pages: `/dev/art`, `/dev/art2`, `/dev/audio`, `/dev/engine`, `/dev/ui`, `/dev/overlays`, `/dev/loading`, `/dev/analysis` |
+| `tests/` | Vitest unit tests |
+
+### Tests and CI
+
+```bash
+npm test          # Vitest unit tests
+npm run lint      # ESLint
+npm run typecheck # tsc --noEmit
+npm run check     # all three
+```
+
+`.github/workflows/ci.yml` runs lint, typecheck, the unit tests and a production build on every push.
+
+The tests cover the logic that can be checked without a screen: repo-input parsing, file filtering, the GitHub client (mocked `fetch`), real Ruff runs on fixture files, the rule → monster mapping, the quality grade, world and dungeon generation (determinism and reachability, fuzzed over hundreds of fake repos), gacha odds and pity, chest loot, save-file sanitising, collision and attack geometry, monster behaviour helpers, and the loading mini-game's rules.
+
+### Deploying (Vercel)
+
+1. Import the GitHub repo in Vercel (framework preset: Next.js; no other settings needed).
+2. Add the `GITHUB_TOKEN` environment variable (optional but recommended).
+3. Deploy. The build runs `scripts/copy-ruff.mjs` automatically.
+
+### Credits
+
+- [Ruff](https://github.com/astral-sh/ruff) by Astral (MIT) — the linter, used through its official WebAssembly build.
+- Fonts: Pixelify Sans and Press Start 2P (SIL Open Font License), loaded through `next/font`.
+- All pixel art and all sound in the game are generated by code in this repository.
