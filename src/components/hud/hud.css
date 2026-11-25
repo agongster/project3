@@ -1,0 +1,68 @@
+/*
+ * Animations used only by the HUD (class names are in fx.ts). This is a plain
+ * global stylesheet (the project's Turbopack setup treats every .css file as
+ * global), so every class and keyframe name starts with "hud-". Like the
+ * kit's animations in globals.css they use steps() timing, so they move in
+ * visible "frames" like pixel art.
+ */
+
+/* A toast slides in from the right edge… */
+@keyframes hud-kf-toast-in {
+  from { transform: translateX(110%); }
+  to { transform: translateX(0); }
+}
+.hud-toast-in { animation: hud-kf-toast-in 200ms steps(5) both; }
+
+/* …and fades away at the end of its life. */
+@keyframes hud-kf-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.hud-fade-out { animation: hud-kf-fade-out 300ms steps(4) forwards; }
+.hud-fade-out-slow { animation: hud-kf-fade-out 700ms steps(6) forwards; }
+
+/* Banners slam in with a little wobble. */
+@keyframes hud-kf-banner-in {
+  0% { transform: scale(0.3) rotate(-4deg); opacity: 0; }
+  60% { transform: scale(1.12) rotate(1deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+.hud-banner-in { animation: hud-kf-banner-in 360ms steps(7) both; }
+
+/* Hearts: a happy bounce when healed, a shake when hurt. */
+@keyframes hud-kf-heal-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(calc(var(--s) * -3px)) scale(1.15); }
+}
+.hud-heal { animation: hud-kf-heal-bounce 320ms steps(5); }
+@keyframes hud-kf-hurt-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(calc(var(--s) * -2px)); }
+  75% { transform: translateX(calc(var(--s) * 2px)); }
+}
+.hud-hurt { animation: hud-kf-hurt-shake 260ms steps(4); }
+
+/* The combo counter punches up each time it grows. */
+@keyframes hud-kf-combo-pop {
+  0% { transform: scale(1.6) rotate(-6deg); }
+  100% { transform: scale(1) rotate(-3deg); }
+}
+.hud-combo-pop { animation: hud-kf-combo-pop 180ms steps(4) both; }
+
+/* The interaction prompt floats gently. */
+@keyframes hud-kf-prompt-bob {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, calc(var(--s) * -2px)); }
+}
+.hud-prompt-bob { animation: hud-kf-prompt-bob 1.4s steps(4) infinite; }
+
+/* A soft pulse for "ready" states (full dash meter). */
+@keyframes hud-kf-ready-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.35); }
+}
+.hud-ready-pulse { animation: hud-kf-ready-pulse 900ms steps(3) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-toast-in, .hud-banner-in, .hud-heal, .hud-hurt, .hud-combo-pop, .hud-prompt-bob, .hud-ready-pulse { animation: none; }
+}

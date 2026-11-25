@@ -1,14 +1,60 @@
 "use client";
 
-// Placeholder — replaced by the real Wardrobe overlay.
+/**
+ * The wardrobe: change the hero's look, hat and the scenery theme while
+ * playing. Every change is written to the save at once, so the hero and the
+ * world behind the overlay restyle live; "Done" just closes.
+ *
+ * The overlay lives inside the game area (as small as 800×450 on a laptop),
+ * so it is laid out in two compact columns with no separate header row.
+ */
+import { ROOMY_SCREEN, useMediaQuery } from "@/components/app/useMediaQuery";
+import { HeroStage } from "@/components/character/HeroStage";
+import { LookEditor } from "@/components/character/LookEditor";
+import { ThemePicker } from "@/components/character/ThemePicker";
 import { Modal, PixelButton } from "@/components/ui/kit";
+import { equipItem, setLook, setTheme, unequip } from "@/lib/game";
+import { useStore } from "@/lib/game/useStore";
 import type { OverlayProps } from "./types";
 
 export default function WardrobeOverlay({ ctx }: OverlayProps<"wardrobe">) {
+  const { save, audio } = ctx;
+  const look = useStore(save, (s) => s.look);
+  const hatId = useStore(save, (s) => s.equipped.hat);
+  const owned = useStore(save, (s) => s.owned);
+  const theme = useStore(save, (s) => s.theme);
+  const roomy = useMediaQuery(ROOMY_SCREEN);
+
+  const done = () => {
+    audio.sfx("uiBack");
+    ctx.close();
+  };
+
   return (
-    <Modal label="Wardrobe" onClose={ctx.close} className="p-6">
-      <p className="mb-4">Wardrobe overlay (coming soon)</p>
-      <PixelButton onClick={ctx.close}>Close</PixelButton>
+    <Modal label="Wardrobe" onClose={done} className="w-[min(900px,100%)] overflow-y-auto p-4">
+      <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-[auto_1fr]">
+        <div className="flex flex-col items-center gap-2">
+          <h2 className="self-start font-title text-[16px] leading-relaxed">Wardrobe</h2>
+          <HeroStage look={look} hatId={hatId} theme={theme} audio={audio} scale={roomy ? 3 : 2} showTurnButtons={false} />
+          <div className="w-full">
+            <h3 className="mb-2 font-bold text-ink-soft">Scenery</h3>
+            <ThemePicker value={theme} onChange={(id) => save.set((s) => setTheme(s, id))} audio={audio} previewScale={1} columns={3} className="justify-center" />
+          </div>
+        </div>
+        <LookEditor
+          look={look}
+          hatId={hatId}
+          ownedHatIds={owned}
+          audio={audio}
+          onLookChange={(patch) => save.set((s) => setLook(s, patch))}
+          onHatChange={(id) => save.set((s) => (id ? equipItem(s, id) : unequip(s, "hat")))}
+          footer={
+            <PixelButton tone="gold" onClick={done}>
+              Done ✓
+            </PixelButton>
+          }
+        />
+      </div>
     </Modal>
   );
 }

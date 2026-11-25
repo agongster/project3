@@ -6,7 +6,7 @@
  * placement also reserves ("keep clear") the tile in front of it.
  */
 import type { NpcSpawn, Point, Rect } from "@/lib/types";
-import { randInt, shuffled } from "@/lib/rng";
+import { hashString, shuffled } from "@/lib/rng";
 import { Tag, type WorldCanvas } from "./canvas";
 import { chebyshev, DIRS4, rectContains } from "./grid";
 import type { VillagerScript } from "./villagers";
@@ -103,7 +103,9 @@ export function placeVillagers(
       name: scripts[i].name,
       x: spot.x,
       y: spot.y,
-      lookSeed: randInt(canvas.rng, 0, 0x7fffffff),
+      // Seeded from the name so the dialog portrait (which only knows the
+      // speaker's name) shows the same face as the villager in the world.
+      lookSeed: hashString(scripts[i].name),
       lines: scripts[i].lines,
     };
   });
