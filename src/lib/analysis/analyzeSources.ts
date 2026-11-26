@@ -6,6 +6,7 @@
  * same code runs in the browser (analyzeRepo.ts, demo.ts) and in Vitest
  * (with Ruff's Node.js build).
  */
+import { emptyOutline, outlineSource } from "./outline";
 import type { AnalyzedFile, FileQuality, RepoAnalysis, RepoRef, RepoStats } from "@/lib/types";
 import { classifyFile } from "./fileKind";
 import { buildFinding, normalizeDiagnostic, selectMonsters, splitLines, type LintHit, type RawDiagnostic } from "./normalize";
@@ -84,6 +85,7 @@ export function analyzeFile(file: SourceFile, lint: LintFunction): AnalyzedFile 
     findings,
     overflow,
     quality: gradeFile(file.source, probeHits, allFindings.length),
+    outline: outlineSource(file.source),
   };
 }
 
@@ -102,7 +104,7 @@ const NO_QUALITY: FileQuality = {
 };
 
 function failedFile(file: SourceFile, kind: AnalyzedFile["kind"]): AnalyzedFile {
-  return { path: file.path, size: file.size, lineCount: 0, status: "failed", kind, findings: [], overflow: 0, quality: NO_QUALITY };
+  return { path: file.path, size: file.size, lineCount: 0, status: "failed", kind, findings: [], overflow: 0, quality: NO_QUALITY, outline: emptyOutline() };
 }
 
 /** Repo-wide totals. Counts only the monsters that actually appear in dungeons. */

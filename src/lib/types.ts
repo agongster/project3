@@ -9,6 +9,9 @@
  *                  (/api/repo)     (Ruff in a        (worldgen)
  *                                   Web Worker)
  */
+import type { FileOutline } from "@/lib/analysis/outline";
+
+export type { Definition, FileOutline, OutlineComment } from "@/lib/analysis/outline";
 
 // ───────────────────────────── Repo ─────────────────────────────
 
@@ -167,6 +170,11 @@ export interface AnalyzedFile {
   /** How many additional findings were dropped by the per-file cap. */
   overflow: number;
   quality: FileQuality;
+  /**
+   * The file's functions, classes, comments and imports (empty for a failed
+   * file). This is what lets the world show the repo's own code and words.
+   */
+  outline: FileOutline;
 }
 
 export interface RepoStats {
