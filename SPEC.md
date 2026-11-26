@@ -353,3 +353,33 @@ The prompt asked to look into static bug-catching analyzers and linters before b
 | Clean-file chest | grade S: epic or legendary; A: rare or better; B: 70% chance of a common/rare item; C: mostly coins |
 | Dungeon chest | by the worst monster in the file: boss → rare or better, elite → common/rare, minions → mostly coins |
 | Health milestones | 25 / 50 / 75 / 100% purified pays 25 / 50 / 75 / 150 coins |
+
+## D. Second round: more of the repo in the game (AI-written, 2026-11-26)
+
+Added after the first review, at the owner's request ("repo should matter more in what the user sees"):
+
+| Feature | What the player sees | Where |
+|---|---|---|
+| Code outline | (invisible) every file's functions, branches, docstrings, comments and imports | `src/lib/analysis/outline.ts` |
+| Pick-the-fix finisher | A dazed elite or boss can be finished by choosing the real fix from three | `src/lib/game/finisher.ts`, `src/components/overlays/FinisherOverlay.tsx` |
+| Code on the floor | Each monster's offending line carved where it starts; heals when it dies | `src/game/scenes/floorCode*.ts` |
+| Monster traits | Behaviour mirrors the bug (invisible undefined name, growing mutable default, …) | `src/game/entities/monsters/traits/`, `src/lib/analysis/traits.ts` |
+| The file shapes the place | A room per function, forks for branches, light for docstrings, a repo treemap | `src/lib/worldgen/roomPlan.ts`, `roomMaze.ts`, `dungeonDecor.ts`, `src/game/ui/treemap.ts` |
+| The repo's own words | Villagers, loot engravings, bounties, README greeting, import merchants | `src/lib/worldgen/repoWords.ts`, `src/lib/game/engraving.ts`, `bounties.ts` |
+
+## E. Third round: the Workshop, a gamified IDE (AI-written, 2026-11-26)
+
+**Goal (owner's words):** "turn this into a full fledged gamified IDE. the user should be able to edit and view all code files but make it gamified."
+
+**Decisions**
+
+1. **The world stays; the editor joins it.** The Workshop is a full-window code editor inside the game. It opens from the HUD, from a building, from a dungeon room, and from every place a bug is explained ("Fix it for real").
+2. **Typing is free, saving is the game move.** While typing, the editor shows live Ruff findings as monster markers in the gutter, but nothing in the world changes. Pressing save ("Forge", Ctrl/Cmd+S) re-lints the file and applies the result: bugs that are gone are *fixed for real* (their monsters are banished and pay more than a fight would), new bugs become new monsters (no penalty), the file's grade and its dungeon update.
+3. **All files can be viewed and edited, Python files are the game.** Non-Python text files open in the same editor with syntax highlighting but have no monsters.
+4. **Edits stay in the browser.** Nothing is written to GitHub (the deployed site is static and holds no credentials). Saved edits persist in localStorage per commit and can be exported as a unified diff or a zip of the changed files.
+5. **Fighting and fixing are two ways to the same goal.** Repo Health counts a finding as dealt with when its monster is defeated *or* its code is fixed. A file whose last bug is fixed in the editor turns from a dungeon into a treasure house.
+6. **Gamification of the editing itself:** quests derived from the code (document this function, fix this bug by hand, raise this file's grade), a streak for forges that fix without breaking, achievements, and quick fixes offered by Ruff as one-click "scrolls".
+
+**Architecture:** `src/lib/workspace/contract.ts` is the interface (`Workspace`: `read`, `check`, `forge`, `revert`, `changes`, `exportPatch`, `exportZip`, plus `analysis` as a live store). The game engine receives each new analysis without restarting. Editor: CodeMirror 6.
+
+**Out of scope for now:** committing or opening pull requests on GitHub, creating / renaming / deleting files, running the code, multi-user editing.

@@ -175,6 +175,13 @@ export interface AnalyzedFile {
    * file). This is what lets the world show the repo's own code and words.
    */
   outline: FileOutline;
+  /**
+   * How many of this file's *original* findings the player has fixed for
+   * real, by editing the code in the Workshop (see src/lib/workspace/).
+   * Missing or 0 for a file that was never edited. `findings` never includes
+   * those: they no longer exist in the saved text.
+   */
+  realFixes?: number;
 }
 
 export interface RepoStats {
