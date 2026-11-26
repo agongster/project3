@@ -384,3 +384,29 @@ Added after the first review, at the owner's request ("repo should matter more i
 **Architecture:** `src/lib/workspace/contract.ts` is the interface (`Workspace`: `read`, `check`, `forge`, `revert`, `changes`, `exportPatch`, `exportZip`, plus `analysis` as a live store). The game engine receives each new analysis without restarting. Editor: CodeMirror 6.
 
 **Out of scope for now:** committing or opening pull requests on GitHub, creating / renaming / deleting files, running the code, multi-user editing.
+
+## F. Fourth round: fight, then fix (AI-written, 2026-11-26)
+
+Owner's requests, in her words: (1) "add a door at the end of the dungeon for player to exit when they're done"; (2) "the text right now is hard to read, please choose a more readable font. especially for character customization and numbers"; (3) "add more character customization options"; (4) "for the text on the ground after defeating the monster, player should be able to press E to open that line in the IDE"; (5) "player needs to fix the line to fully defeat the monster"; (6) "we haven't run into any bosses yet, where are they?"; (7) "add more variations to the monsters".
+
+**F1. Two steps to beat a bug (requests 4 and 5).** This replaces rule 5 of section E ("fighting and fixing are two ways to the same goal") and the part of rule 0 that said the editor is never required.
+
+| Word | Meaning |
+|---|---|
+| **Subdued** | The monster was beaten in a fight. It stops fighting for good (this is what `RepoProgress.defeated` records) and stays bound to its line of code, which glows on the floor. Fighting pays coins and XP as before. |
+| **Fixed** | The monster's finding no longer exists in the saved code. Only now is the monster *fully defeated*: it dissolves, its line heals to gold, and the fix pays its own reward. |
+| **Quiet dungeon** | Every monster in it is subdued or fixed: nothing is left to fight. The end door opens. |
+| **Purified dungeon** | The file has no findings left. The prize chest appears and the building is restored. |
+
+- Standing on a subdued monster's glowing line and pressing **E** opens the Workshop on exactly that line. Fixing a line without fighting its monster first is allowed and is enough.
+- **Repo Health counts fixed findings.** Subdued-but-unfixed ones show as a lighter part of the bar. Victory comes when every finding is fixed.
+- **Nobody may get stuck** (the game must stay easy): every finding can be dealt with in a click or two from its bug card in the Workshop — Ruff's own fix scroll when it has one, and always a **seal scroll**, which marks the line as accepted (`# noqa: CODE`). A sealed monster is gone for good and counts as dealt with, but it is shown as *sealed*, not fixed, and pays no fix reward.
+- The game teaches the loop the first time it matters (fight → stand on the glowing line → E → fix → Forge) with ordinary in-game prompts.
+
+**F2. End door (request 1).** The last room of every dungeon has a door that leaves the dungeon. It opens when the dungeon is quiet. The entrance stays usable at all times.
+
+**F3. Bosses that can be found (request 6).** Bosses only exist where the code has a serious finding (a hardcoded secret, `eval`/shell/pickle/SQL built from strings, a syntax error), which is rare in real repos (about 2% of monsters). So: boss lairs are marked on buildings and maps and listed on the notice board, and every dungeon of a useful size that has no true boss gets a **champion** — its toughest monster, promoted to a crowned mini-boss.
+
+**F4. Variety (requests 3 and 7).** Monsters of the same kind differ in look and, mildly, in behaviour, chosen deterministically from their finding. The hero creator gains more options and categories; old saves keep their hero.
+
+**F5. Readability (request 2).** Fonts are chosen for legibility first (lowercase letters and digits must be unmistakable at the sizes the game uses, on a normal-density screen), pixel charm second. This covers the page fonts and the bitmap font drawn on the canvas.

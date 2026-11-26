@@ -113,6 +113,24 @@ the main UI should still be the game as you built before, and it should secondar
 
 *Outcome: sent to the wiring subagent as binding rules and added to SPEC.md section E as rule 0: the app opens into the game exactly as before; the Workshop is one ordinary HUD button and the F key, never opens by itself and is never required; game actions stay the primary buttons in every overlay and "Fix it for real" is a secondary link; the title screen keeps its tagline; nothing calls it an IDE. Checked by the orchestrator in screenshots and by the bot that never opens the Workshop.*
 
+**Prompt 12 (13:49)**
+
+```
+a few things:
+
+1. add a door at the end of the dungeon for player to exit when they're done
+2. the text right now is hard to read, please choose a more readable font. especially for character customization and numbers.
+3. add more character customization options. 
+4. for the text on the grounf after defeating the monster, player should be able to press E to open that line in the IDE. 
+5. player needs to fix the line to fully defeat the monster.
+6. we haven't run into any bosses yet, where are they?
+7. add more variations to the monsters.
+
+use opus 5.5 subagents for all of these.
+```
+
+<!-- PROMPT-12-OUTCOME -->
+
 ## How the build was split up
 
 The orchestrating model (Fable 5.2) wrote these files itself before any subagent started, so that every subagent coded against the same contracts:
