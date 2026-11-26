@@ -71,6 +71,14 @@ push to my github pages and host it agongster.github.io
 
 *Outcome: `agongster.github.io` itself is already my portfolio site, so the game is published next to it at `https://agongster.github.io/project3/` instead of replacing it. GitHub Pages has no server, so that build is a static export: the browser asks the GitHub API directly instead of going through `/api/repo` (`src/lib/hosting.ts`, `next.config.ts`, `.github/workflows/pages.yml`).*
 
+**Prompt 7 (21:54)**
+
+```
+give me some ideas to keep this gameplay fun but add more code in the gameplay. repo should matter more in what the user sees.
+```
+
+*Outcome: a list of ideas only, no code changed (function-shaped dungeon rooms, an optional "pick the fix" finishing move, imports as roads, tests as watchtowers, names and docstrings from the repo, re-linting a newer commit).*
+
 ## How the build was split up
 
 The orchestrating model (Fable 5.2) wrote these files itself before any subagent started, so that every subagent coded against the same contracts:
