@@ -14,6 +14,7 @@ import { ap, HUD_FONT_SIZE } from "@/components/hud/units";
 import { useStore } from "@/lib/game/useStore";
 import { hashString } from "@/lib/rng";
 import type { PropKind, ThemeId } from "@/lib/types";
+import { splitAttribution } from "./parts/dialogText";
 import type { OverlayProps } from "./types";
 
 /** Typing speed: one character every this many ms. */
@@ -54,7 +55,7 @@ export default function DialogOverlay({ request, ctx }: OverlayProps<"dialog">) 
   const theme = useStore(ctx.save, (s) => s.theme);
   const [lineIndex, setLineIndex] = useState(0);
   const [typed, setTyped] = useState(0);
-  const text = lines[lineIndex] ?? "";
+  const { body: text, note } = splitAttribution(lines[lineIndex] ?? "");
   const lineDone = typed >= text.length;
   const isLast = lineIndex >= lines.length - 1;
 
@@ -107,11 +108,19 @@ export default function DialogOverlay({ request, ctx }: OverlayProps<"dialog">) 
           <div className="flex shrink-0 items-end justify-center overflow-hidden bg-cream-deep" style={{ width: ap(PORTRAIT_ART_PX), height: ap(PORTRAIT_ART_PX), paddingBottom: ap(2) }}>
             <PortraitSprite speaker={speaker} theme={theme} />
           </div>
-          <p className="min-w-0 flex-1 font-semibold leading-snug" style={{ fontSize: "1.25em" }} aria-live="polite">
-            {text.slice(0, typed)}
-            {/* The rest of the line, invisible, so the box doesn't grow while typing. */}
-            <span className="invisible">{text.slice(typed)}</span>
-          </p>
+          <div className="min-w-0 flex-1">
+            <p className="break-words font-semibold leading-snug" style={{ fontSize: "1.25em" }} aria-live="polite">
+              {text.slice(0, typed)}
+              {/* The rest of the line, invisible, so the box doesn't grow while typing. */}
+              <span className="invisible">{text.slice(typed)}</span>
+            </p>
+            {/* Where a quote comes from ("# from bakery/oven.py, line 12"), shown once the words are typed. */}
+            {note && (
+              <p className={`break-words font-mono text-ink-soft ${lineDone ? "anim-fade-in" : "invisible"}`} style={{ marginTop: ap(2) }}>
+                {note}
+              </p>
+            )}
+          </div>
         </div>
         <span className="absolute font-bold text-ink-soft" style={{ right: ap(6), bottom: ap(3), fontSize: "0.8em" }}>
           {lines.length > 1 && `${lineIndex + 1}/${lines.length} `}

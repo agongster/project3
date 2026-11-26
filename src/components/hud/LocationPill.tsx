@@ -24,7 +24,7 @@ export function LocationPill({ hud }: { hud: Store<HudState> }) {
   return (
     <div className="absolute left-1/2 flex -translate-x-1/2 flex-col items-center" style={{ top: ap(4), gap: ap(3), maxWidth: ap(200) }}>
       <div className="flex max-w-full items-center whitespace-nowrap font-bold" style={{ ...PLATE_STYLE, gap: ap(3) }}>
-        <span className="truncate text-cream">{dungeon ? dungeon.path : location}</span>
+        <span className="truncate text-cream">{location}</span>
         {dungeon && (
           <span className={`flex items-center ${dungeon.remaining === 0 ? "text-leaf" : "text-rose"}`} style={{ gap: ap(1) }}>
             <ArtSprite sprite={uiSprite(dungeon.remaining === 0 ? "checkmark" : "skull")} />

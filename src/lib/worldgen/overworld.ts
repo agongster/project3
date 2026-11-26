@@ -139,7 +139,7 @@ function buildOverworld(analysis: RepoAnalysis, seed: number, rng: Rng): Overwor
   }
   const villagerCount = Math.min(6, 3 + Math.floor(regions.length / 2));
   const scripts = writeVillagers(analysis, villagerCount, rng);
-  const npcs = placeVillagers(canvas, scripts, plaza, square.spawn, byDistance.map((r) => r.gate));
+  const npcs = placeVillagers(canvas, scripts, plaza, square.spawn, byDistance.map((r) => ({ ...r.gate, regionId: r.plan.id })));
 
   // 9. Nature and village decorations.
   paintMeadows(canvas);

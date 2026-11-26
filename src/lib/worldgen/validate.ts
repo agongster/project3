@@ -6,10 +6,12 @@
  * run them in development builds as a sanity check. Each function returns a
  * list of human-readable problems; an empty list means "all good".
  */
+import { definitionAt } from "@/lib/analysis/outline";
 import { Ground, MONSTER_KINDS, type AnalyzedFile, type Dungeon, type Overworld, type Point, type PropKind } from "@/lib/types";
 import { MONSTERS } from "@/lib/game/catalog";
-import { chebyshev, inBounds, rectContains, rectsOverlap } from "./grid";
+import { chebyshev, inBounds, rectContains, rectsOverlap, tilesOf } from "./grid";
 import { reachableFrom, solidPropTiles } from "./reachability";
+import { clipText, MAX_LABEL_CHARS, MAX_NAME_CHARS } from "./roomPlan";
 
 /** Props the player interacts with by standing on the tile directly south of them. */
 const FACED_PROPS: ReadonlySet<PropKind> = new Set<PropKind>(["well", "wardrobe", "board", "fountain", "sign"]);
@@ -220,6 +222,55 @@ export function dungeonProblems(dungeon: Dungeon, file?: AnalyzedFile): string[]
   const reach = reachableFrom(dungeon, dungeon.entrance, solidPropTiles(dungeon.props));
   for (const target of [dungeon.exit, dungeon.chest, ...dungeon.monsters]) {
     if (!reach[idx(target)]) problems.push(`${at(target)} cannot be reached from the entrance`);
+  }
+  problems.push(...roomProblems(dungeon, file));
+  return problems;
+}
+
+/**
+ * The rules of rooms that stand for code (see roomPlan.ts and roomMaze.ts):
+ * one info per room, rooms left to right in source order, short labels,
+ * open arenas, no passage narrower than 2 tiles, and every monster standing
+ * in the room of the code its finding is in.
+ */
+function roomProblems(dungeon: Dungeon, file?: AnalyzedFile): string[] {
+  const problems: string[] = [];
+  const { rooms, roomInfo } = dungeon;
+  if (roomInfo.length !== rooms.length) return [`${roomInfo.length} room infos for ${rooms.length} rooms`];
+  const floorAt = (x: number, y: number) => inBounds(dungeon, x, y) && isFloor(dungeon.ground[y * dungeon.width + x]);
+
+  roomInfo.forEach((info, i) => {
+    if (i > 0 && rooms[i].x <= rooms[i - 1].x + rooms[i - 1].w) problems.push(`room ${i + 1} is not right of room ${i}`);
+    if (i > 0 && info.kind === "function" && info.line < roomInfo[i - 1].line) problems.push(`room ${i + 1} (${info.label}) breaks source order`);
+    if ((info.kind === "module") !== (info.names.length === 0)) problems.push(`room ${i + 1} has the wrong names for a ${info.kind} room`);
+    if (Array.from(info.label).length > MAX_LABEL_CHARS) problems.push(`room ${i + 1} has an unclipped label`);
+    if (info.arena && tilesOf(rooms[i]).some((t) => !floorAt(t.x, t.y))) problems.push(`arena ${i + 1} has interior walls`);
+  });
+  if (roomInfo.length > 0 && roomInfo[0].kind !== "module") problems.push("the first room is not the entry hall");
+
+  // No passage narrower than 2 tiles: every floor tile is part of a 2×2 square of floor.
+  for (let y = 0; y < dungeon.height; y++) {
+    for (let x = 0; x < dungeon.width; x++) {
+      if (!floorAt(x, y)) continue;
+      const square = (sx: number, sy: number) => floorAt(sx, sy) && floorAt(sx + 1, sy) && floorAt(sx, sy + 1) && floorAt(sx + 1, sy + 1);
+      if (!square(x - 1, y - 1) && !square(x, y - 1) && !square(x - 1, y) && !square(x, y)) problems.push(`passage at ${at({ x, y })} is narrower than 2 tiles`);
+    }
+  }
+
+  // Every monster stands inside a room: the one for the code its finding is in.
+  const findings = new Map((file?.findings ?? []).map((f) => [f.id, f]));
+  for (const m of dungeon.monsters) {
+    const room = rooms.findIndex((r) => rectContains(r, m.x, m.y));
+    if (room === -1) {
+      problems.push(`monster ${at(m)} is not inside a room`);
+      continue;
+    }
+    const finding = findings.get(m.findingId);
+    if (!file || !finding) continue;
+    const definition = definitionAt(file.outline, finding.line);
+    const info = roomInfo[room];
+    const rightRoom = definition ? info.names.includes(clipText(definition.name, MAX_NAME_CHARS)) : info.kind === "module";
+    if (!rightRoom) problems.push(`monster of line ${finding.line} is not in the room of ${definition?.name ?? "the module"}`);
   }
   return problems;
 }

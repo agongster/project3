@@ -34,6 +34,7 @@ import { announceEvent, overlayForEvent } from "./gameEvents";
 import type { AppServices } from "./services";
 import { useGameScale } from "./useGameScale";
 import { useMilestones } from "./useMilestones";
+import { useBountyPayouts } from "./useBountyPayouts";
 
 declare global {
   interface Window {
@@ -86,6 +87,7 @@ export function GameScreen({ loaded, services, onExit }: Props) {
   const progress = useStore(save, (s) => getProgress(s, key));
   const health = useMemo(() => repoHealth(analysis, progress), [analysis, progress]);
   useMilestones(save, key, health, feed, audio);
+  useBountyPayouts(save, key, analysis, feed, audio);
 
   // ── Music follows the action ──
   const scene = useStore(hud, (h) => h.scene);
@@ -165,6 +167,7 @@ export function GameScreen({ loaded, services, onExit }: Props) {
         setOverlay(null);
         gameRef.current?.resume();
       },
+      resolveFinisher: (findingId, correct) => gameRef.current?.resolveFinisher(findingId, correct),
       // Leaving unmounts this screen, and the engine effect's cleanup destroys the game.
       exitToTitle: onExit,
     }),

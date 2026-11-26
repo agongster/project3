@@ -10,7 +10,8 @@
  *   ?scale=3           integer zoom of the 400×225 canvas
  *
  * Pausing events (chest, dialog, menu...) are logged below the canvas and the
- * game resumes itself shortly after, so testing never gets stuck.
+ * game resumes itself shortly after, so testing never gets stuck. A finisher
+ * question is always answered with the right fix, to show the critical death.
  *
  * The page keeps its own throwaway save in memory, and like every /dev page
  * it only exists in development (see ../layout.tsx).
@@ -31,7 +32,7 @@ import { generateDungeon, generateOverworld } from "@/lib/worldgen";
 import type { SaveData, Store, ThemeId } from "@/lib/types";
 
 /** Events after which the real UI would show an overlay (the engine paused itself). */
-const PAUSING: ReadonlySet<GameEvent["type"]> = new Set(["chest", "gacha", "wardrobe", "board", "dialog", "bugCard", "menu", "victory"]);
+const PAUSING: ReadonlySet<GameEvent["type"]> = new Set(["chest", "gacha", "wardrobe", "board", "dialog", "bugCard", "finisher", "menu", "victory"]);
 const AUTO_RESUME_MS = 400;
 const LOG_LENGTH = 10;
 
@@ -63,6 +64,8 @@ function describe(event: GameEvent): string {
       return `toast [${event.tone}] ${event.text}`;
     case "purified":
       return `purified ${event.path}`;
+    case "finisher":
+      return `finisher ${event.finding.code} (answered: right fix)`;
     default:
       return event.type;
   }
@@ -100,6 +103,7 @@ export default function EngineDevPage() {
         const files = new Map(analysis.files.map((f) => [f.path, f]));
         const emit = (event: GameEvent) => {
           setLog((prev) => [describe(event), ...prev].slice(0, LOG_LENGTH));
+          if (event.type === "finisher") game?.resolveFinisher(event.finding.id, true);
           if (PAUSING.has(event.type)) setTimeout(() => game?.resume(), AUTO_RESUME_MS);
         };
         const engine = createEngine({

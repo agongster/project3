@@ -10,6 +10,7 @@ import { CodeSnippet } from "../CodeSnippet";
 import { MonsterIcon } from "../MonsterIcon";
 import { SEVERITY_INFO } from "../monsterText";
 import { githubLineUrl } from "../codexData";
+import { TraitLine } from "./TraitLine";
 
 const DETAIL_ICON_BOX = 64;
 
@@ -50,6 +51,7 @@ export function FindingDetail({ finding, analysis, done }: FindingDetailProps) {
         <h4 className="text-xs font-bold uppercase opacity-70">Ruff says</h4>
         <p>{finding.message}</p>
       </section>
+      <TraitLine finding={finding} />
       <section>
         <h4 className="text-xs font-bold uppercase opacity-70">How to fix it</h4>
         <p>{finding.tip}</p>

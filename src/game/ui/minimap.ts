@@ -1,5 +1,7 @@
 /**
- * The minimap (top-right corner) and the big map (M).
+ * The minimap (top-right corner) and the big map (M), which has two views
+ * (E switches): the VILLAGE map, and a TREEMAP of the repo (one box per
+ * file, sized by its lines, grouped by folder: see treemap.ts).
  *
  * The terrain is painted ONCE into a small canvas with one pixel per tile
  * (grass, paths, water... in the theme's colours, regions as soft tints)
@@ -8,10 +10,11 @@
  * done), landmarks, and the blinking hero.
  */
 import { PALETTES } from "@/game/art";
-import { drawText } from "@/game/art/font";
-import { Ground, type Overworld, type PropKind, type ThemeId } from "@/lib/types";
+import { drawText, measureText } from "@/game/art/font";
+import { Ground, type AnalyzedFile, type Overworld, type PropKind, type ThemeId } from "@/lib/types";
 import type { BuildingEntity } from "../entities/buildings";
 import type { BuildingStatus } from "../scenes/progressView";
+import { fitLabel, layoutRepoTreemap, ROOT_FOLDER_NAME, type Box, type FolderBox } from "./treemap";
 
 const MINI_W = 70;
 const MINI_H = 52;
@@ -24,12 +27,54 @@ const LANDMARKS: ReadonlySet<PropKind> = new Set<PropKind>(["well", "wardrobe", 
 const REGION_LABEL_RAISE = 10;
 const PANEL_FILL = "rgba(22, 16, 44, 0.62)";
 const PANEL_EDGE = "rgba(255, 255, 255, 0.35)";
+const INK = "#2b1d34";
+/**
+ * The treemap fills a band across the screen that the HUD leaves free: the
+ * React HUD covers the corners (hearts and level top-left, weapon
+ * bottom-left, buttons bottom-right). Title rows go above, the legend below.
+ */
+const TREEMAP_MARGIN = 8;
+const TREEMAP_TOP = 54;
+const TREEMAP_BOTTOM = 32;
+const TITLE_Y = 28;
+const KEYS_Y = 40;
+const LEGEND_Y = 198;
+/** File names are drawn in boxes at least this big (the font is 7 px tall plus outline). */
+const LABEL_MIN_W = 12;
+const LABEL_MIN_H = 11;
+/** Treemap boxes are slightly see-through so the status colours are not glaring. */
+const TREEMAP_BOX_ALPHA = 0.85;
+/** A legend entry: an 8 px colour swatch, a little space, then its name; entries LEGEND_GAP apart. */
+const LEGEND_SWATCH_W = 11;
+const LEGEND_GAP = 8;
+const LEGEND: readonly [string, BuildingStatus][] = [
+  ["cursed", "cursed"],
+  ["treasure", "treasure"],
+  ["clear", "done"],
+];
+/** Legend entry for the white outline around the house nearest the hero. */
+const NEAR_LABEL = "near you";
+const NEAR_COLOR = "#ffffff";
+
+export type BigMapView = "village" | "treemap";
 
 export class MapView {
   private terrain: HTMLCanvasElement | null = null;
   private theme: ThemeId | null = null;
+  /** Which view the big map shows; E switches. */
+  private view: BigMapView = "village";
+  /** The treemap layout never changes (the repo does not), so it is computed once per screen size. */
+  private treemap: { key: string; folders: FolderBox[] } | null = null;
 
-  constructor(private readonly world: Overworld) {}
+  constructor(
+    private readonly world: Overworld,
+    private readonly files: readonly AnalyzedFile[],
+  ) {}
+
+  /** Switches the big map between the village map and the repo treemap. */
+  toggleView(): void {
+    this.view = this.view === "village" ? "treemap" : "village";
+  }
 
   /** Small map around the hero in the top-right corner. */
   drawMini(g: CanvasRenderingContext2D, viewW: number, theme: ThemeId, buildings: readonly BuildingEntity[], hero: { x: number; y: number }, time: number): void {
@@ -54,8 +99,14 @@ export class MapView {
     g.restore();
   }
 
-  /** The whole village, centred, with region names. */
+  /** The big map in its current view. */
   drawBig(g: CanvasRenderingContext2D, viewW: number, viewH: number, theme: ThemeId, buildings: readonly BuildingEntity[], hero: { x: number; y: number }, time: number): void {
+    if (this.view === "treemap") this.drawTreemap(g, viewW, viewH, buildings, hero, time);
+    else this.drawVillage(g, viewW, viewH, theme, buildings, hero, time);
+  }
+
+  /** The whole village, centred, with region names. */
+  private drawVillage(g: CanvasRenderingContext2D, viewW: number, viewH: number, theme: ThemeId, buildings: readonly BuildingEntity[], hero: { x: number; y: number }, time: number): void {
     const terrain = this.terrainFor(theme);
     const scale = Math.max(1, Math.floor(Math.min((viewW - 24) / this.world.width, (viewH - 30) / this.world.height)));
     const w = this.world.width * scale;
@@ -70,12 +121,41 @@ export class MapView {
     // Region names sit just above each region so they never cover its houses.
     for (const r of this.world.regions) {
       const ty = Math.max(oy + 1, Math.round(oy + r.y * scale - REGION_LABEL_RAISE));
-      drawText(g, r.name, Math.round(ox + (r.x + r.w / 2) * scale), ty, { color: "#ffffff", outline: "#2b1d34", align: "center" });
+      drawText(g, r.name, Math.round(ox + (r.x + r.w / 2) * scale), ty, { color: "#ffffff", outline: INK, align: "center" });
     }
     this.drawDots(g, ox, oy, scale, buildings);
     if (Math.floor(time * 3) % 2 === 0) dot(g, ox + (hero.x / 16) * scale, oy + (hero.y / 16) * scale, Math.max(3, scale + 1), "#ffffff");
-    const hint = "Map  (M to close)";
-    drawText(g, hint, Math.round(viewW / 2), oy - 14, { color: "#fff1b8", outline: "#2b1d34", align: "center" });
+    const hint = "Village map  ·  E: repo treemap  ·  M: close";
+    drawText(g, hint, Math.round(viewW / 2), oy - 14, { color: "#fff1b8", outline: INK, align: "center" });
+  }
+
+  /**
+   * The repo as a treemap: a box per file (area = lines), grouped by
+   * folder, coloured like the map's building dots, with the house the hero
+   * stands nearest blinking white ("you are here").
+   */
+  private drawTreemap(g: CanvasRenderingContext2D, viewW: number, viewH: number, buildings: readonly BuildingEntity[], hero: { x: number; y: number }, time: number): void {
+    const area = { x: TREEMAP_MARGIN, y: TREEMAP_TOP, w: viewW - 2 * TREEMAP_MARGIN, h: viewH - TREEMAP_TOP - TREEMAP_BOTTOM };
+    const folders = this.treemapLayout(area);
+    const status = new Map(buildings.map((b) => [b.path, b.status]));
+    const here = nearestBuilding(buildings, hero)?.path;
+    g.fillStyle = "rgba(10, 8, 24, 0.7)";
+    g.fillRect(0, 0, viewW, viewH);
+    panel(g, area.x - 3, area.y - 3, area.w + 6, area.h + 6);
+    for (const folder of folders) drawFolder(g, folder, status);
+    const mine = folders.flatMap((f) => f.files).find((f) => f.id === here);
+    if (mine && Math.floor(time * 3) % 2 === 0) outlineBox(g, snap(mine), NEAR_COLOR);
+
+    const center = Math.round(viewW / 2);
+    drawText(g, "Repo treemap  ·  box size = lines of code", center, TITLE_Y, { color: "#ffffff", outline: INK, align: "center" });
+    drawText(g, "E: village map  ·  M: close", center, KEYS_Y, { color: "#fff1b8", outline: INK, align: "center" });
+    drawLegend(g, center, LEGEND_Y);
+  }
+
+  private treemapLayout(area: Box): FolderBox[] {
+    const key = `${area.x},${area.y},${area.w},${area.h}`;
+    if (this.treemap?.key !== key) this.treemap = { key, folders: layoutRepoTreemap(this.files, area) };
+    return this.treemap.folders;
   }
 
   private drawDots(g: CanvasRenderingContext2D, ox: number, oy: number, scale: number, buildings: readonly BuildingEntity[]): void {
@@ -88,7 +168,7 @@ export class MapView {
       const bd = b.building;
       const x = Math.round(ox + bd.x * scale);
       const y = Math.round(oy + bd.y * scale);
-      g.fillStyle = "#2b1d34";
+      g.fillStyle = INK;
       g.fillRect(x - 1, y - 1, bd.w * scale + 2, bd.h * scale + 2);
       g.fillStyle = STATUS_COLORS[b.status];
       g.fillRect(x, y, bd.w * scale, bd.h * scale);
@@ -146,10 +226,81 @@ function panel(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: 
 }
 
 function dot(g: CanvasRenderingContext2D, x: number, y: number, size: number, color: string): void {
-  g.fillStyle = "#2b1d34";
+  g.fillStyle = INK;
   g.fillRect(Math.round(x - size / 2) - 1, Math.round(y - size / 2) - 1, size + 2, size + 2);
   g.fillStyle = color;
   g.fillRect(Math.round(x - size / 2), Math.round(y - size / 2), size, size);
+}
+
+/** One folder of the treemap: a dark box, its name strip, and a coloured, named box per file. */
+function drawFolder(g: CanvasRenderingContext2D, folder: FolderBox, status: ReadonlyMap<string, BuildingStatus>): void {
+  const box = snap(folder);
+  g.fillStyle = INK;
+  g.fillRect(box.x, box.y, box.w, box.h);
+  const title = folder.name === ROOT_FOLDER_NAME ? folder.name : `${folder.name}/`;
+  if (folder.header) drawText(g, fitLabel(title, box.w - 4), box.x + 2, box.y + 2, { color: "#ffffff", outline: INK });
+  for (const file of folder.files) {
+    const r = snap(file);
+    if (r.w < 1 || r.h < 1) continue;
+    // Each box leaves its last row and column dark: a 1 px line between neighbouring files.
+    g.globalAlpha = TREEMAP_BOX_ALPHA;
+    g.fillStyle = STATUS_COLORS[status.get(file.id) ?? "done"];
+    g.fillRect(r.x, r.y, Math.max(1, r.w - 1), Math.max(1, r.h - 1));
+    g.globalAlpha = 1;
+    if (r.w >= LABEL_MIN_W && r.h >= LABEL_MIN_H) drawText(g, fitLabel(fileName(file.id), r.w - 4), r.x + 2, r.y + 2, { color: "#ffffff", outline: INK });
+  }
+}
+
+/** "■ cursed ■ treasure ■ clear □ near you", centred on `centerX` under the treemap. */
+function drawLegend(g: CanvasRenderingContext2D, centerX: number, y: number): void {
+  const entries = [...LEGEND.map(([label, key]) => ({ label, color: STATUS_COLORS[key], hollow: false })), { label: NEAR_LABEL, color: NEAR_COLOR, hollow: true }];
+  const entryW = (label: string) => LEGEND_SWATCH_W + measureText(label) + LEGEND_GAP;
+  let x = Math.round(centerX - (entries.reduce((sum, e) => sum + entryW(e.label), 0) - LEGEND_GAP) / 2);
+  for (const e of entries) {
+    g.fillStyle = INK;
+    g.fillRect(x, y, 8, 8);
+    g.fillStyle = e.color;
+    g.fillRect(x + 1, y + 1, 6, 6);
+    if (e.hollow) {
+      g.fillStyle = INK;
+      g.fillRect(x + 2, y + 2, 4, 4);
+    }
+    drawText(g, e.label, x + LEGEND_SWATCH_W, y, { color: "#ffffff", outline: INK });
+    x += entryW(e.label);
+  }
+}
+
+/** A box with every edge rounded to whole pixels, so neighbouring boxes meet exactly. */
+function snap(b: Box): Box {
+  const x = Math.round(b.x);
+  const y = Math.round(b.y);
+  return { x, y, w: Math.round(b.x + b.w) - x, h: Math.round(b.y + b.h) - y };
+}
+
+function outlineBox(g: CanvasRenderingContext2D, b: Box, color: string): void {
+  g.fillStyle = color;
+  g.fillRect(b.x - 1, b.y - 1, b.w + 1, 1);
+  g.fillRect(b.x - 1, b.y + b.h - 1, b.w + 1, 1);
+  g.fillRect(b.x - 1, b.y - 1, 1, b.h + 1);
+  g.fillRect(b.x + b.w - 1, b.y - 1, 1, b.h + 1);
+}
+
+/** "bakery/oven.py" → "oven.py". */
+function fileName(path: string): string {
+  return path.slice(path.lastIndexOf("/") + 1);
+}
+
+function nearestBuilding(buildings: readonly BuildingEntity[], hero: { x: number; y: number }): BuildingEntity | null {
+  let best: BuildingEntity | null = null;
+  let bestDistance = Infinity;
+  for (const b of buildings) {
+    const d = Math.hypot(b.doorX - hero.x, b.doorY - hero.y);
+    if (d < bestDistance) {
+      best = b;
+      bestDistance = d;
+    }
+  }
+  return best;
 }
 
 function clamp(v: number, lo: number, hi: number): number {

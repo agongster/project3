@@ -182,6 +182,7 @@ describe("openChest", () => {
       grade: "A",
       headline: "",
       reasons: [],
+      engraving: { name: "brew()", path: file.path },
     };
     const opened = openChest(save, KEY, loot, file.path);
     expect(opened.coins).toBe(10 + RARITY_INFO.rare.dupeRefund);

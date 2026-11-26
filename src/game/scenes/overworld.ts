@@ -26,6 +26,7 @@ import { Villager } from "../entities/npc";
 import { propDrawables, propLights } from "../entities/scenery";
 import type { GameServices } from "../services";
 import { BuildingLabels } from "../ui/labels";
+import { SpeechBubbles } from "../ui/speechBubbles";
 import { MapView } from "../ui/minimap";
 import { SceneContext } from "./context";
 import { nearestInteractable, propInteractable, type Interactable } from "./interactions";
@@ -50,6 +51,7 @@ export class OverworldScene implements Scene {
   private readonly villagers: Villager[];
   private readonly interactables: Interactable[];
   private readonly labels = new BuildingLabels();
+  private readonly bubbles: SpeechBubbles;
   private readonly mapView: MapView;
   private readonly lighting = new Lighting();
   private readonly ambient = new Ambient(VIEW_W, VIEW_H);
@@ -81,7 +83,8 @@ export class OverworldScene implements Scene {
       ...this.scenery.map((p) => propInteractable(ctx, p)).filter((i): i is Interactable => i !== null),
       ...this.villagers.map((v) => this.villagerInteractable(v)),
     ];
-    this.mapView = new MapView(world);
+    this.mapView = new MapView(world, game.analysis.files);
+    this.bubbles = new SpeechBubbles(game.audio);
   }
 
   /** Places the hero at the spawn point, or in front of the building they just left. */
@@ -112,6 +115,8 @@ export class OverworldScene implements Scene {
       else return game.emitPausing({ type: "menu" });
     }
     if (this.bigMap) {
+      // E switches the big map between the village and the repo treemap.
+      if (input.pressed("interact")) this.mapView.toggleView();
       game.hud.patch({ prompt: null });
       return;
     }
@@ -122,6 +127,7 @@ export class OverworldScene implements Scene {
       v.update(dt, ctx);
       v.pushOut(ctx);
     }
+    this.bubbles.update(dt, this.villagers, game.player, ctx.camera);
     // Building states only change when the save does, so skip the work otherwise.
     const save = game.save.get();
     if (save !== this.seenSave) {
@@ -174,6 +180,7 @@ export class OverworldScene implements Scene {
       overlay: (wg) => {
         for (const b of this.buildings) if (visible(b.x, b.y)) b.drawBadge(wg, ctx, theme);
         this.labels.draw(wg, theme);
+        this.bubbles.draw(wg);
       },
     });
 
@@ -203,7 +210,10 @@ export class OverworldScene implements Scene {
     const { ctx, game } = this;
     const current = game.player.fainted ? null : nearestInteractable(ctx, this.interactables);
     game.hud.patch({ prompt: current ? current.prompt() : null });
-    if (current && game.input.pressed("interact")) current.activate();
+    if (current && game.input.pressed("interact")) {
+      this.bubbles.hush(); // no speech bubble during a dialog
+      current.activate();
+    }
   }
 
   private buildingInteractable(b: BuildingEntity): Interactable {

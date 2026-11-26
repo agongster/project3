@@ -12,8 +12,9 @@
  *    far, or too far from home) for FORGET_AFTER_SEC calms down and goes home.
  *  - SEPARATION: monsters push each other apart so they never stack up.
  *  - CONTACT DAMAGE: bumping into a monster that is "harmful" right now
- *    costs its catalog `touchDamage` (1 half-heart for regular monsters,
- *    0 for the Todo Mite), and it bounces back.
+ *    costs its `touchDamage` (1 half-heart for regular monsters, 0 for the
+ *    Todo Mite and an echo bat's echo), and it bounces back. A dazed
+ *    monster never is.
  */
 import type { MonsterWorld } from "./brain";
 import { ALERT_SEC, type Monster } from "./monster";
@@ -51,6 +52,7 @@ function engage(m: Monster, world: MonsterWorld): void {
   m.alert = ALERT_SEC;
   m.stretch = NOTICE_STRETCH;
   m.brain.onNotice?.(m, world);
+  m.trait?.onNotice?.(m, world);
 }
 
 /** Noticing and forgetting. `heroActive` is false while the hero lies fainted. */
@@ -60,6 +62,9 @@ export function updateEngagement(monsters: readonly Monster[], world: MonsterWor
   let bossFighting = living.some((m) => m.engaged && m.isBoss);
 
   for (const m of living) {
+    // A dazed monster is beaten, just not gone yet: out of the fight (Monster.daze
+    // un-engages it, so the next boss or pursuer may step in), it only waits to fall.
+    if (m.dazed) continue;
     if (m.engaged) {
       const lost = !sees(m, world) || m.heroDistance() > FORGET_RADIUS_PX || m.homeDistance() > LEASH_PX;
       m.lostSightFor = lost ? m.lostSightFor + dt : 0;
@@ -86,7 +91,7 @@ export function updateEngagement(monsters: readonly Monster[], world: MonsterWor
   }
 
   // A boss waiting for its turn dozes.
-  for (const m of living) if (m.isBoss && !m.engaged) m.sleepy = bossFighting;
+  for (const m of living) if (m.isBoss && !m.engaged && !m.dazed) m.sleepy = bossFighting;
 }
 
 /** Pushes overlapping monsters apart (each moves half the overlap, walls still apply). */
@@ -114,8 +119,9 @@ export function applyContactDamage(monsters: readonly Monster[], world: MonsterW
   if (!world.mayAttack) return;
   const hero = world.hero;
   for (const m of monsters) {
-    if (!m.alive || !m.engaged || m.def.touchDamage <= 0 || !m.brain.harmful(m)) continue;
-    if (distance(m.x, m.y, hero.x, hero.y) > m.radius * CONTACT_SHRINK + HERO_RADIUS_PX) continue;
-    if (world.hurtHero(m.def.touchDamage, m.x, m.y, m)) m.recoil(hero.x, hero.y);
+    if (!m.alive || m.dazed || !m.engaged || m.touchDamage <= 0 || !m.brain.harmful(m)) continue;
+    // The body radius, not the (maybe grown) hit radius: a bigger monster is easier to hit, never harder to avoid.
+    if (distance(m.x, m.y, hero.x, hero.y) > m.bodyRadius * CONTACT_SHRINK + HERO_RADIUS_PX) continue;
+    if (world.hurtHero(m.touchDamage, m.x, m.y, m)) m.recoil(hero.x, hero.y);
   }
 }

@@ -1,7 +1,7 @@
 /**
  * Drawing monsters: shadow, body (with squash & stretch, hit flash, the
- * death squash), the little badges over their heads ("!", dizzy stars,
- * "zzz") and the soft light they give off in the dark.
+ * dazed wobble, the death squash), the little badges over their heads ("!",
+ * dizzy stars, "zzz") and the soft light they give off in the dark.
  */
 import { drawSprite, flashSprite, monsterSprite, type Sprite } from "@/game/art";
 import { uiSprite, type UiSpriteName } from "@/game/art/ui";
@@ -22,6 +22,14 @@ const SHIVER_PX = 1;
 const ALERT_POP_SEC = 0.12;
 /** Dizzy stars circle this far from the centre of the head. */
 const DIZZY_RADIUS_PX = 6;
+/** A resting monster shows two dizzy stars; a dazed one (waiting to be finished) three, spinning faster. */
+const DIZZY_STARS = 2;
+const DAZED_STARS = 3;
+const DIZZY_SPIN = 5;
+const DAZED_SPIN = 8;
+/** The dazed wobble: the body rocks on its feet this far (radians), this many times per second. */
+const DAZED_WOBBLE_RAD = 0.16;
+const DAZED_WOBBLE_HZ = 1.6;
 
 /** The soft light each monster gives off (so it never vanishes in a dark corner). */
 const GLOW: Record<MonsterKind, { radius: number; color: string }> = {
@@ -63,7 +71,8 @@ export function tinted(sprite: Sprite, color: string): Sprite {
 
 /** The sprite for the monster's current pose. */
 export function currentSprite(m: Monster): Sprite {
-  const pose = m.brain.pose?.(m);
+  // A dazed monster's brain is switched off, so it shows its plain face.
+  const pose = m.dazed ? null : (m.trait?.pose?.(m) ?? m.brain.pose?.(m));
   return monsterSprite(m.species, pose?.frame ?? m.idleFrame(), pose?.variant ?? "normal");
 }
 
@@ -79,24 +88,26 @@ export function drawMonsterShadow(g: CanvasRenderingContext2D, m: Monster): void
   drawSprite(g, uiSprite(SHADOWS[m.def.size] ?? "shadowSmall"), m.x, m.y, { alpha: fade * m.alpha });
 }
 
-/** Horizontal and vertical scale for squash & stretch, and the flattening death squash. */
+/** Horizontal and vertical scale for squash & stretch, the flattening death squash, and a trait's size (`m.scale`). */
 function bodyScale(m: Monster, deathSec: number): { sx: number; sy: number } {
   if (m.dyingFor >= 0) {
     const k = Math.min(1, m.dyingFor / deathSec);
-    return { sx: 1 + 0.6 * k, sy: Math.max(0.15, 1 - 0.8 * k) };
+    return { sx: (1 + 0.6 * k) * m.scale, sy: Math.max(0.15, 1 - 0.8 * k) * m.scale };
   }
-  return { sx: 1 - m.stretch * 0.6, sy: 1 + m.stretch };
+  return { sx: (1 - m.stretch * 0.6) * m.scale, sy: (1 + m.stretch) * m.scale };
 }
 
 export function drawMonsterBody(g: CanvasRenderingContext2D, m: Monster, deathSec: number): void {
   if (m.alpha <= 0.02) return;
-  m.brain.drawBehind?.(g, m);
+  if (!m.dazed) m.brain.drawBehind?.(g, m);
+  if (m.alive) m.trait?.drawBehind?.(g, m, m.anim);
   const sprite = currentSprite(m);
   const jitter = m.shiver ? (Math.floor(m.anim * 30) % 2 === 0 ? -SHIVER_PX : SHIVER_PX) : 0;
   const { sx, sy } = bodyScale(m, deathSec);
   g.save();
   g.globalAlpha *= m.alpha;
   g.translate(Math.round(m.x + jitter), Math.round(m.y - m.z));
+  if (m.dazed) g.rotate(Math.sin(m.dazedFor * DAZED_WOBBLE_HZ * Math.PI * 2) * DAZED_WOBBLE_RAD);
   g.scale(m.facingLeft ? -sx : sx, sy);
   g.drawImage(sprite.canvas, -sprite.ax, -sprite.ay);
   const flash = flashAmount(m);
@@ -109,7 +120,7 @@ export function drawMonsterBody(g: CanvasRenderingContext2D, m: Monster, deathSe
 
 /** Top of the monster's head in world pixels (for badges and name tags). */
 export function headY(m: Monster): number {
-  return m.y - m.z - m.def.size * (1 + Math.max(0, m.stretch));
+  return m.y - m.z - m.def.size * m.scale * (1 + Math.max(0, m.stretch));
 }
 
 /** "!", dizzy stars and "zzz" over the head. Drawn above the darkness so they always read. */
@@ -123,8 +134,10 @@ export function drawMonsterBadges(g: CanvasRenderingContext2D, m: Monster, time:
     drawSprite(g, uiSprite("alert"), m.x, top - 2 - 3 * rise);
   }
   if (m.dizzy) {
-    for (let i = 0; i < 2; i++) {
-      const a = time * 5 + i * Math.PI;
+    const stars = m.dazed ? DAZED_STARS : DIZZY_STARS;
+    const spin = m.dazed ? DAZED_SPIN : DIZZY_SPIN;
+    for (let i = 0; i < stars; i++) {
+      const a = time * spin + (i / stars) * Math.PI * 2;
       drawSprite(g, uiSprite("star"), m.x + Math.cos(a) * DIZZY_RADIUS_PX, top + 2 + Math.sin(a) * 2);
     }
   }

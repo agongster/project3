@@ -21,6 +21,8 @@ export interface AnalysisMeta {
   demo: boolean;
   /** Warnings collected so far (e.g. "Showing the first 150 files"). */
   warnings: string[];
+  /** The README's blurb (see readme.ts), or null when there is none. */
+  readme?: string | null;
 }
 
 /** One file to analyze. `source` is null when it could not be downloaded. */
@@ -51,6 +53,7 @@ export function analyzeSources(meta: AnalysisMeta, files: readonly SourceFile[],
     stats: computeStats(analyzed),
     warnings,
     demo: meta.demo,
+    readme: meta.readme ?? null,
   };
 }
 

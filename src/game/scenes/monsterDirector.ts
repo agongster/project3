@@ -7,8 +7,10 @@
  * (`ctx.game.player.hurt(...)`), registers them in `ctx.hittables` so the
  * hero's attacks hit them, and records defeats (`recordFindingDefeated` in
  * defeat.ts). The dungeon scene only asks how many are left (to know when
- * the dungeon is cleared), whether a boss bar should show, and how fast
- * time should run (a defeated boss goes down in slow motion).
+ * the dungeon is cleared), whether a boss bar should show, how fast time
+ * should run (a defeated boss goes down in slow motion), and which dazed
+ * monsters the hero may finish with a fix; it passes the finisher's answer
+ * back.
  *
  * The implementation lives in `src/game/entities/monsters/` (director.ts).
  */
@@ -16,6 +18,7 @@ import type { HudState } from "../bridge";
 import { Director } from "../entities/monsters/director";
 import type { AnalyzedFile, Dungeon } from "@/lib/types";
 import type { SceneContext } from "./context";
+import type { Interactable } from "./interactions";
 import type { Drawable, Light } from "./scene";
 
 export interface MonsterDirector {
@@ -31,8 +34,12 @@ export interface MonsterDirector {
   remaining(): number;
   /** Boss bar for the HUD, or null when no boss is fighting. */
   boss(): HudState["boss"];
-  /** Game speed multiplier: 1 normally, lower while a boss goes down in slow motion. */
+  /** Game speed multiplier: 1 normally, lower while a boss (or a critical fix) goes down in slow motion. */
   timeScale(): number;
+  /** "Finish it with a fix!" spots, one per dazed monster (shown like doors and chests). */
+  interactables(): Interactable[];
+  /** The finisher overlay's answer for a dazed monster (see GameHandle.resolveFinisher). */
+  resolveFinisher(findingId: string, correct: boolean): void;
   /** The hero fainted and is about to respawn at the entrance (calm monsters down, reset bosses...). */
   onPlayerFainted(): void;
   /** The scene is going away. */

@@ -7,7 +7,8 @@
  *     while the hero is inside a cursed file
  *   - the loop (fixed 60 Hz updates, one render per frame) and the
  *     transitions between scenes
- *   - the GameHandle the React UI uses (start / pause / resume / destroy / warp)
+ *   - the GameHandle the React UI uses (start / pause / resume / destroy / warp,
+ *     and the finisher's answer)
  *   - the debug helpers that play-test scripts use (see debug.ts)
  *
  * The engine follows the save store live: a new look, hat, pet, trail,
@@ -175,6 +176,10 @@ export function createEngine(options: GameOptions): { handle: GameHandle; debug:
       loop.setPaused(false);
       input.setEnabled(true);
       scene.onResume();
+    },
+    resolveFinisher(findingId: string, correct: boolean) {
+      // Only a dungeon has dazed monsters; anywhere else there is nothing to answer.
+      dungeon?.resolveFinisher(findingId, correct);
     },
     destroy() {
       loop.stop();

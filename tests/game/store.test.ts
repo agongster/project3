@@ -201,6 +201,13 @@ describe("sanitizeSave", () => {
     expect(save.settings).toEqual(defaultSave().settings);
   });
 
+  it("loads a save from before the finisher with 0 fixes picked, and keeps the count once there", () => {
+    const old = sanitizeSave({ stats: { bugsSquashed: 12, chestsOpened: 3, dungeonsCleared: 2, wishes: 5 } });
+    expect(old.stats).toEqual({ bugsSquashed: 12, chestsOpened: 3, dungeonsCleared: 2, wishes: 5, fixesPicked: 0 });
+    expect(sanitizeSave({ stats: { fixesPicked: 4 } }).stats.fixesPicked).toBe(4);
+    expect(sanitizeSave({ stats: { fixesPicked: -3.5 } }).stats.fixesPicked).toBe(0);
+  });
+
   it("drops unknown or duplicate item ids but always keeps the starter items", () => {
     const save = sanitizeSave({ owned: ["bugNet", "laserCannon", 7, "bugNet", null] });
     expect(save.owned).toEqual(["bugNet", ...STARTER_IDS]);

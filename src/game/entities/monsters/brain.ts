@@ -15,6 +15,7 @@
 import type { MonsterVariant } from "@/game/art/monsters";
 import type { ProjectileName } from "@/game/art/weapons";
 import type { SfxName } from "../../bridge";
+import type { FloatStyle } from "../../engine/juice";
 import type { Hazards } from "./hazards";
 import type { Monster } from "./monster";
 
@@ -52,6 +53,8 @@ export interface Brain {
   onHit?(m: Monster, world: MonsterWorld): void;
   /** Overrides the idle animation frame / variant. */
   pose?(m: Monster): Pose | null;
+  /** True while it hides in plain sight (the Mimic's disguise). */
+  disguised?(m: Monster): boolean;
   /** Floor telegraphs (rings, dash lanes), drawn under every body. */
   drawFloor?(g: CanvasRenderingContext2D, m: Monster): void;
   /** Effects drawn just before the body (after-images). */
@@ -85,6 +88,16 @@ export interface MonsterFx {
   /** Loose noodles flying off the Spaghetti Beast. */
   noodles(x: number, y: number, count: number): void;
   shake(amount: number): void;
+  /** Floating words over the action ("NameError", "BURP!", "ECHO BROKEN!"). */
+  floatText(x: number, y: number, text: string, style?: FloatStyle): void;
+  /** A quick full-screen flash (big reveals). */
+  flash(color: string, alpha: number, sec: number): void;
+  /** Bubbles rising from a spot (a burp). */
+  bubbles(x: number, y: number, count: number): void;
+  /** Harmless copies of a hero projectile popping up and falling away (the toad burping your shots back up). */
+  spitOut(x: number, y: number, sprite: ProjectileName, count: number): void;
+  /** An expanding ring on the spot (a reveal). */
+  ring(x: number, y: number): void;
 }
 
 export interface MonsterWorld {

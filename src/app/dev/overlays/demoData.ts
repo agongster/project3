@@ -25,7 +25,12 @@ export function demoSave(analysis: RepoAnalysis, key: string): SaveData {
     owned: [...base.owned, ...DEMO_OWNED],
     equipped: { weapon: "rubberDuck", hat: "catEars", pet: "duckling", trail: "sparkleTrail", charms: ["hotCoffee", "luckyClover"] },
     gacha: { totalPulls: 12, sinceEpic: 7, sinceLegendary: 12 },
-    stats: { bugsSquashed: 10, chestsOpened: 2, dungeonsCleared: 3, wishes: 12 },
+    // Two chest finds remember the code they were forged in (the bag shows it); the rest came from wishes.
+    engravings: {
+      rubberDuck: { name: "bake_batch()", path: "bakery/oven.py" },
+      hotCoffee: { name: null, path: "config.py" },
+    },
+    stats: { bugsSquashed: 10, chestsOpened: 2, dungeonsCleared: 3, wishes: 12, fixesPicked: 4 },
   };
   return withRepoProgress(save, key, {
     defeated: cleared.flatMap((file) => file.findings.map((finding) => finding.id)),
@@ -82,7 +87,9 @@ export function withManyFindings(analysis: RepoAnalysis): RepoAnalysis {
 
 /** Every `?open=` shortcut and the overlay request it opens. */
 export function demoRequests(analysis: RepoAnalysis): Record<string, OverlayRequest> {
-  const boss = analysis.files.flatMap((file) => file.findings).find((finding) => finding.severity === "boss");
+  const findings = analysis.files.flatMap((file) => file.findings);
+  const boss = findings.find((finding) => finding.severity === "boss");
+  const elite = findings.find((finding) => finding.severity === "elite");
   const requests: Record<string, OverlayRequest> = {
     "chest-s": { kind: "chest", source: "clean-file", path: "bakery/oven.py" },
     "chest-a": { kind: "chest", source: "clean-file", path: "potions/ingredients.py" },
@@ -100,5 +107,7 @@ export function demoRequests(analysis: RepoAnalysis): Record<string, OverlayRequ
     victory: { kind: "victory" },
   };
   if (boss) requests.bugcard = { kind: "bugCard", finding: boss };
+  if (elite) requests.finisher = { kind: "finisher", finding: elite };
+  if (boss) requests["finisher-boss"] = { kind: "finisher", finding: boss };
   return requests;
 }

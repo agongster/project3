@@ -51,6 +51,8 @@ export default function VictoryOverlay({ ctx }: OverlayProps<"victory">) {
     { value: `${health.dungeonsCleared}/${health.dungeonsTotal}`, label: "dungeons purified" },
     { value: `${health.chestsOpened}/${health.chestsTotal}`, label: "chests opened" },
     { value: save.coins.toLocaleString(), label: "coins saved up" },
+    // Lifetime, like the coins: dazed monsters finished with the right fix (src/lib/game/finisher.ts).
+    { value: save.stats.fixesPicked.toLocaleString(), label: "critical fixes" },
   ];
 
   return (
@@ -80,7 +82,7 @@ export default function VictoryOverlay({ ctx }: OverlayProps<"victory">) {
                 <dt className="min-w-0 truncate text-sm">{stat.label}</dt>
               </div>
             ))}
-            <div className="col-span-2 flex items-baseline gap-2 bg-cream-deep/70 px-3 py-1">
+            <div className="flex items-baseline gap-2 bg-cream-deep/70 px-3 py-1">
               <dd className="font-title shrink-0 text-sm">Lv {level.level}</dd>
               <dt className="min-w-0 truncate text-sm">
                 {save.look.name} the {level.title}

@@ -2,12 +2,15 @@
 
 /**
  * The bag's right column: the selected item up close with its stats in
- * plain words, and the Equip / Unequip button with the slot's rules
+ * plain words (and, for chest finds, the code it was forged in), and the
+ * Equip / Unequip button with the slot's rules
  * explained (the weapon can only be swapped; charms have MAX_CHARMS slots).
  */
 import { KeyCap, PixelButton } from "@/components/ui/kit";
 import { MAX_CHARMS } from "@/lib/game/catalog";
 import type { ItemDef } from "@/lib/game/catalog";
+import type { Engraving } from "@/lib/types";
+import { EngravingTag } from "../EngravingTag";
 import { ItemIcon } from "../ItemIcon";
 import { charmSwapText, itemStatLines, SLOT_LABEL } from "../itemText";
 import { RarityStars } from "../RarityStars";
@@ -20,10 +23,12 @@ interface ItemDetailProps {
   found: boolean;
   worn: boolean;
   wornCharms: readonly string[];
+  /** Where a chest item was found (none for starter and Wishing Well items). */
+  engraving: Engraving | null;
   onToggle: () => void;
 }
 
-export function ItemDetail({ item, found, worn, wornCharms, onToggle }: ItemDetailProps) {
+export function ItemDetail({ item, found, worn, wornCharms, engraving, onToggle }: ItemDetailProps) {
   if (!found) {
     return (
       <div className="flex flex-col items-center gap-3 text-center">
@@ -47,6 +52,7 @@ export function ItemDetail({ item, found, worn, wornCharms, onToggle }: ItemDeta
         <h3 className="font-title text-sm leading-snug">{item.name}</h3>
         <p className="text-sm font-bold opacity-75">{SLOT_LABEL[item.slot]}</p>
         <p className="text-sm italic">{item.blurb}</p>
+        {engraving && <EngravingTag engraving={engraving} tone="light" className="mt-1 w-full border-t-2 border-dashed border-ink/20 pt-1" />}
       </div>
 
       <StatList lines={itemStatLines(item)} />

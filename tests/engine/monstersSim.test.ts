@@ -10,9 +10,10 @@ import { describe, expect, it } from "vitest";
 import { createBrain } from "@/game/entities/monsters/brains";
 import { applyContactDamage, MAX_PURSUERS, separate, updateEngagement } from "@/game/entities/monsters/engagement";
 import { Monster } from "@/game/entities/monsters/monster";
+import { createBodies } from "@/game/entities/monsters/traits";
 import { generateDungeon } from "@/lib/worldgen";
 import { MONSTER_KINDS } from "@/lib/types";
-import { fileWithEveryMonster, TestWorld } from "./monstersWorld";
+import { fileWithEveryMonster, fileWithEveryTrait, TestWorld, traitSetup } from "./monstersWorld";
 
 const DT = 1 / 60;
 /** Steps the hero spends with each monster (≈ 7 s) before defeating it. */
@@ -25,12 +26,16 @@ const SWING_CHANCE = 0.08;
 /** Monsters within this distance always count as woken up by the hero (see CLOSE_WAKE_PX). */
 const CLOSE_PX = 28;
 
-function setup(seed: number) {
-  const file = fileWithEveryMonster();
+/** Every monster kind; with `traits`, built like the director does (runes, an echo, growth…). */
+function setup(seed: number, traits = false) {
+  const file = traits ? fileWithEveryTrait() : fileWithEveryMonster();
   const dungeon = generateDungeon(file, seed);
   const world = new TestWorld(dungeon, seed);
   const findings = new Map(file.findings.map((f) => [f.id, f]));
-  const monsters = dungeon.monsters.map((s) => new Monster(s, findings.get(s.findingId)!, createBrain(s.kind), world));
+  const plan = traitSetup(dungeon, file);
+  const monsters = dungeon.monsters.flatMap((s) =>
+    traits ? createBodies(s, findings.get(s.findingId)!, world, plan) : [new Monster(s, findings.get(s.findingId)!, createBrain(s.kind), world)],
+  );
   return { world, monsters };
 }
 
@@ -42,13 +47,13 @@ function swingAt(m: Monster, world: TestWorld): void {
 }
 
 /** Runs the whole visit-everyone tour, calling `check` after every step. */
-function tour(seed: number, check: (world: TestWorld, monsters: Monster[], step: number) => void): void {
-  const { world, monsters } = setup(seed);
+function tour(seed: number, check: (world: TestWorld, monsters: Monster[], step: number) => void, traits = false): void {
+  const { world, monsters } = setup(seed, traits);
   const steps = monsters.length * VISIT_STEPS;
   for (let step = 0; step < steps; step++) {
     const visiting = monsters[Math.floor(step / VISIT_STEPS)];
     if (step % VISIT_STEPS === 0) world.visit(visiting);
-    world.moveHero(DT);
+    world.moveHero(DT, visiting);
     updateEngagement(monsters, world, true, DT);
     for (const m of monsters) {
       if (!m.alive) continue;
@@ -86,6 +91,20 @@ describe("monster simulation", () => {
       expect(problems).toEqual([]);
       // The test is only worth something if every monster actually got to fight.
       expect([...engaged].sort()).toEqual([...MONSTER_KINDS].sort());
+    });
+  }
+
+  for (const seed of SEEDS) {
+    it(`never puts a monster (an echo included) inside a wall when traits are on (seed ${seed})`, () => {
+      const problems: string[] = [];
+      tour(
+        seed,
+        (world, monsters, step) => {
+          for (const m of monsters) if (problems.length === 0 && world.isStuckInWall(m)) problems.push(`${m.finding.code} inside a wall, step ${step}`);
+        },
+        true,
+      );
+      expect(problems).toEqual([]);
     });
   }
 

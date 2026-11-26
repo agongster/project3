@@ -7,9 +7,9 @@
  * the network or Ruff. The same seed + options always give the same repo.
  */
 import { emptyOutline } from "@/lib/analysis/outline";
-import type { AnalyzedFile, FileKind, Finding, FindingCategory, Grade, MonsterKind, RepoAnalysis, Severity } from "@/lib/types";
+import type { AnalyzedFile, Definition, FileKind, FileOutline, Finding, FindingCategory, Grade, MonsterKind, RepoAnalysis, Severity } from "@/lib/types";
 import { MONSTERS } from "@/lib/game/catalog";
-import { chance, hashString, mulberry32, pick, randInt, type Rng } from "@/lib/rng";
+import { chance, hashString, mulberry32, pick, randInt, rngFromString, type Rng } from "@/lib/rng";
 
 export interface FakeAnalysisOptions {
   /** Number of files (default: random 5–40). */
@@ -120,8 +120,45 @@ export function makeFakeFile(rng: Rng, path: string, kind: FileKind, lineCount: 
       highlights: [],
       metrics: { definitions: 3, docCoverage: 0.5, hintCoverage: 0.5, commentRatio: 0.1, probeHits: 0 },
     },
-    outline: emptyOutline(),
+    // A separate generator, so adding outlines did not change any other fake data.
+    outline: failed ? emptyOutline() : makeFakeOutline(rngFromString(`outline:${path}`), lineCount),
   };
+}
+
+const FUNCTION_NAMES = ["load", "save", "parse", "render", "bake", "brew", "fetch", "update", "validate", "main", "helper", "_private"];
+/** Branch counts to pick from: mostly straight-line code, sometimes a tangle, rarely a monster function. */
+const BRANCH_COUNTS = [0, 0, 0, 1, 1, 2, 3, 4, 6, 9, 12, 16, 50];
+
+/**
+ * A plausible outline for a fake file: top-level functions and classes
+ * (with methods) spread over the file with module-level code between them;
+ * some branchy, about half documented, now and then a 300-character name.
+ * One file in eight is a plain script with no definitions at all.
+ */
+export function makeFakeOutline(rng: Rng, lineCount: number): FileOutline {
+  const outline = emptyOutline();
+  outline.moduleDocstring = chance(rng, 0.6) ? "A fake module for tests." : null;
+  if (chance(rng, 0.125)) return outline;
+  const name = (i: number) => (chance(rng, 0.03) ? `very_long_${"name_".repeat(58)}${i}` : `${pick(rng, FUNCTION_NAMES)}_${i}`);
+  const doc = () => (chance(rng, 0.5) ? "Does one fake thing." : null);
+  let line = randInt(rng, 1, 12);
+  for (let i = 0; line + 2 <= lineCount; i++) {
+    const end = Math.min(lineCount, line + randInt(rng, 2, 60));
+    if (chance(rng, 0.2)) {
+      const cls: Definition = { name: `Fake${i}`, kind: "class", line, endLine: end, branches: 0, docstring: doc() };
+      outline.definitions.push(cls);
+      let method = line + 2;
+      while (method + 1 <= end) {
+        const methodEnd = Math.min(end, method + randInt(rng, 1, 12));
+        outline.definitions.push({ name: `${cls.name}.${name(method)}`, kind: "method", line: method, endLine: methodEnd, branches: pick(rng, BRANCH_COUNTS), docstring: doc() });
+        method = methodEnd + randInt(rng, 2, 14);
+      }
+    } else {
+      outline.definitions.push({ name: name(i), kind: "function", line, endLine: end, branches: pick(rng, BRANCH_COUNTS), docstring: doc() });
+    }
+    line = end + randInt(rng, 1, 15); // module-level code between definitions
+  }
+  return outline;
 }
 
 export function makeFakeFinding(rng: Rng, path: string, line: number, severity: Severity, monster?: MonsterKind): Finding {

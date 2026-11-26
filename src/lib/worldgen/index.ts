@@ -4,6 +4,7 @@
  *
  *   generateOverworld(analysis)        → the village overworld (one per commit)
  *   generateDungeon(file, repoSeed)    → one dungeon for a file with findings
+ *   locationLabel(dungeon, x, y)       → "orders.py · def take_order()" for the HUD
  *   reachableFrom(map, start, extra)   → flood fill used for sanity checks
  *   renderAscii(map, overlays)         → a text picture for debugging
  *
@@ -14,6 +15,7 @@
  */
 export { generateOverworld } from "./overworld";
 export { generateDungeon } from "./dungeon";
+export { locationLabel } from "./roomPlan";
 export { reachableFrom, solidPropTiles } from "./reachability";
 export { renderAscii, type AsciiMark, type AsciiSource } from "./ascii";
 export { overworldProblems, dungeonProblems, overworldTargets } from "./validate";

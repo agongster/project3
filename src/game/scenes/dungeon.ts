@@ -10,14 +10,17 @@
  * MonsterDirector (see monsterDirector.ts).
  */
 import { DUNGEON, drawSprite } from "@/game/art";
+import { drawText } from "@/game/art/font";
 import { uiSprite } from "@/game/art/ui";
 import { getProgress, isDungeonCleared, recordDungeonCleared } from "@/lib/game";
+import { locationLabel } from "@/lib/worldgen";
 import type { AnalyzedFile, Dungeon, Prop } from "@/lib/types";
 import { VIEW_H, VIEW_W } from "../bridge";
 import { Ambient } from "../engine/ambient";
 import { Lighting } from "../engine/lighting";
 import { GroundRenderer } from "../engine/tiles";
 import { breakableDrawables, createBreakables, BREAKABLE_KINDS, type Breakable } from "../entities/breakables";
+import { fitLabel } from "../ui/treemap";
 import { playPoof } from "../entities/monsters/sceneWorld";
 import { emitDust } from "../entities/playerFx";
 import { propDrawables, propLights } from "../entities/scenery";
@@ -25,6 +28,8 @@ import type { GameServices } from "../services";
 import { SceneContext } from "./context";
 import { nearestInteractable, propInteractable, type Interactable } from "./interactions";
 import { Cleanse } from "./dungeonCleanse";
+import { FloorCode } from "./floorCode";
+import { layoutCarvings } from "./floorCodeLayout";
 import { createMonsterDirector, type MonsterDirector } from "./monsterDirector";
 import type { Drawable, Light, Scene } from "./scene";
 import { FaintSequence, heroLight, renderShared, updateShared } from "./world";
@@ -42,6 +47,10 @@ const CHEST_DROP_SEC = 0.45;
 const CHEST_LAND_SHAKE = 0.25;
 /** The bobbing arrow floats this far above the chest's base. */
 const CHEST_ARROW_ABOVE_PX = 18;
+/** Each room's name is written on the wall above its door: this far into the wall-top tile, warm when documented. */
+const ROOM_NAME_DY = 3;
+const ROOM_NAME_LIT = "#ffe3a3";
+const ROOM_NAME_DIM = "#a89cc0";
 
 export class DungeonScene implements Scene {
   readonly kind = "dungeon";
@@ -60,6 +69,8 @@ export class DungeonScene implements Scene {
   private readonly ambient = new Ambient(VIEW_W, VIEW_H);
   private readonly faint = new FaintSequence(FAINT_MESSAGE);
   private readonly cleanse: Cleanse;
+  /** Each monster's line of code carved into the floor where it starts (floorCode.ts). */
+  private readonly floorCode: FloorCode;
   /** True once every monster is gone (the chest is out). */
   private cleared: boolean;
   private chestOpenedAtResume = false;
@@ -85,6 +96,9 @@ export class DungeonScene implements Scene {
     this.director = createMonsterDirector(ctx, this.dungeon, file);
     this.cleared = isDungeonCleared(file, getProgress(game.save.get(), game.repoKey));
     this.cleanse = new Cleanse(this.dungeon, this.cleared);
+    const { cleared } = this;
+    const defeated = getProgress(game.save.get(), game.repoKey).defeated;
+    this.floorCode = new FloorCode(layoutCarvings(this.dungeon, file.findings), (id) => cleared || defeated.includes(id));
     if (this.cleared) this.placeChest();
     this.interactables = [
       ...this.scenery.map((p) => propInteractable(ctx, p)).filter((i): i is Interactable => i !== null),
@@ -112,13 +126,14 @@ export class DungeonScene implements Scene {
     const step = dt * this.director.timeScale();
     if (!updateShared(ctx, step)) return;
     this.director.update(step);
+    this.floorCode.update(step, ctx.particles, getProgress(game.save.get(), game.repoKey).defeated);
     this.cleanse.update(ctx, step);
     this.updateChestDrop(step);
     this.ambient.update(step);
     this.faint.update(step, ctx, () => this.respawn());
     if (!this.cleared && this.director.remaining() === 0) this.onCleared();
     this.checkExit();
-    const current = game.player.fainted ? null : nearestInteractable(ctx, this.interactables);
+    const current = game.player.fainted ? null : nearestInteractable(ctx, [...this.interactables, ...this.director.interactables()]);
     game.hud.patch({ prompt: current ? current.prompt() : null });
     if (current && game.input.pressed("interact")) current.activate();
     this.patchHud();
@@ -143,6 +158,7 @@ export class DungeonScene implements Scene {
     if (this.cleared) lights.push({ ...CHEST_LIGHT, x: dungeon.chest.x * 16 + 8, y: dungeon.chest.y * 16 + 8 });
     heroLight(ctx, lights);
     this.director.lights(lights);
+    this.floorCode.lights(lights, ctx.camera);
 
     renderShared(ctx, g, {
       backdrop: DUNGEON.backdrop,
@@ -154,9 +170,11 @@ export class DungeonScene implements Scene {
       vignette: VIGNETTE,
       lighting: this.lighting,
       ambient: this.ambient,
+      floor: (g) => this.floorCode.draw(g, ctx.camera),
       overlay: (g) => {
         this.director.overlay(g);
         this.drawChestArrow(g);
+        this.drawRoomNames(g);
       },
     });
   }
@@ -170,6 +188,11 @@ export class DungeonScene implements Scene {
       this.ctx.particles.burst(16, cx, cy, 50, { life: 0.9, sprite: uiSprite("sparkle", 0), drag: 2.5 });
     }
     this.chestOpenedAtResume = opened;
+  }
+
+  /** The finisher overlay's answer for a dazed monster (see GameHandle.resolveFinisher). */
+  resolveFinisher(findingId: string, correct: boolean): void {
+    this.director.resolveFinisher(findingId, correct);
   }
 
   destroy(): void {
@@ -216,6 +239,17 @@ export class DungeonScene implements Scene {
   }
 
   /** "Over here!": a bobbing arrow over the unopened prize chest, drawn above the darkness. */
+  /** Every room's name ("def take_order()") on the wall above its plaque, like a sign over a door. */
+  private drawRoomNames(g: CanvasRenderingContext2D): void {
+    this.dungeon.rooms.forEach((room, i) => {
+      const info = this.dungeon.roomInfo[i];
+      const x = (room.x + 1) * 16;
+      const y = (room.y - 2) * 16 + ROOM_NAME_DY;
+      if (!info || !this.ctx.camera.sees(x, y, room.w * 16, 16)) return;
+      drawText(g, fitLabel(info.label, (room.w - 1) * 16), x, y, { color: info.lit ? ROOM_NAME_LIT : ROOM_NAME_DIM });
+    });
+  }
+
   private drawChestArrow(g: CanvasRenderingContext2D): void {
     if (!this.cleared || this.chestOpened() || this.chestAge < CHEST_DROP_SEC) return;
     const { chest } = this.dungeon;
@@ -295,7 +329,8 @@ export class DungeonScene implements Scene {
     const remaining = this.cleared ? 0 : this.director.remaining();
     this.game.hud.patch({
       scene: "dungeon",
-      location: this.path,
+      // The room the hero stands in names the code it stands for: "orders.py · def take_order()".
+      location: locationLabel(this.dungeon, Math.floor(this.game.player.x / 16), Math.floor(this.game.player.y / 16)),
       dungeon: { path: this.path, remaining, total: this.file.findings.length },
       boss: this.director.boss(),
     });

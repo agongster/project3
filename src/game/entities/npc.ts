@@ -1,6 +1,7 @@
 /**
  * Villagers: they idle, wander within one tile of their home spot, turn to
  * look at the hero when they come close, and talk when the hero presses E.
+ * (Their unprompted speech bubbles live in ui/speechBubbles.ts.)
  *
  * Villagers don't block a tile; instead the hero is gently pushed out of
  * their circle (`pushOut`). That way a villager can wander without leaving
@@ -24,6 +25,8 @@ const NOTICE_DIST_PX = 36;
 /** Body radius used to push the hero out. */
 const BODY_RADIUS_PX = 7;
 const WALK_FRAME_SEC = 0.15;
+/** How tall a villager looks: their sprite has spare rows on top (for hats, which villagers never wear). */
+const VISIBLE_HEIGHT_PX = 24;
 
 export class Villager {
   x: number;
@@ -55,6 +58,11 @@ export class Villager {
       this.idle -= dt;
       if (this.idle <= 0) this.pickTarget(ctx);
     }
+  }
+
+  /** Top of the villager's head (world px): where a speech bubble's tail points. */
+  get headY(): number {
+    return this.y - VISIBLE_HEIGHT_PX;
   }
 
   /** Turns to look at a point (used when the hero starts talking). */

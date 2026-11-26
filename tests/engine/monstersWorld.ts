@@ -4,7 +4,11 @@
  * no-ops — so monster brains can be simulated for thousands of steps.
  */
 import { emptyOutline } from "@/lib/analysis/outline";
+import { ruleInfo } from "@/lib/analysis/rules";
 import type { HostileShot, MonsterFx, MonsterWorld } from "@/game/entities/monsters/brain";
+import type { TraitSetup } from "@/game/entities/monsters/traits";
+import { dungeonSpotMap, FloorSpots } from "@/game/entities/monsters/traits/floorSpots";
+import { layoutCarvings } from "@/game/scenes/floorCodeLayout";
 import { Hazards } from "@/game/entities/monsters/hazards";
 import type { Monster } from "@/game/entities/monsters/monster";
 import { hasLineOfSight } from "@/game/entities/monsters/steering";
@@ -15,7 +19,7 @@ import { MONSTER_KINDS, type AnalyzedFile, type Dungeon, type Finding, type Mons
 const TILE = 16;
 const HERO_SPEED = 80;
 
-const noFx: MonsterFx = { sfx() {}, dust() {}, sparkles() {}, poof() {}, bits() {}, noodles() {}, shake() {} };
+const noFx: MonsterFx = { sfx() {}, dust() {}, sparkles() {}, poof() {}, bits() {}, noodles() {}, shake() {}, floatText() {}, flash() {}, bubbles() {}, spitOut() {}, ring() {} };
 
 /** A file with one finding per monster kind (bosses included), in line order. */
 export function fileWithEveryMonster(path = "every/monster.py"): AnalyzedFile {
@@ -37,6 +41,53 @@ export function fileWithEveryMonster(path = "every/monster.py"): AnalyzedFile {
   }));
   const quality = { score: 50, grade: "C" as const, highlights: [], metrics: { definitions: 0, docCoverage: 0, hintCoverage: 0, commentRatio: 0, probeHits: 0 } };
   return { path, size: 1000, lineCount: 200, status: "ok", kind: "module", findings, overflow: 0, quality, outline: emptyOutline() };
+}
+
+/** One finding per trait (and the plain gremlin), with real rule codes and Ruff-style messages and snippets. */
+const TRAIT_FINDINGS: { code: string; message: string; code_line: string }[] = [
+  { code: "F401", message: "`os` imported but unused", code_line: "import os" },
+  { code: "FIX002", message: "Line contains TODO, consider resolving the issue", code_line: "# TODO: ask Granny" },
+  { code: "SIM118", message: "Use `key in dict` instead of `key in dict.keys()`", code_line: "if k in d.keys():" },
+  { code: "F632", message: "Use `==` to compare constant literals", code_line: 'if x is "a":' },
+  { code: "F821", message: "Undefined name `PRICES`", code_line: "return PRICES[p]" },
+  { code: "B006", message: "Do not use mutable data structures for argument defaults", code_line: "def add(item, basket=[]):" },
+  { code: "A001", message: "Variable `list` is shadowing a Python builtin", code_line: "list = sorted(x)" },
+  { code: "E722", message: "Do not use bare `except`", code_line: "except:" },
+  { code: "C901", message: "`price_of` is too complex (13 > 10)", code_line: "def price_of(a, b):" },
+  { code: "S105", message: 'Possible hardcoded password assigned to: "ADMIN_PASSWORD"', code_line: 'ADMIN_PASSWORD = "x"' },
+  { code: "S307", message: "Use of possibly insecure function", code_line: "eval(text)" },
+  { code: "SYNTAX", message: "Expected `)`, found newline", code_line: "f(" },
+];
+
+/** A file whose findings carry every monster trait (codes from the real rule table). */
+export function fileWithEveryTrait(path = "every/trait.py"): AnalyzedFile {
+  const base = fileWithEveryMonster(path);
+  const findings: Finding[] = TRAIT_FINDINGS.map((t, i) => {
+    const info = ruleInfo(t.code);
+    const line = (i + 1) * 10;
+    return {
+      ...base.findings[0],
+      id: `${path}:${line}:1:${t.code}`,
+      code: t.code,
+      title: info.title,
+      message: t.message,
+      line,
+      endLine: line,
+      severity: info.severity,
+      category: info.category,
+      monster: info.monster,
+      snippet: [{ n: line, text: t.code_line, hit: true }],
+    };
+  });
+  return { ...base, findings };
+}
+
+/** What the director gives trait building, made from the dungeon data alone (every pot still unbroken). */
+export function traitSetup(dungeon: Dungeon, file: AnalyzedFile): TraitSetup {
+  const solidProps = new Set(dungeon.props.filter((p) => p.solid).map((p) => p.y * dungeon.width + p.x));
+  const isOpen = (tx: number, ty: number) =>
+    tx >= 0 && ty >= 0 && tx < dungeon.width && ty < dungeon.height && dungeon.solid[ty * dungeon.width + tx] === 0 && !solidProps.has(ty * dungeon.width + tx);
+  return { spots: new FloorSpots(dungeonSpotMap(dungeon, isOpen, layoutCarvings(dungeon, file.findings))), outline: file.outline };
 }
 
 export class TestWorld implements MonsterWorld {
@@ -89,12 +140,17 @@ export class TestWorld implements MonsterWorld {
     this.shots.push(shot);
   }
 
-  /** The hero strolls around the dungeon in random directions (never through walls). */
-  moveHero(dt: number): void {
+  /**
+   * The hero strolls around the dungeon in random directions (never through
+   * walls); given a `toward` point, about half of the turns head for it, so
+   * rooms with interior walls don't keep the hero from every monster.
+   */
+  moveHero(dt: number, toward?: { x: number; y: number }): void {
     this.time += dt;
     this.heroTurnIn -= dt;
     if (this.heroTurnIn <= 0) {
-      this.heroAngle = this.random() * Math.PI * 2;
+      const homing = toward && this.random() < 0.5;
+      this.heroAngle = homing ? Math.atan2(toward.y - this.hero.y, toward.x - this.hero.x) : this.random() * Math.PI * 2;
       this.heroTurnIn = 0.3 + this.random() * 0.8;
     }
     const nx = this.hero.x + Math.cos(this.heroAngle) * HERO_SPEED * dt;
@@ -106,14 +162,14 @@ export class TestWorld implements MonsterWorld {
     }
   }
 
-  /** Puts the hero on a free tile 2–3 tiles from a monster, so every monster gets a turn to fight. */
+  /** Puts the hero on a free tile 1.5–3 tiles from a monster, in its sight, so every monster gets a turn to fight. */
   visit(m: Monster): void {
-    for (let tries = 0; tries < 50; tries++) {
+    for (let tries = 0; tries < 80; tries++) {
       const a = this.random() * Math.PI * 2;
-      const r = (2 + this.random()) * TILE;
+      const r = (1.5 + this.random() * 1.5) * TILE;
       const tx = Math.floor((m.x + Math.cos(a) * r) / TILE);
       const ty = Math.floor((m.y + Math.sin(a) * r) / TILE);
-      if (this.blockedTile(tx, ty, false)) continue;
+      if (this.blockedTile(tx, ty, false) || !this.canSee(m.x, m.y - 4, tx * TILE + 8, ty * TILE + 9)) continue;
       this.hero.x = tx * TILE + 8;
       this.hero.y = ty * TILE + 13;
       return;

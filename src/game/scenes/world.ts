@@ -7,7 +7,7 @@
  * frame, passing in its own drawables (props, buildings, villagers...) and
  * lights. Draw order:
  *
- *   backdrop → ground → shadows → y-sorted objects → attack FX → particles
+ *   backdrop → ground → floor marks → shadows → y-sorted objects → attack FX → particles
  *   → (tint / darkness + lights) → ambient → world overlays (badges, labels,
  *   floating text) → vignette → screen flashes
  */
@@ -43,6 +43,8 @@ export interface SharedLayers {
   vignette: { color: string; alpha: number } | null;
   lighting: Lighting;
   ambient: Ambient;
+  /** World-space marks on the ground itself (a dungeon's carved code), drawn under every shadow and object. */
+  floor?: (g: CanvasRenderingContext2D) => void;
   /** World-space things drawn above the lighting (badges, labels). */
   overlay?: (g: CanvasRenderingContext2D) => void;
 }
@@ -86,6 +88,7 @@ export function renderShared(ctx: SceneContext, g: CanvasRenderingContext2D, lay
   g.save();
   g.translate(-left, -top);
   layers.ground.draw(g, game.theme(), left, top, VIEW_W, VIEW_H, ctx.time);
+  layers.floor?.(g);
 
   const list = layers.drawables;
   list.push(game.player.drawable(ctx));

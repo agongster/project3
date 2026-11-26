@@ -7,7 +7,8 @@
  *   left    the hero in their current look + loadout + derived stats
  *   middle  every catalog item of the slot; the ones not found yet as "?"
  *           silhouettes (a collection teaser)
- *   right   the selected item in detail, with Equip / Unequip
+ *   right   the selected item in detail (with the code a chest item was
+ *           forged in), with Equip / Unequip
  *
  * Changes apply instantly: the game engine reads the save live.
  * Keys: arrows move around the grid, Left/Right on the tabs switch slot,
@@ -18,6 +19,7 @@ import { Modal } from "@/components/ui/kit";
 import { ALL_ITEMS, getItem } from "@/lib/game/catalog";
 import type { ItemDef } from "@/lib/game/catalog";
 import { equipItem, isEquipped, unequip } from "@/lib/game";
+import { engravingOf } from "@/lib/game/engraving";
 import { useStore } from "@/lib/game/useStore";
 import type { ItemSlot, SaveData } from "@/lib/types";
 import { HeroPanel } from "./parts/bag/HeroPanel";
@@ -105,6 +107,7 @@ export default function BagOverlay({ ctx }: OverlayProps<"bag">) {
             found={owned.has(selected.id)}
             worn={isEquipped(save, selected.id)}
             wornCharms={save.equipped.charms}
+            engraving={engravingOf(save, selected.id)}
             onToggle={() => toggle(selected)}
           />
         </div>

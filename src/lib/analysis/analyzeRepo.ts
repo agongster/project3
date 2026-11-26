@@ -4,7 +4,8 @@
  *   1. listing      GET /api/repo           → which Python files, at which commit
  *                   (on a static host there is no server, so the same lookup
  *                   runs here in the browser, without a token)
- *   2. downloading  raw.githubusercontent   → the files' text (8 at a time)
+ *   2. downloading  raw.githubusercontent   → the files' text (8 at a time),
+ *                                             and the README for the town's welcome
  *   3. linting      Ruff in a Web Worker    → raw diagnostics per file
  *   4. building     analyzeSources()        → RepoAnalysis
  *
@@ -21,11 +22,16 @@ import { AnalyzeError, throwIfAborted } from "./errors";
 import { createLintClient, type LintClient } from "./lintClient";
 import type { RawDiagnostic } from "./normalize";
 import { progressEvent, type ProgressCallback } from "./progress";
+import { readmeBlurb } from "./readme";
 
 /** How many files are downloaded at the same time. */
 export const DOWNLOAD_CONCURRENCY = 8;
 /** A single file download is abandoned after this long. */
 export const DOWNLOAD_TIMEOUT_MS = 10_000;
+/** README file names tried, in this order (the first one that exists wins). */
+export const README_NAMES: readonly string[] = ["README.md", "readme.md", "README.rst", "README"];
+/** Once the code is linted, wait at most this long for a README that is still downloading. */
+export const README_GRACE_MS = 300;
 
 /** Things the analysis talks to; tests replace them with fakes. */
 export interface AnalyzeDeps {
@@ -58,6 +64,8 @@ export async function analyzeRepo(
     const listing = await fetchListing(input, fetchImpl, signal);
     const warnings = listingWarnings(listing);
 
+    // The README downloads alongside the code; it never holds the load up (see `arrivedInTime`).
+    const readmePromise = fetchReadmeBlurb(listing, fetchImpl, signal);
     const files = await downloadFiles(listing, fetchImpl, onProgress, signal);
     const failedDownloads = files.filter((file) => file.source === null).length;
     if (failedDownloads === files.length) {
@@ -69,8 +77,9 @@ export async function analyzeRepo(
     const diagnosticsBySource = await lintFiles(files, linter, onProgress, signal);
 
     onProgress(progressEvent("building"));
+    const readme = await arrivedInTime(readmePromise, README_GRACE_MS);
     const analysis = analyzeSources(
-      { repo: listing.repo, description: listing.description, stars: listing.stars, demo: false, warnings },
+      { repo: listing.repo, description: listing.description, stars: listing.stars, demo: false, warnings, readme },
       files,
       (source) => lookUpDiagnostics(diagnosticsBySource, source),
     );
@@ -163,6 +172,40 @@ async function downloadText(url: string, fetchImpl: typeof fetch, signal?: Abort
     clearTimeout(timer);
     signal?.removeEventListener("abort", abortDownload);
   }
+}
+
+// ─────────────────────────────── README ───────────────────────────────
+
+/**
+ * The repo's README as a short blurb for the town's welcome (see readme.ts),
+ * or null. Tries README_NAMES in order from the raw-file CDN, which does not
+ * count against the GitHub API budget. Never throws: a missing or broken
+ * README just means the guide falls back to the description.
+ */
+export async function fetchReadmeBlurb(listing: RepoListing, fetchImpl: typeof fetch, signal?: AbortSignal): Promise<string | null> {
+  for (const name of README_NAMES) {
+    if (signal?.aborted) return null;
+    const text = await downloadText(rawFileUrl(listing, name), fetchImpl, signal);
+    if (text !== null) return readmeBlurb(text);
+  }
+  return null;
+}
+
+/** `promise`'s value if it settles within `ms`, otherwise null (the promise is then simply ignored). */
+function arrivedInTime<T>(promise: Promise<T | null>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(null);
+      },
+    );
+  });
 }
 
 /**

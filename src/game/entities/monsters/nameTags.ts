@@ -31,7 +31,7 @@ export class NameTags {
 
   update(dt: number, monsters: readonly Monster[], hero: { x: number; y: number }): void {
     const nearest = monsters
-      .filter((m) => m.alive && m.alpha > 0.5)
+      .filter((m) => m.alive && m.alpha > 0.5 && !m.trait?.hidesNameTag?.(m))
       .map((m) => ({ m, d: Math.hypot(m.x - hero.x, m.y - hero.y) }))
       .filter((e) => e.d < SHOW_DIST_PX)
       .sort((a, b) => a.d - b.d)

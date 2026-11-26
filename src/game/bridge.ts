@@ -8,7 +8,8 @@
  *   - the persisted save store  (Store<SaveData>, see src/lib/game/store.ts)
  *   - the HUD store             (Store<HudState>, written by the engine every frame it changes)
  *   - GameEvents                (engine → UI: "the player opened a chest", ...)
- *   - the GameHandle            (UI → engine: pause / resume / destroy)
+ *   - the GameHandle            (UI → engine: pause / resume / destroy, and the
+ *                                answer to a `finisher` question)
  */
 import type { Dungeon, Finding, Overworld, RepoAnalysis, SaveData, Store } from "@/lib/types";
 
@@ -115,7 +116,8 @@ export const INITIAL_HUD: HudState = {
 /**
  * Things the engine asks the UI to show. For every event marked (pauses) the
  * engine pauses itself first; the UI must call `game.resume()` when its
- * overlay closes.
+ * overlay closes. Events are plain data: the only one that needs an answer
+ * (`finisher`) gets it through `GameHandle.resolveFinisher`.
  */
 export type GameEvent =
   /** (pauses) A treasure chest: a clean file's reward, or the prize for clearing a dungeon. */
@@ -130,6 +132,11 @@ export type GameEvent =
   | { type: "dialog"; speaker: string; lines: string[] }
   /** (pauses) Show the full bug card (boss defeated, or player inspected a monster). */
   | { type: "bugCard"; finding: Finding }
+  /**
+   * (pauses) The hero is finishing a dazed elite or boss: ask "Which fix really
+   * squashes this bug?". Answer with `game.resolveFinisher` before `game.resume()`.
+   */
+  | { type: "finisher"; finding: Finding }
   /** (pauses) The player pressed the menu key (Esc / Tab). */
   | { type: "menu" }
   /** (pauses) Every dungeon in the repo is cleared. */
@@ -160,6 +167,13 @@ export interface GameHandle {
   /** Freeze simulation and ignore gameplay input (an overlay is open). */
   pause(): void;
   resume(): void;
+  /**
+   * The answer to a `finisher` event: did the player pick the finding's real
+   * fix? Right = a critical fix (juicier death, double coins and XP); wrong =
+   * a normal defeat. Call it before `resume()`. If the game resumes without
+   * an answer (the overlay was closed), the monster is defeated normally.
+   */
+  resolveFinisher(findingId: string, correct: boolean): void;
   /** Stop the loop and remove every listener. */
   destroy(): void;
   /** Test/debug helper: jump into the dungeon for `path` (or back out with null). */

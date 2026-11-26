@@ -23,6 +23,8 @@ export function overlayForEvent(event: GameEvent): OverlayRequest | null {
       return { kind: "dialog", speaker: event.speaker, lines: event.lines };
     case "bugCard":
       return { kind: "bugCard", finding: event.finding };
+    case "finisher":
+      return { kind: "finisher", finding: event.finding };
     case "victory":
       return { kind: "victory" };
     case "menu":

@@ -22,6 +22,7 @@ import { AnalyzeError, abortedError, throwIfAborted } from "./errors";
 import { createLintClient, type LintClient } from "./lintClient";
 import type { RawDiagnostic } from "./normalize";
 import { progressEvent, type ProgressCallback } from "./progress";
+import { readmeBlurb } from "./readme";
 
 export const DEMO_REPO: RepoRef = {
   owner: "lintlands",
@@ -33,6 +34,26 @@ export const DEMO_REPO: RepoRef = {
 
 export const DEMO_DESCRIPTION = "The Crumbleton Bakery & Potion Shop — a tiny kingdom to practise on.";
 
+/**
+ * The demo's own made-up README, written like a real one (title, badges,
+ * an image, links, a code block) so the town's welcome shows how
+ * readmeBlurb boils a README down to its first real sentences.
+ */
+export const DEMO_README = `# Crumbleton Bakery & Potion Shop
+
+[![build](https://img.shields.io/badge/build-crumbly-orange.svg)](https://example.com/ci) ![license](https://img.shields.io/badge/license-MIT-blue.svg)
+
+<p align="center"><img src="docs/storefront.png" width="320"></p>
+
+The **friendliest** bakery-and-potion shop in the kingdom, run entirely by [Python](https://www.python.org) scripts. We bake at dawn and brew at dusk. Please do not feed the cauldron.
+
+## Getting started
+
+\`\`\`bash
+python main.py
+\`\`\`
+`;
+
 /** Python source is written raw so backslashes like "\n" stay as Python sees them. */
 const py = String.raw;
 
@@ -40,6 +61,8 @@ export const DEMO_SOURCES: readonly { path: string; source: string }[] = [
   {
     path: "main.py",
     source: py`"""Crumbleton Bakery & Potion Shop: the front door of the kingdom."""
+
+import rich
 
 from bakery.oven import bake_batch, describe
 from potions.ingredients import rare_ingredients
@@ -49,7 +72,7 @@ def open_shop() -> None:
     """Greet the morning customers with fresh pastries."""
     # The morning tray: always croissants, sometimes something daring.
     for pastry in bake_batch(["croissant", "cinnamon swirl"], minutes=25):
-        print(describe(pastry))
+        rich.print(describe(pastry))
     for ingredient in rare_ingredients():
         print(f"Today's rare find: {ingredient.name}")
 
@@ -318,7 +341,6 @@ def label_for(potion_name, effects):
 
 
 def make_printers(colors):
-    """One tiny printer function per ink color."""
     printers = []
     for color in colors:
         printers.append(lambda text: f"[{color}] {text}")
@@ -504,7 +526,7 @@ export async function analyzeDemo(
  */
 export function analyzeDemoSources(lint: (source: string) => RawDiagnostic[]): RepoAnalysis {
   return analyzeSources(
-    { repo: DEMO_REPO, description: DEMO_DESCRIPTION, stars: 113, demo: true, warnings: [] },
+    { repo: DEMO_REPO, description: DEMO_DESCRIPTION, stars: 113, demo: true, warnings: [], readme: readmeBlurb(DEMO_README) },
     DEMO_SOURCES.map((file) => ({ path: file.path, size: utf8Size(file.source), source: file.source })),
     lint,
   );

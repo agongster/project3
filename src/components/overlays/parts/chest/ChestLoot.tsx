@@ -2,11 +2,13 @@
 
 /**
  * Stages 3–4 of a chest: the loot (item card or coin pouch, with rarity
- * rays), the coins counting up, and "Why this code earned it", the list
+ * rays, and the code a new item was forged in), the coins counting up, and
+ * "Why this code earned it", the list
  * of the file's quality highlights with a sentence on why each matters.
  */
 import type { CSSProperties } from "react";
 import type { ChestLoot as Loot } from "@/lib/game";
+import { EngravingTag } from "../EngravingTag";
 import { FX } from "../fx";
 import { ItemCard } from "../ItemCard";
 import { PixelSprite } from "../PixelSprite";
@@ -34,7 +36,11 @@ export function ChestLoot({ loot, coins, clean }: ChestLootProps) {
         {loot.item && loot.rarity ? (
           <>
             <RarityFx rarity={loot.rarity} size={440} flash />
-            <ItemCard item={loot.item} isNew={loot.isNew} refund={loot.refund} className={`${FX.cardPop} relative`} />
+            <div className={`${FX.cardPop} relative flex flex-col items-center gap-2 px-3`}>
+              <ItemCard item={loot.item} isNew={loot.isNew} refund={loot.refund} />
+              {/* A new item is engraved with the code it came from (a duplicate turned into coins instead). */}
+              {loot.isNew && loot.engraving && <EngravingTag engraving={loot.engraving} tone="dark" className="max-w-[260px]" />}
+            </div>
           </>
         ) : (
           <div className={`${FX.cardPop} relative flex flex-col items-center gap-3`}>

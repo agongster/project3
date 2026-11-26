@@ -10,6 +10,7 @@ import BugCardOverlay from "./BugCardOverlay";
 import ChestOverlay from "./ChestOverlay";
 import CodexOverlay from "./CodexOverlay";
 import DialogOverlay from "./DialogOverlay";
+import FinisherOverlay from "./FinisherOverlay";
 import GachaOverlay from "./GachaOverlay";
 import PauseOverlay from "./PauseOverlay";
 import VictoryOverlay from "./VictoryOverlay";
@@ -39,6 +40,8 @@ export function OverlayHost({ request, ctx }: Props) {
       return <BoardOverlay request={request} ctx={ctx} />;
     case "bugCard":
       return <BugCardOverlay key={request.finding.id} request={request} ctx={ctx} />;
+    case "finisher":
+      return <FinisherOverlay key={request.finding.id} request={request} ctx={ctx} />;
     case "victory":
       return <VictoryOverlay request={request} ctx={ctx} />;
     case "dialog":

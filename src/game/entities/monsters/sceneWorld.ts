@@ -26,6 +26,16 @@ const SAFE_ZONE_REACH_TILES = 1;
 const HERO_TILE_DY = 3;
 const POOF_FRAMES = 4;
 const POOF_FRAME_SEC = 0.07;
+/** Burp bubbles drift up this fast (px/s) and live this long. */
+const BUBBLE_RISE = 26;
+const BUBBLE_LIFE_SEC = 0.9;
+/** Spat-out projectiles pop this high (px/s up) and fall back with this gravity. */
+const SPIT_OUT_POP = 70;
+const SPIT_OUT_GRAVITY = 200;
+const SPIT_OUT_LIFE_SEC = 0.8;
+/** The shock ring grows through its 3 frames, this long each. */
+const RING_FRAMES = 3;
+const RING_FRAME_SEC = 0.08;
 
 export class SceneMonsterWorld implements MonsterWorld {
   time = 0;
@@ -128,5 +138,22 @@ function sceneFx(ctx: SceneContext): MonsterFx {
       }
     },
     shake: (amount) => ctx.shake(amount),
+    floatText: (x, y, text, style) => ctx.floatText(x, y, text, style),
+    flash: (color, alpha, sec) => ctx.juice.flash(color, alpha, sec),
+    bubbles: (x, y, count) => {
+      for (let i = 0; i < count; i++) {
+        const vx = (Math.random() - 0.5) * 24;
+        ctx.particles.emit({ x, y, z: 6, vx, vz: BUBBLE_RISE, life: BUBBLE_LIFE_SEC, delay: i * 0.05, sprite: uiSprite("bubble", i), wobble: 2 });
+      }
+    },
+    spitOut: (x, y, sprite, count) => {
+      for (let i = 0; i < count; i++) {
+        const vx = (i - (count - 1) / 2) * 30 + (Math.random() - 0.5) * 10;
+        ctx.particles.emit({ x, y, z: 8, vx, vy: 10, vz: SPIT_OUT_POP, gravity: SPIT_OUT_GRAVITY, life: SPIT_OUT_LIFE_SEC, delay: i * 0.06, sprite: projectileSprite(sprite, i) });
+      }
+    },
+    ring: (x, y) => {
+      for (let f = 0; f < RING_FRAMES; f++) ctx.particles.emit({ x, y, life: RING_FRAME_SEC, delay: f * RING_FRAME_SEC, sprite: uiSprite("ring", f), fade: f === RING_FRAMES - 1 });
+    },
   };
 }

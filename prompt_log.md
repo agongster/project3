@@ -79,6 +79,22 @@ give me some ideas to keep this gameplay fun but add more code in the gameplay. 
 
 *Outcome: a list of ideas only, no code changed (function-shaped dungeon rooms, an optional "pick the fix" finishing move, imports as roads, tests as watchtowers, names and docstrings from the repo, re-linting a newer commit).*
 
+**Prompt 8 (21:57)**
+
+```
+keep brainstorming, use subagents (opus 5.5) to implement ideas 2 and 3
+```
+
+*Outcome: more ideas were listed, and two Opus 5.5 subagents built (a) the pick-the-fix finisher — a dazed elite or boss can be finished by choosing the real fix from three (`src/lib/game/finisher.ts`, `src/components/overlays/FinisherOverlay.tsx`, `src/game/entities/monsters/dazed.ts`) — and (b) each monster's offending source line carved into the dungeon floor, healing when the monster dies (`src/game/scenes/floorCode.ts`, `floorCodeLayout.ts`).*
+
+**Prompt 9 (22:02)**
+
+```
+add extra subagents to implement monsters behaving like their bug, file shaping the place, and repo's own words in the game
+```
+
+*Outcome: the orchestrating model first wrote a shared per-file "code outline" (functions, branches, docstrings, comments, imports: `src/lib/analysis/outline.ts`). Then three more Opus 5.5 subagents built: monster traits that mirror the bug (`src/game/entities/monsters/traits/`, `src/lib/analysis/traits.ts`); dungeons shaped by the file — a room per function, forks for branchy functions, lit rooms for documented ones, a treemap on the big map (`src/lib/worldgen/roomPlan.ts`, `roomMaze.ts`, `dungeonDecor.ts`, `src/game/ui/treemap.ts`); and the repo's own words — villagers named after classes who quote comments, engraved loot, bounties quoting real lines, a README greeting, import merchants (`src/lib/worldgen/repoWords.ts`, `merchants.ts`, `src/lib/game/engraving.ts`, `bounties.ts`, `src/lib/analysis/readme.ts`). The computer went to sleep twice mid-run and two subagents had to be resumed. Integration by the orchestrator: room name in the HUD pill, a third-party import and an undocumented function in the demo so it shows merchants and a dim room. Not re-reviewed by a second agent.*
+
 ## How the build was split up
 
 The orchestrating model (Fable 5.2) wrote these files itself before any subagent started, so that every subagent coded against the same contracts:

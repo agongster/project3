@@ -199,6 +199,8 @@ export interface RepoAnalysis {
   warnings: string[];
   /** True for the built-in offline demo kingdom. */
   demo: boolean;
+  /** A short plain-text blurb from the repo's README (src/lib/analysis/readme.ts); null or missing when there is none. */
+  readme?: string | null;
 }
 
 /** Progress events reported while a repo is being analyzed (loading screen). */
@@ -347,6 +349,8 @@ export interface NpcSpawn {
   lookSeed: number;
   /** What they say (facts about the repo). */
   lines: string[];
+  /** Short sayings (printable ASCII, already clipped) popped in a speech bubble when the hero is near. */
+  bubbles?: string[];
 }
 
 export interface Overworld extends TileMap {
@@ -380,6 +384,29 @@ export interface Dungeon extends TileMap {
   props: Prop[];
   /** Where the reward chest appears once every monster is defeated. */
   chest: Point;
+  /** What each room stands for in the file, in the same order as `rooms` (see worldgen/roomPlan.ts). */
+  roomInfo: DungeonRoom[];
+}
+
+/** The part of the file one dungeon room stands for. */
+export interface DungeonRoom {
+  /** "module" = the entry hall (module-level code); "function" = one or more functions, methods or class bodies. */
+  kind: "module" | "function";
+  /** Short name for the plaque and the HUD, e.g. "def take_order()" or "module" (already clipped). */
+  label: string;
+  /** Names of the definitions in the room, in source order (clipped; empty for the module hall). */
+  names: string[];
+  /** First and last source line (1-based, inclusive) of the code the room stands for. */
+  line: number;
+  endLine: number;
+  /** Branching statements in the room's code (0 = straight-line code; shapes the room's interior walls). */
+  branches: number;
+  /** First docstring line (the module docstring for the hall), or null when undocumented. */
+  docstring: string | null;
+  /** True when the code is documented: the room gets plenty of torches. */
+  lit: boolean;
+  /** True when a boss lives here: the room is an open arena without interior walls. */
+  arena: boolean;
 }
 
 // ───────────────────────── Player & items ───────────────────────
@@ -420,6 +447,15 @@ export interface RepoProgress {
   opened: string[];
   /** Health milestones (25/50/75/100) already rewarded. */
   milestones: number[];
+  /** Finding ids of notice-board bounties already settled (src/lib/game/bounties.ts). Missing in older saves. */
+  bounties?: string[];
+}
+
+/** Where a chest item was found: the function (or class) and the file it came from. */
+export interface Engraving {
+  /** "get_batch()", "Trainer.fit()" or "OrderBook"; null when the file had no usable definition. */
+  name: string | null;
+  path: string;
 }
 
 /** Everything persisted to localStorage. */
@@ -437,7 +473,16 @@ export interface SaveData {
   gacha: { totalPulls: number; sinceEpic: number; sinceLegendary: number };
   repos: Record<string, RepoProgress>;
   settings: { sfx: number; music: number; screenShake: boolean };
-  stats: { bugsSquashed: number; chestsOpened: number; dungeonsCleared: number; wishes: number };
+  /** Where each chest item came from, by item id (src/lib/game/engraving.ts). Missing in older saves. */
+  engravings?: Record<string, Engraving>;
+  stats: {
+    bugsSquashed: number;
+    chestsOpened: number;
+    dungeonsCleared: number;
+    wishes: number;
+    /** Dazed elites and bosses finished by picking the right fix (see src/lib/game/finisher.ts). */
+    fixesPicked: number;
+  };
 }
 
 /** A tiny observable store (see `src/lib/game/store.ts`). */

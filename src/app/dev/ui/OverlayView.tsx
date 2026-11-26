@@ -43,6 +43,7 @@ export function OverlayView({ services, request: initial }: Props) {
       setNote("close()");
       setRequest(null);
     },
+    resolveFinisher: (_findingId, correct) => setNote(`resolveFinisher(${correct})`),
     exitToTitle: () => {
       setNote("exitToTitle()");
       setRequest(null);

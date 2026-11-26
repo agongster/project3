@@ -18,9 +18,10 @@ import type { ItemDef } from "@/lib/game/catalog";
 import { addCoins, awardItem } from "@/lib/game/actions";
 import { pickRarity, rollItem } from "@/lib/game/gacha";
 import { getProgress, withRepoProgress } from "@/lib/game/progress";
+import { engraveItem, engravingFor } from "@/lib/game/engraving";
 import { chance, randInt } from "@/lib/rng";
 import type { Rng } from "@/lib/rng";
-import type { AnalyzedFile, Grade, ItemSlot, Rarity, SaveData, Severity } from "@/lib/types";
+import type { AnalyzedFile, Engraving, Grade, ItemSlot, Rarity, SaveData, Severity } from "@/lib/types";
 
 // ───────────────────────────── Tuning ─────────────────────────────
 
@@ -91,6 +92,8 @@ export interface ChestLoot {
   headline: string;
   /** Why the player earned it (for clean files: what is good about the code). */
   reasons: string[];
+  /** The code the item was found in ("Forged in get_batch() · …"); null when there is no item. See engraving.ts. */
+  engraving: Engraving | null;
 }
 
 // ─────────────────────────── Beginner's luck ───────────────────────────
@@ -172,6 +175,7 @@ export function rollChest(input: ChestInput, rng: Rng): ChestLoot {
     grade: isClean ? grade : null,
     headline,
     reasons: isClean ? highlights : dungeonReasons(file),
+    engraving: item ? engravingFor(file, source) : null,
   };
 }
 
@@ -188,7 +192,11 @@ export function openChest(save: SaveData, key: string, loot: ChestLoot, path: st
   if (progress.opened.includes(path)) return save;
 
   let next = addCoins(save, loot.coins);
-  if (loot.item) next = awardItem(next, loot.item).save;
+  if (loot.item) {
+    const award = awardItem(next, loot.item);
+    // A new item remembers where it was found; a duplicate keeps its first engraving.
+    next = award.isNew && loot.engraving ? engraveItem(award.save, loot.item.id, loot.engraving) : award.save;
+  }
   next = withRepoProgress(next, key, { ...progress, opened: [...progress.opened, path] });
   return { ...next, stats: { ...next.stats, chestsOpened: next.stats.chestsOpened + 1 } };
 }

@@ -6,6 +6,10 @@
  * Positions are on the GROUND (like everything else); projectiles are drawn
  * FLY_HEIGHT px higher with a small shadow underneath, so they read as
  * flying and y-sort correctly with walls and monsters.
+ *
+ * A target may CATCH a hero shot instead of being hit by it (`ShotCatcher`):
+ * the Swallow Toad gulps them down like a bare `except` swallowing errors.
+ * A caught shot simply vanishes; the catcher plays its own gulp.
  */
 import { drawSprite, type Sprite } from "@/game/art";
 import { uiSprite } from "@/game/art/ui";
@@ -77,6 +81,16 @@ export interface HostileShotSpec {
   passWalls?: boolean;
   /** Who fired it (gets thorns damage back if it hits). */
   owner?: Hittable;
+}
+
+/** A target that may swallow a hero shot before it lands (see entities/monsters/traits/swallow.ts). */
+export interface ShotCatcher {
+  /** True when the shot was swallowed: it vanishes without hitting. */
+  catchShot(shot: { x: number; y: number; vx: number; vy: number; sprite: ProjectileName }): boolean;
+}
+
+function isShotCatcher(target: Hittable): target is Hittable & ShotCatcher {
+  return typeof (target as Partial<ShotCatcher>).catchShot === "function";
 }
 
 interface HostileShot extends HostileShotSpec {
@@ -183,6 +197,10 @@ export class Projectiles {
     for (const target of ctx.hittables) {
       if (!target.alive || s.hit.has(target)) continue;
       if (Math.hypot(target.x - s.x, target.y - s.y) > target.radius + SHOT_RADIUS) continue;
+      if (isShotCatcher(target) && target.catchShot(s)) {
+        s.alive = false;
+        return;
+      }
       s.hit.add(target);
       strike(ctx, target, { damage: s.damage, fromX: s.x - s.vx, fromY: s.y - s.vy, knockback: s.knockback, source: "projectile", quack: s.quack });
       if (!s.pierce && !s.boomerang) return this.pop(s);

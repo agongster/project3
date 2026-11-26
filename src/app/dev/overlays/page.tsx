@@ -157,6 +157,7 @@ export default function OverlayDevPage() {
     audio: lazyAudio,
     open: (request) => setActive({ name: request.kind, request }),
     close: () => setActive(null),
+    resolveFinisher: (_findingId, correct) => setLastExit(`resolveFinisher(${correct}) was called`),
     exitToTitle: () => {
       setActive(null);
       setLastExit("exitToTitle() was called");

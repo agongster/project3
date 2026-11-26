@@ -13,6 +13,7 @@ import { FX } from "./parts/fx";
 import { isConfirmKey, useKeyDown, useReady, useTicker } from "./parts/hooks";
 import { MonsterIcon } from "./parts/MonsterIcon";
 import { SEVERITY_INFO } from "./parts/monsterText";
+import { TraitLine } from "./parts/codex/TraitLine";
 import type { OverlayProps } from "./types";
 
 const MONSTER_BOX = 128;
@@ -70,6 +71,7 @@ export default function BugCardOverlay({ request, ctx }: OverlayProps<"bugCard">
             <h4 className="text-xs font-bold uppercase opacity-70">Ruff says</h4>
             <p>{finding.message}</p>
           </section>
+          <TraitLine finding={finding} />
           <section className="bg-leaf/25 p-2">
             <h4 className="text-xs font-bold uppercase">How to fix it in real life</h4>
             <p>{finding.tip}</p>

@@ -2,14 +2,17 @@
 
 /**
  * The town notice board: a friendly infographic of the repo analysis,
- * pinned up as paper notes on a wooden board.
+ * pinned up as paper notes on a wooden board, topped by up to three WANTED
+ * posters (bounties on monsters, quoting the line of code they hide at).
  */
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Modal, PixelBar, PixelPanel } from "@/components/ui/kit";
 import { getProgress } from "@/lib/game";
+import { chooseBounties } from "@/lib/game/bounties";
 import { useStore } from "@/lib/game/useStore";
 import type { AnalyzedFile } from "@/lib/types";
 import { mostCursedFiles, monstersBySeverity, regionRows, tidiestFiles } from "./parts/boardData";
+import { BountyNotices } from "./parts/BountyNotices";
 import { GradeBadge } from "./parts/GradeBadge";
 import { MonsterIcon } from "./parts/MonsterIcon";
 import { SEVERITIES, SEVERITY_INFO } from "./parts/monsterText";
@@ -27,6 +30,7 @@ export default function BoardOverlay({ ctx }: OverlayProps<"board">) {
   const { stats, repo } = analysis;
   const regions = regionRows(analysis, progress);
   const monsterKinds = monstersBySeverity(analysis);
+  const bounties = useMemo(() => chooseBounties(analysis), [analysis]);
   const biggestSeverity = Math.max(1, ...SEVERITIES.map((severity) => stats.bySeverity[severity]));
 
   return (
@@ -34,8 +38,15 @@ export default function BoardOverlay({ ctx }: OverlayProps<"board">) {
       <PanelHeader title="Notice Board" subtitle={`${repo.owner}/${repo.repo} · ${analysis.stars} stars`} onClose={ctx.close} />
 
       <div className="px-scroll grid min-h-0 flex-1 grid-cols-2 content-start gap-3 pr-1">
+        {bounties.length > 0 && (
+          <Note title="Wanted — bounties" wide>
+            <BountyNotices bounties={bounties} progress={progress} />
+          </Note>
+        )}
+
         <Note title="About this repo">
           <p className="font-bold">{analysis.description ?? "No description on GitHub."}</p>
+          {analysis.readme && <p className="mt-1 break-words text-sm italic">“{analysis.readme}”</p>}
           <p className="mt-1 text-sm">
             Branch <code className="font-mono">{repo.ref}</code>, commit <code className="font-mono">{repo.sha.slice(0, SHORT_SHA)}</code>
             {analysis.demo && " · the built-in demo kingdom"}

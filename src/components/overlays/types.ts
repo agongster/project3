@@ -25,6 +25,8 @@ export type OverlayRequest =
   | { kind: "board" }
   /** One finding in detail (shown when a boss is defeated). */
   | { kind: "bugCard"; finding: Finding }
+  /** "Which fix really squashes this bug?" for a dazed elite or boss. */
+  | { kind: "finisher"; finding: Finding }
   /** All dungeons cleared. */
   | { kind: "victory" }
   /** An NPC or sign talking. */
@@ -42,6 +44,8 @@ export interface OverlayContext {
   open(request: OverlayRequest): void;
   /** Close the overlay and resume the game. */
   close(): void;
+  /** Tells the engine how a finisher ended (the Finisher overlay calls it right before `close`). */
+  resolveFinisher(findingId: string, correct: boolean): void;
   /** Leave the world and go back to the title screen. */
   exitToTitle(): void;
 }

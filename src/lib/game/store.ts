@@ -27,6 +27,7 @@ import {
   getItem,
 } from "@/lib/game/catalog";
 import { HEALTH_MILESTONES, MAX_SAVED_REPOS } from "@/lib/game/progress";
+import { sanitizeEngravings } from "@/lib/game/engraving";
 import type { CharacterLook, EquippedItems, ItemSlot, RepoProgress, SaveData, Store, ThemeId } from "@/lib/types";
 
 // ─────────────────────────── Constants ───────────────────────────
@@ -47,6 +48,11 @@ export const MAX_XP = 9_999_999;
 
 /** Lifetime counters (stats, wish counters) are clamped to this for the same reason. */
 const MAX_COUNTER = 999_999_999;
+
+/** A save remembers at most this many settled notice-board bounties per repo (only a few can ever be due). */
+export const MAX_SETTLED_BOUNTIES = 10;
+/** Finding ids ("path:line:col:code") longer than this are not real ones. */
+const MAX_FINDING_ID_LENGTH = 500;
 
 /** Longest hero name, in characters (it is drawn above the player's head). */
 export const MAX_NAME_LENGTH = 16;
@@ -134,7 +140,7 @@ export function defaultSave(): SaveData {
     gacha: { totalPulls: 0, sinceEpic: 0, sinceLegendary: 0 },
     repos: {},
     settings: { ...DEFAULT_SETTINGS },
-    stats: { bugsSquashed: 0, chestsOpened: 0, dungeonsCleared: 0, wishes: 0 },
+    stats: { bugsSquashed: 0, chestsOpened: 0, dungeonsCleared: 0, wishes: 0, fixesPicked: 0 },
   };
 }
 
@@ -253,12 +259,24 @@ function sanitizeEquipped(raw: unknown, owned: readonly string[]): EquippedItems
 function sanitizeProgress(raw: unknown): RepoProgress {
   const progress = asRecord(raw);
   const milestones = Array.isArray(progress.milestones) ? progress.milestones : [];
+  const bounties = sanitizeSettledBounties(progress.bounties);
   return {
     defeated: toStringList(progress.defeated),
     cleared: toStringList(progress.cleared),
     opened: toStringList(progress.opened),
     milestones: [...new Set(milestones.filter((m): m is number => typeof m === "number" && VALID_MILESTONES.has(m)))],
+    // Only present once a bounty was settled, so progress from before bounties comes back unchanged.
+    ...(bounties && { bounties }),
   };
+}
+
+/**
+ * Settled bounty ids (src/lib/game/bounties.ts): unique strings of a sane
+ * length, the newest MAX_SETTLED_BOUNTIES. Undefined when there are none.
+ */
+function sanitizeSettledBounties(raw: unknown): string[] | undefined {
+  const ids = toStringList(raw).filter((id) => id.length > 0 && id.length <= MAX_FINDING_ID_LENGTH);
+  return ids.length === 0 ? undefined : ids.slice(-MAX_SETTLED_BOUNTIES);
 }
 
 /** Keeps the MAX_SAVED_REPOS most recent repos (the last keys; see `withRepoProgress`). */
@@ -285,6 +303,7 @@ export function sanitizeSave(raw: unknown): SaveData {
     const gacha = asRecord(save.gacha);
     const stats = asRecord(save.stats);
     const owned = sanitizeOwned(save.owned);
+    const engravings = sanitizeEngravings(save.engravings, owned);
     return {
       version: 1,
       created: toBool(save.created, false),
@@ -301,11 +320,15 @@ export function sanitizeSave(raw: unknown): SaveData {
       },
       repos: sanitizeRepos(save.repos),
       settings: sanitizeSettings(save.settings),
+      // Added with named loot: only present once an item is engraved, so older saves come back unchanged.
+      ...(engravings && { engravings }),
       stats: {
         bugsSquashed: toCounter(stats.bugsSquashed),
         chestsOpened: toCounter(stats.chestsOpened),
         dungeonsCleared: toCounter(stats.dungeonsCleared),
         wishes: toCounter(stats.wishes),
+        // Added with the pick-the-fix finisher: older saves have no such field and start at 0.
+        fixesPicked: toCounter(stats.fixesPicked),
       },
     };
   } catch {

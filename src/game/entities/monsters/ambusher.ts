@@ -85,6 +85,10 @@ export class AmbusherBrain implements Brain {
     return this.clock.is("chase");
   }
 
+  disguised(): boolean {
+    return this.clock.is("disguised");
+  }
+
   /** The spring out of the disguise always plays to the end. */
   committed(): boolean {
     return this.clock.is("spring");
