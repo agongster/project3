@@ -111,6 +111,11 @@ export class Projectiles {
     this.hostile.push({ ...spec, age: 0, alive: true });
   }
 
+  /** Removes every hostile shot (the hero fainted: they start over in a calm room). */
+  clearHostile(): void {
+    this.hostile = [];
+  }
+
   /** True while one of the hero's boomerangs is still in the air. */
   boomerangOut(): boolean {
     return this.shots.some((s) => s.alive && s.boomerang);

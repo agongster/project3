@@ -228,14 +228,14 @@ export const MONSTERS: Record<MonsterKind, MonsterDef> = {
   dustBunny: { kind: "dustBunny", name: "Dust Bunny", severity: "minion", archetype: "hopper", hp: 2, speed: 22, touchDamage: 1, coins: [2, 4], xp: 5, size: 16, blurb: "Gathers wherever unused imports and variables are left lying around." },
   todoMite: { kind: "todoMite", name: "Todo Mite", severity: "minion", archetype: "skitter", hp: 1, speed: 48, touchDamage: 0, coins: [3, 6], xp: 5, size: 16, blurb: "Feeds on TODO comments. Promises it will leave 'later'." },
   echoBat: { kind: "echoBat", name: "Echo Bat", severity: "minion", archetype: "flutter", hp: 2, speed: 34, touchDamage: 1, coins: [2, 5], xp: 6, size: 16, blurb: "Repeats itself. Repeats itself. Lives in redundant code." },
-  gremlin: { kind: "gremlin", name: "Gremlin", severity: "elite", archetype: "chaser", hp: 6, speed: 36, touchDamage: 1, coins: [8, 12], xp: 15, size: 16, blurb: "A plain old bug. Breaks things at runtime and giggles." },
-  phantom: { kind: "phantom", name: "Phantom", severity: "elite", archetype: "blinker", hp: 5, speed: 28, touchDamage: 1, coins: [8, 12], xp: 15, size: 16, blurb: "The ghost of a name that was never defined." },
-  mimic: { kind: "mimic", name: "Mimic", severity: "elite", archetype: "ambusher", hp: 7, speed: 60, touchDamage: 1, coins: [10, 16], xp: 18, size: 16, blurb: "Looks like harmless code. It is not harmless code." },
-  swallowToad: { kind: "swallowToad", name: "Swallow Toad", severity: "elite", archetype: "spitter", hp: 6, speed: 20, touchDamage: 1, coins: [8, 12], xp: 15, size: 16, blurb: "Gulps down exceptions whole so nobody ever hears about them." },
+  gremlin: { kind: "gremlin", name: "Gremlin", severity: "elite", archetype: "chaser", hp: 9, speed: 36, touchDamage: 1, coins: [8, 12], xp: 15, size: 16, blurb: "A plain old bug. Breaks things at runtime and giggles." },
+  phantom: { kind: "phantom", name: "Phantom", severity: "elite", archetype: "blinker", hp: 8, speed: 28, touchDamage: 1, coins: [8, 12], xp: 15, size: 16, blurb: "The ghost of a name that was never defined." },
+  mimic: { kind: "mimic", name: "Mimic", severity: "elite", archetype: "ambusher", hp: 10, speed: 60, touchDamage: 1, coins: [10, 16], xp: 18, size: 16, blurb: "Looks like harmless code. It is not harmless code." },
+  swallowToad: { kind: "swallowToad", name: "Swallow Toad", severity: "elite", archetype: "spitter", hp: 9, speed: 20, touchDamage: 1, coins: [8, 12], xp: 15, size: 16, blurb: "Gulps down exceptions whole so nobody ever hears about them." },
   spaghetti: { kind: "spaghetti", name: "Spaghetti Beast", severity: "elite", archetype: "tank", hp: 9, speed: 16, touchDamage: 1, coins: [12, 18], xp: 20, size: 24, blurb: "A function so tangled it became sentient." },
-  keyThief: { kind: "keyThief", name: "Key Thief", severity: "boss", archetype: "boss", hp: 22, speed: 40, touchDamage: 2, coins: [30, 40], xp: 50, size: 32, blurb: "Collects passwords that were hardcoded in plain sight." },
-  evalSerpent: { kind: "evalSerpent", name: "Eval Serpent", severity: "boss", archetype: "boss", hp: 26, speed: 34, touchDamage: 2, coins: [30, 40], xp: 50, size: 32, blurb: "Will happily execute anything you feed it." },
-  glitchKing: { kind: "glitchKing", name: "Glitch King", severity: "boss", archetype: "boss", hp: 24, speed: 30, touchDamage: 2, coins: [30, 40], xp: 50, size: 32, blurb: "Rules over code that does not even parse." },
+  keyThief: { kind: "keyThief", name: "Key Thief", severity: "boss", archetype: "boss", hp: 33, speed: 40, touchDamage: 2, coins: [30, 40], xp: 50, size: 32, blurb: "Collects passwords that were hardcoded in plain sight." },
+  evalSerpent: { kind: "evalSerpent", name: "Eval Serpent", severity: "boss", archetype: "boss", hp: 39, speed: 34, touchDamage: 2, coins: [30, 40], xp: 50, size: 32, blurb: "Will happily execute anything you feed it." },
+  glitchKing: { kind: "glitchKing", name: "Glitch King", severity: "boss", archetype: "boss", hp: 36, speed: 30, touchDamage: 2, coins: [30, 40], xp: 50, size: 32, blurb: "Rules over code that does not even parse." },
 };
 
 // ───────────────────────── Scenery themes ───────────────────────

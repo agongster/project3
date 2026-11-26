@@ -3,6 +3,7 @@
  * (`window.__lintlands` in development). Not used by the real game UI.
  */
 import type { Dungeon, Prop } from "@/lib/types";
+import { Monster } from "./entities/monsters/monster";
 import type { Scene } from "./scenes/scene";
 import { buildingStatus } from "./scenes/progressView";
 import type { GameServices } from "./services";
@@ -20,6 +21,8 @@ export interface GameDebug {
   nearest(kind: string): { x: number; y: number } | null;
   /** A snapshot of what is going on (scene, hero position, HP...). */
   state(): { scene: string; x: number; y: number; tileX: number; tileY: number; hp: number; facing: string };
+  /** Monsters the hero can hit right now (empty in the overworld), for scripted play-tests. */
+  monsters(): { kind: string; x: number; y: number; hp: number; engaged: boolean; warning: boolean }[];
 }
 
 const dist2 = (a: { x: number; y: number }, b: { x: number; y: number }) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
@@ -72,6 +75,10 @@ export function createDebug(game: GameServices, currentScene: () => Scene): Game
       const p = game.player;
       const t = heroTile();
       return { scene: currentScene().kind, x: Math.round(p.x), y: Math.round(p.y), tileX: t.x, tileY: t.y, hp: p.hp, facing: p.facing };
+    },
+    monsters() {
+      const list = [...currentScene().ctx.hittables].filter((t): t is Monster => t instanceof Monster);
+      return list.map((m) => ({ kind: m.species, x: Math.round(m.x), y: Math.round(m.y), hp: m.hp, engaged: m.engaged, warning: m.shiver || m.alert > 0 }));
     },
   };
 }

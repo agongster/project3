@@ -15,6 +15,7 @@
  * In development, `window.__lintlands` exposes the game and helpers for
  * scripted screenshots, e.g.
  *   __lintlands.teleport(...Object.values(__lintlands.nearest("well")))
+ *   __lintlands.monsters()   // living monsters: kind, position, HP, telegraphing?
  */
 import { useEffect, useRef, useState } from "react";
 import { createAudio } from "@/game/audio";
@@ -149,6 +150,7 @@ export default function EngineDevPage() {
       <p style={{ margin: "4px 0", color: "#ffd36b" }}>
         {hud.scene} · {hud.location} · hp {hud.hp}/{hud.maxHp} · combo {hud.combo} · dash {hud.dashReady.toFixed(2)}
         {hud.dungeon ? ` · bugs ${hud.dungeon.remaining}/${hud.dungeon.total}` : ""}
+        {hud.boss ? ` · boss ${hud.boss.name} ${hud.boss.hp}/${hud.boss.maxHp}` : ""}
         {hud.prompt ? ` · [E] ${hud.prompt}` : ""}
       </p>
       <ol style={{ margin: 0, paddingLeft: 18, opacity: 0.8 }}>

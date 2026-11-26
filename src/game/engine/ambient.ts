@@ -12,7 +12,8 @@ import { drawSprite, glowSprite } from "@/game/art";
 import { uiSprite, type UiSpriteName } from "@/game/art/ui";
 import type { ThemeDef } from "@/lib/game/catalog";
 
-export type AmbientKind = ThemeDef["ambient"] | "dust";
+/** "dust" floats in dungeons, "sparkles" once a dungeon is purified. */
+export type AmbientKind = ThemeDef["ambient"] | "dust" | "sparkles";
 
 const AMBIENT_COUNT = 26;
 /** Extra room around the screen so particles wrap out of sight. */
@@ -39,6 +40,7 @@ const MOTIONS: Record<AmbientKind, Motion> = {
   bubbles: { vx: 0, vy: -7, sway: 4, sprite: "bubble", frames: 2, spriteShare: 0.6 },
   fireflies: { vx: 0, vy: 0, sway: 14, sprite: "firefly", frames: 2, spriteShare: 1 },
   dust: { vx: 2, vy: -1.5, sway: 5, sprite: null, frames: 1, spriteShare: 0 },
+  sparkles: { vx: 0, vy: -5, sway: 4, sprite: "sparkle", frames: 3, spriteShare: 0.5 },
 };
 
 interface Mote {

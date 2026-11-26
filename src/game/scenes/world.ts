@@ -127,6 +127,9 @@ export function renderShared(ctx: SceneContext, g: CanvasRenderingContext2D, lay
 export class FaintSequence {
   private timer = -1;
 
+  /** `message` is the kind toast shown once the hero is back on their feet. */
+  constructor(private readonly message = "You fainted… but you're back on your feet!") {}
+
   get active(): boolean {
     return this.timer >= 0;
   }
@@ -153,7 +156,7 @@ export class FaintSequence {
         this.timer = -1;
         respawn();
         player.restore(ctx.stats.maxHp);
-        ctx.emit({ type: "toast", text: "You fainted… but you're back on your feet!", tone: "info" });
+        ctx.emit({ type: "toast", text: this.message, tone: "info" });
       });
     }
   }
