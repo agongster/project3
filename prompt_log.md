@@ -100,4 +100,19 @@ Found by play-testing the assembled game in the browser and with a scripted bot:
 - Balance: Spaghetti Beast HP 12 → 9 (commit `f773372`); the monsters subagent's play-tested HP values were moved into `catalog.ts`.
 - HUD text was hard to read on a normal-density screen: the font's "fi" ligature turned `config.py` into something like "conAg.py", and the bold weight closed up "c" and "2". Ligatures are now off and only the two lightest weights are loaded (`src/app/layout.tsx`, `src/app/globals.css`).
 
-<!-- REVIEW-FIXES -->
+### After the independent review
+
+`REVIEW.md` was written by subagent 12 and is kept unedited. It reported no blockers, four "should fix" findings and five minor ones. The orchestrating model then fixed six of them (commit `5819115`):
+
+| Review finding | What was done |
+|---|---|
+| 3. Nothing cached GitHub calls on the server, so a busy site would exhaust the rate limit | GitHub answers are now cached by Next.js for 5 minutes (repo, branch) or a day (a commit's file list). Measured: three loads of the same repo cost 3 GitHub calls instead of 9. |
+| 4. Two open tabs overwrote each other's save | A tab now adopts the save another tab writes (`storage` event) instead of overwriting it. |
+| 5. `/dev/*` pages shipped to production and `/dev/engine` used the real save | `/dev/*` returns 404 in a production build; the engine sandbox uses an in-memory save. |
+| 6. Backticks in file or branch names broke the exported Markdown | Names are wrapped with a CommonMark-safe code span. |
+| 8. Level-up and purify sounds played twice; milestone payout existed twice | Each sound and the payout now have one owner (the UI layer). |
+| 9. One render error blanked the whole app | Added an error screen with "Try again" and "Reload the game". |
+
+Also from the review's notes: a bug-free repo now gets an "already pure" message on entry, two opposite `SEVERITY_RANK` tables were renamed, an unused `createGame` wrapper was removed, and stale comments were corrected.
+
+**Still open** (not fixed by AI): findings 1 (same-line findings are dropped from the to-do list), 2 (the quality grade treats private functions as documented) and 7 (folder URLs are misread). They are listed under "Review and known issues" in the README.

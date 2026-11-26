@@ -41,12 +41,13 @@ Requires Node 22. `npm run dev` and `npm run build` first run `scripts/copy-ruff
 
 | Variable | Required? | What it is |
 |---|---|---|
-| `GITHUB_TOKEN` | optional | A GitHub personal access token with **no scopes** (public read-only). Without it the server can make 60 GitHub API requests per hour; with it, 5,000. |
+| `GITHUB_TOKEN` | optional locally, **recommended when deployed** | A GitHub personal access token with **no scopes** (public read-only). Without it the server can make 60 GitHub API requests per hour, shared by every visitor (about 20 new repos per hour); with it, 5,000. |
 
 - Local: copy `.env.example` to `.env.local` and paste the token. `.env*` files are git-ignored (only `.env.example` is committed).
 - Deployed (Vercel): add `GITHUB_TOKEN` under Project → Settings → Environment Variables.
 - The token is only read on the server, in `src/app/api/repo/route.ts`, and is only ever sent to `api.github.com` in an `Authorization` header. It is never sent to the browser and never logged.
-- No user accounts, no database. Progress is saved in the browser's `localStorage`.
+- GitHub's answers are cached on the server (5 minutes for "which commit is this branch on", a day for a commit's file list), so loading the same repo again costs no GitHub requests.
+- No user accounts, no database. Progress is saved in the browser's `localStorage`; if the game is open in two tabs, they share one save.
 - Source code from the repo being explored is downloaded **by the player's browser** from `raw.githubusercontent.com` and linted there; it never passes through this app's server.
 
 ### How it works
@@ -98,7 +99,7 @@ Requires Node 22. `npm run dev` and `npm run build` first run `scripts/copy-ruff
 | `src/components/app/`, `screens/`, `hud/`, `character/` | React shell: title, hero creator, loading screen, HUD |
 | `src/components/overlays/` | Chest reveal, Wishing Well, bag, codex, notice board, pause, wardrobe, victory |
 | `src/components/loading/` | "Bug Catch", the loading mini-game |
-| `src/app/dev/*` | Developer pages: `/dev/art`, `/dev/art2`, `/dev/audio`, `/dev/engine`, `/dev/ui`, `/dev/overlays`, `/dev/loading`, `/dev/analysis` |
+| `src/app/dev/*` | Developer pages, available only with `npm run dev` (a deployed site answers 404): `/dev/art`, `/dev/art2`, `/dev/audio`, `/dev/engine`, `/dev/ui`, `/dev/overlays`, `/dev/loading`, `/dev/analysis` |
 | `tests/` | Vitest unit tests |
 
 ### Tests and CI
@@ -114,10 +115,18 @@ npm run check     # all three
 
 The tests cover the logic that can be checked without a screen: repo-input parsing, file filtering, the GitHub client (mocked `fetch`), real Ruff runs on fixture files, the rule → monster mapping, the quality grade, world and dungeon generation (determinism and reachability, fuzzed over hundreds of fake repos), gacha odds and pity, chest loot, save-file sanitising, collision and attack geometry, monster behaviour helpers, and the loading mini-game's rules.
 
+### Review and known issues
+
+`REVIEW.md` is an independent review of the build by a second AI agent that wrote none of the code. It is kept exactly as the reviewer wrote it. Six of its nine findings were fixed afterwards (3, 4, 5, 6, 8, 9; see `prompt_log.md`). Three are still open:
+
+1. **Finding 1** — several problems of the same kind on one line (for example `import os, sys, json`, all unused) become a single monster, and the others are missing from the Codex and the exported to-do list (`src/lib/analysis/normalize.ts`, `mergeSameProblem`).
+2. **Finding 2** — the quality grade counts private (`_name`) functions as documented, so a file with no docstrings can be graded S and called "Well documented" (`src/lib/analysis/quality.ts`, `docstringCoverage`).
+3. **Finding 7** — pasting a GitHub *folder* URL (`…/tree/main/src`) fails, because `main/src` is read as the branch name (`src/lib/repo/parseRepoInput.ts`).
+
 ### Deploying (Vercel)
 
 1. Import the GitHub repo in Vercel (framework preset: Next.js; no other settings needed).
-2. Add the `GITHUB_TOKEN` environment variable (optional but recommended).
+2. Add the `GITHUB_TOKEN` environment variable (the site works without it, but all visitors then share 60 GitHub requests per hour).
 3. Deploy. The build runs `scripts/copy-ruff.mjs` automatically.
 
 ### Credits
