@@ -3,6 +3,7 @@
  * files and analyses, a deep-freeze helper (so any accidental mutation of an
  * input save throws), and a validator for the save invariants.
  */
+import { emptyOutline } from "@/lib/analysis/outline";
 import { expect } from "vitest";
 import {
   ACCESSORIES,
@@ -82,6 +83,7 @@ export function makeFile(
       highlights: options.highlights ?? [],
       metrics: { definitions: 3, docCoverage: 1, hintCoverage: 1, commentRatio: 0.1, probeHits: 0 },
     },
+    outline: emptyOutline(),
   };
 }
 

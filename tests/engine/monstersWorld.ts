@@ -3,6 +3,7 @@
  * hero that wanders around at random. No canvas, no sound — effects are
  * no-ops — so monster brains can be simulated for thousands of steps.
  */
+import { emptyOutline } from "@/lib/analysis/outline";
 import type { HostileShot, MonsterFx, MonsterWorld } from "@/game/entities/monsters/brain";
 import { Hazards } from "@/game/entities/monsters/hazards";
 import type { Monster } from "@/game/entities/monsters/monster";
@@ -35,7 +36,7 @@ export function fileWithEveryMonster(path = "every/monster.py"): AnalyzedFile {
     tip: "",
   }));
   const quality = { score: 50, grade: "C" as const, highlights: [], metrics: { definitions: 0, docCoverage: 0, hintCoverage: 0, commentRatio: 0, probeHits: 0 } };
-  return { path, size: 1000, lineCount: 200, status: "ok", kind: "module", findings, overflow: 0, quality };
+  return { path, size: 1000, lineCount: 200, status: "ok", kind: "module", findings, overflow: 0, quality, outline: emptyOutline() };
 }
 
 export class TestWorld implements MonsterWorld {

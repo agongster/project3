@@ -6,6 +6,7 @@
  * throw hundreds of differently shaped repos at the game without touching
  * the network or Ruff. The same seed + options always give the same repo.
  */
+import { emptyOutline } from "@/lib/analysis/outline";
 import type { AnalyzedFile, FileKind, Finding, FindingCategory, Grade, MonsterKind, RepoAnalysis, Severity } from "@/lib/types";
 import { MONSTERS } from "@/lib/game/catalog";
 import { chance, hashString, mulberry32, pick, randInt, type Rng } from "@/lib/rng";
@@ -119,6 +120,7 @@ export function makeFakeFile(rng: Rng, path: string, kind: FileKind, lineCount: 
       highlights: [],
       metrics: { definitions: 3, docCoverage: 0.5, hintCoverage: 0.5, commentRatio: 0.1, probeHits: 0 },
     },
+    outline: emptyOutline(),
   };
 }
 
