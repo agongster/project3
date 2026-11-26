@@ -192,10 +192,12 @@ export interface DefeatResult {
 }
 
 /**
- * Records that a finding's monster was defeated: remembers its id, counts the
- * squash and awards the monster's XP. Defeating the same finding again (e.g.
- * after re-entering a dungeon) changes nothing, so XP can't be farmed.
- * Coins are not handled here: the engine drops them as pickups (see `addCoins`).
+ * Records that a finding's monster was beaten in a fight, i.e. SUBDUED (it
+ * is fully defeated only once its code is fixed, see progress.ts):
+ * remembers its id, counts the squash and awards the monster's XP.
+ * Subduing the same finding again (e.g. after re-entering a dungeon)
+ * changes nothing, so XP can't be farmed. Coins are not handled here: the
+ * engine drops them as pickups (see `addCoins`).
  */
 export function recordDefeat(save: SaveData, key: string, finding: Pick<Finding, "id" | "monster">): DefeatResult {
   const progress = getProgress(save, key);
@@ -216,8 +218,11 @@ export function recordDefeat(save: SaveData, key: string, finding: Pick<Finding,
   };
 }
 
-/** Marks a file's dungeon as purified (once) and counts it in the lifetime stats. */
-export function recordDungeonCleared(save: SaveData, key: string, path: string): SaveData {
+/**
+ * Records that a file's dungeon has gone QUIET (its last fighting monster
+ * subdued) and counts it once in the lifetime stats (`dungeonsCleared`).
+ */
+export function recordDungeonQuiet(save: SaveData, key: string, path: string): SaveData {
   const next = updateProgress(save, key, (progress) =>
     progress.cleared.includes(path) ? progress : { ...progress, cleared: [...progress.cleared, path] },
   );

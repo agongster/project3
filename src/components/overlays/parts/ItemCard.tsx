@@ -38,13 +38,13 @@ export function ItemCard({ item, isNew, refund, size = "lg", className }: ItemCa
       {isNew && <NewBadge small={small} />}
       <ItemIcon item={item} scale={small ? 2 : 4} />
       <RarityStars rarity={item.rarity} scale={small ? 1 : 2} starsOnly={small} className="text-xs" />
-      <h3 className={cx("leading-tight", small ? "line-clamp-2 text-xs font-bold" : "font-title text-xs leading-snug")}>{item.name}</h3>
+      <h3 className={cx("leading-tight", small ? "line-clamp-2 text-xs font-bold" : "text-lg font-extrabold")}>{item.name}</h3>
       {!small && (
         <>
           <p className="text-xs font-bold">
             {SLOT_LABEL[item.slot]} · {itemHeadlineStat(item)}
           </p>
-          <p className="text-xs italic opacity-80">{item.blurb}</p>
+          <p className="text-sm italic opacity-80">{item.blurb}</p>
         </>
       )}
       {!isNew && <DuplicateNote refund={refund} small={small} />}
@@ -57,8 +57,8 @@ function NewBadge({ small }: { small: boolean }) {
     <span
       className={cx(
         FX.newBadge,
-        "font-title absolute bg-berry text-cream shadow-[0_0_0_3px_var(--color-ink)]",
-        small ? "-left-2 -top-2 px-1 py-0.5 text-[8px]" : "-left-3 -top-3 px-2 py-1 text-[10px]",
+        "font-label absolute bg-berry text-cream shadow-[0_0_0_3px_var(--color-ink)]",
+        small ? "-left-2 -top-2 px-1 text-xs" : "-left-3 -top-3 px-2 py-0.5 text-sm",
       )}
     >
       NEW!
@@ -75,5 +75,5 @@ function DuplicateNote({ refund, small }: { refund: number; small: boolean }) {
       </span>
     );
   }
-  return <p className="bg-gold/40 px-2 text-xs font-bold">Already owned → +{refund} coins</p>;
+  return <p className="bg-gold/40 px-2 text-sm font-bold">Already owned → +{refund} coins</p>;
 }

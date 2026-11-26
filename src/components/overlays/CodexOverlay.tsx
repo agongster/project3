@@ -5,8 +5,8 @@
  *
  *   Bugs tab      findings grouped by file → pick one to see its code, Ruff's
  *                 message, a fix tip, a GitHub link and "Fix it for real"
- *                 (the Workshop opens on that line); bugs already fixed in
- *                 the code are listed too
+ *                 (the Workshop opens on that line); each bug shows its
+ *                 state: alive, subdued, fixed or sealed
  *   Bestiary tab  every monster species and what code problem it embodies
  *
  * The "Copy to-do list" button exports the same list as Markdown.
@@ -15,7 +15,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, PixelBar } from "@/components/ui/kit";
-import { getProgress, repoHealth } from "@/lib/game";
+import { getProgress, repoHealth, type RepoHealth } from "@/lib/game";
 import { useStore } from "@/lib/game/useStore";
 import type { Finding } from "@/lib/types";
 import { Bestiary } from "./parts/codex/Bestiary";
@@ -35,8 +35,7 @@ export default function CodexOverlay({ request, ctx }: OverlayProps<"codex">) {
   const progress = useStore(ctx.save, (save) => getProgress(save, ctx.repoKey));
   const groups = useMemo(() => groupFindings(analysis, progress), [analysis, progress]);
   // The first group with a bug still lurking, else the first group: where the codex opens without a focus.
-  const firstLive = groups[0]?.file.findings[0] ?? groups[0]?.fixed[0];
-  const defeated = useMemo(() => new Set(progress.defeated), [progress]);
+  const firstLive = groups[0]?.file.findings[0] ?? groups[0]?.gone[0];
   const tallies = useMemo(() => tallyMonsters(analysis, progress), [analysis, progress]);
   const health = repoHealth(analysis, progress);
 
@@ -98,9 +97,7 @@ export default function CodexOverlay({ request, ctx }: OverlayProps<"codex">) {
           ]}
         />
         <PixelBar value={health.ratio} label="Repo health" className="min-w-24 flex-1" />
-        <p className="shrink-0 text-sm font-bold">
-          {health.fixed === 0 ? `${health.defeated} of ${health.total} bugs squashed` : `${health.defeated} squashed · ${health.fixed} fixed in the code · of ${health.total}`}
-        </p>
+        <p className="shrink-0 text-sm font-bold">{healthSummary(health)}</p>
       </div>
 
       {tab === "bugs" ? (
@@ -108,7 +105,7 @@ export default function CodexOverlay({ request, ctx }: OverlayProps<"codex">) {
           <div ref={listRef} className="px-scroll min-h-0 pr-1">
             <BugList
               groups={groups}
-              defeated={defeated}
+              statusOf={(finding) => bugStatus(analysis, progress, finding)}
               openPaths={openPaths}
               selectedId={selectedId}
               onToggle={toggleGroup}
@@ -130,9 +127,19 @@ export default function CodexOverlay({ request, ctx }: OverlayProps<"codex">) {
         </div>
       ) : (
         <div className="px-scroll @container min-h-0 flex-1 pr-1">
-          <Bestiary tallies={tallies} />
+          <Bestiary tallies={tallies} save={ctx.save} />
         </div>
       )}
     </Modal>
   );
+}
+
+/** "4 fixed · 1 sealed · 3 subdued · of 12": only the states that have any bugs. */
+function healthSummary(health: RepoHealth): string {
+  const parts = [
+    `${health.fixed} fixed`,
+    ...(health.sealed > 0 ? [`${health.sealed} sealed`] : []),
+    ...(health.subdued > 0 ? [`${health.subdued} subdued`] : []),
+  ];
+  return `${parts.join(" · ")} · of ${health.total}`;
 }

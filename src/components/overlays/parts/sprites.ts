@@ -14,6 +14,8 @@ import { MONSTER_FRAMES, monsterSprite } from "@/game/art/monsters";
 import { PET_FRAMES, petSprite } from "@/game/art/pets";
 import { uiSprite } from "@/game/art/ui";
 import type { UiSpriteName } from "@/game/art/ui";
+import { MONSTERS } from "@/lib/game/catalog";
+import { codeFromId, lookOf, type MonsterLook } from "@/lib/game/monsterLooks";
 import type { CharacterLook, MonsterKind, ThemeId } from "@/lib/types";
 
 export type { Facing, Sprite };
@@ -39,9 +41,18 @@ export function heroSprite(look: CharacterLook, hatId: string | null, facing: Fa
 
 // ───────────────────────────── Monsters ─────────────────────────────
 
-/** One frame of a monster (facing right). `frame` counts up forever; it wraps onto the monster's own frames. */
-export function monsterFrame(kind: MonsterKind, frame = 0): Sprite | null {
-  return canPaint() ? monsterSprite(kind, frame % MONSTER_FRAMES[kind]) : null;
+/**
+ * One frame of a monster (facing right). `frame` counts up forever; it wraps
+ * onto the monster's own frames. `look` is the finding's variant (lookOf in
+ * src/lib/game/monsterLooks.ts); without it, the species' classic look.
+ */
+export function monsterFrame(kind: MonsterKind, frame = 0, look?: MonsterLook): Sprite | null {
+  return canPaint() ? monsterSprite(kind, frame % MONSTER_FRAMES[kind], "normal", look) : null;
+}
+
+/** The look of a finding's monster from its id alone (bounties, the Workshop's gutter and forge moment keep only the id). */
+export function lookFromId(id: string, kind: MonsterKind): MonsterLook {
+  return lookOf({ id, code: codeFromId(id), monster: kind, severity: MONSTERS[kind].severity });
 }
 
 // ───────────────────────────── UI icons ─────────────────────────────

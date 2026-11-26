@@ -13,7 +13,7 @@ import { ArtSprite } from "./ArtSprite";
 import { ComboCounter } from "./ComboCounter";
 import { HudBar } from "./HudBar";
 import { HUD_FX } from "./fx";
-import { ap, PLATE_STYLE } from "./units";
+import { ap, HUD_SMALL_FONT_SIZE, PLATE_STYLE } from "./units";
 
 const DASH_BAR_WIDTH = 40;
 
@@ -21,7 +21,7 @@ function DashMeter({ hud }: { hud: Store<HudState> }) {
   const ready = useStore(hud, (h) => h.dashReady);
   const full = ready >= 1;
   return (
-    <div className="flex items-center" style={{ gap: ap(2), fontSize: "0.75em" }}>
+    <div className="flex items-center" style={{ gap: ap(2), fontSize: HUD_SMALL_FONT_SIZE }}>
       <span className={full ? "font-bold text-sky" : "text-cream/70"}>Dash</span>
       <HudBar value={ready} color={full ? "var(--color-sky)" : "#4f6f8f"} width={DASH_BAR_WIDTH} height={3} label="Dash recharge" className={full ? HUD_FX.readyPulse : undefined} />
     </div>

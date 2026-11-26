@@ -12,7 +12,7 @@
 import type { MouseEvent } from "react";
 import { preloadWorkshop } from "@/components/workshop";
 import type { OverlayRequest } from "@/components/overlays/types";
-import { ap } from "./units";
+import { ap, HUD_SMALL_FONT_SIZE } from "./units";
 
 interface Props {
   onOpen: (request: OverlayRequest) => void;
@@ -40,13 +40,11 @@ function HudButton({ label, hint, onClick, onPointerEnter }: { label: string; hi
       onClick={onClick}
       onPointerEnter={onPointerEnter}
       className="px-btn cream small"
-      style={{ fontSize: "0.85em", margin: ap(1) }}
+      style={{ fontSize: HUD_SMALL_FONT_SIZE, margin: ap(1) }}
       title={`${label} (${hint})`}
     >
       {label}
-      <span className="text-ink-soft" style={{ fontSize: "0.8em" }}>
-        {hint}
-      </span>
+      <span className="text-ink-soft">{hint}</span>
     </button>
   );
 }

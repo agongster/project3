@@ -7,6 +7,7 @@
  */
 import { useEffect, useEffectEvent } from "react";
 import { KeyCap, PixelButton, PixelPanel } from "@/components/ui/kit";
+import { lairCounts } from "@/lib/game/champions";
 import type { RepoAnalysis } from "@/lib/types";
 import { isTrivialInit } from "@/lib/worldgen/regions";
 
@@ -15,15 +16,17 @@ function count(n: number, singular: string, pluralForm = `${singular}s`): string
   return `${n} ${n === 1 ? singular : pluralForm}`;
 }
 
-/** The one-line teaser, e.g. "42 files · 17 bugs · 3 bosses · 12 treasure houses". */
+/** The one-line teaser, e.g. "42 files · 17 bugs · 3 bosses · 2 champions · 12 treasure houses" (champions only when there are any). */
 export function worldTeaser(analysis: RepoAnalysis): string {
   const { stats } = analysis;
   // A clean file becomes a treasure house, except a near-empty `__init__.py` (only a lantern on the map).
   const treasureHouses = analysis.files.filter((file) => file.status === "ok" && file.findings.length === 0 && !isTrivialInit(file)).length;
+  const champions = lairCounts(analysis).champion;
   return [
     count(stats.fileCount, "file"),
     count(stats.findingCount, "bug"),
     count(stats.bySeverity.boss, "boss", "bosses"),
+    ...(champions > 0 ? [count(champions, "champion")] : []),
     count(treasureHouses, "treasure house"),
   ].join(" · ");
 }
@@ -53,7 +56,7 @@ export function WorldReadyCard({ analysis, bonusCoins, onEnter }: Props) {
   return (
     <PixelPanel className="anim-pop flex w-full max-w-[960px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6 py-3">
       <div className="min-w-0 flex-1">
-        <h2 className="font-title text-[18px] leading-tight text-leaf-deep">Your world is ready!</h2>
+        <h2 className="font-title text-pixel-md leading-tight text-leaf-deep">Your world is ready!</h2>
         <p className="mt-2 font-semibold">{worldTeaser(analysis)}</p>
         <p className="text-ink-soft">
           {bonusCoins > 0 ? `+${bonusCoins} bonus coins from Bug Catch` : "Keep catching bugs for bonus coins, or dive right in."}
@@ -67,7 +70,7 @@ export function WorldReadyCard({ analysis, bonusCoins, onEnter }: Props) {
             Enter the Lintlands ▶
           </PixelButton>
         </div>
-        <p className="text-[14px] text-ink-soft">
+        <p className="text-sm text-ink-soft">
           or press <KeyCap>Enter</KeyCap>
         </p>
       </div>

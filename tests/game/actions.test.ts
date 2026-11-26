@@ -8,7 +8,7 @@ import {
   isEquipped,
   markCreated,
   recordDefeat,
-  recordDungeonCleared,
+  recordDungeonQuiet,
   resetAll,
   resetRepo,
   setLook,
@@ -17,7 +17,7 @@ import {
   spendCoins,
   unequip,
 } from "@/lib/game/actions";
-import { LEVEL_XP, MAX_CHARMS, MONSTERS, RARITY_INFO, getItem } from "@/lib/game/catalog";
+import { LEVEL_XP, MAX_CHARMS, MONSTERS, RARITY_INFO, SKIN_TONES, getItem } from "@/lib/game/catalog";
 import { HEALTH_MILESTONES, getProgress } from "@/lib/game/progress";
 import { MAX_COINS, defaultSave } from "@/lib/game/store";
 import type { SaveData } from "@/lib/types";
@@ -136,7 +136,7 @@ describe("look, theme, settings", () => {
   it("setLook merges and clamps", () => {
     const save = deepFreeze(defaultSave());
     const next = setLook(save, { name: "  Ada  ", skin: 99, hairStyle: -1 });
-    expect(next.look).toMatchObject({ name: "Ada", skin: 5, hairStyle: 0 });
+    expect(next.look).toMatchObject({ name: "Ada", skin: SKIN_TONES.length - 1, hairStyle: 0 });
     expect(setLook(save, { name: "Hero" })).toBe(save);
   });
 
@@ -192,13 +192,13 @@ describe("recordDefeat", () => {
   });
 });
 
-describe("recordDungeonCleared", () => {
+describe("recordDungeonQuiet", () => {
   it("counts each dungeon once", () => {
     const save = deepFreeze(defaultSave());
-    const once = recordDungeonCleared(save, KEY, "a.py");
+    const once = recordDungeonQuiet(save, KEY, "a.py");
     expect(getProgress(once, KEY).cleared).toEqual(["a.py"]);
     expect(once.stats.dungeonsCleared).toBe(1);
-    expect(recordDungeonCleared(once, KEY, "a.py")).toBe(once);
+    expect(recordDungeonQuiet(once, KEY, "a.py")).toBe(once);
   });
 });
 

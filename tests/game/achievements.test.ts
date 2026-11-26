@@ -87,19 +87,19 @@ describe("each achievement's condition", () => {
 describe("Kingdom Restored", () => {
   const bug = (line: number) => makeFinding("a.py", line);
 
-  it("needs Repo Health at 100% and at least half of the bugs fixed by hand", () => {
-    const file = { ...makeFile("a.py", { findings: [bug(1), bug(2)] }), realFixes: 2 };
-    const analysis = makeAnalysis([file]);
-    expect(isRestoredByHand(analysis, emptyProgress())).toBe(false);
-    expect(isRestoredByHand(analysis, { ...emptyProgress(), defeated: [bug(1).id] })).toBe(false);
-    expect(isRestoredByHand(analysis, { ...emptyProgress(), defeated: [bug(1).id, bug(2).id] })).toBe(true);
-    const mostlyFought = makeAnalysis([{ ...file, realFixes: 1 }]);
-    expect(isRestoredByHand(mostlyFought, { ...emptyProgress(), defeated: [bug(1).id, bug(2).id] })).toBe(false);
+  it("needs every bug gone from the code (fights are not enough) and at least half of them really fixed", () => {
+    const fought = makeAnalysis([makeFile("a.py", { findings: [bug(1), bug(2)] })]);
+    expect(isRestoredByHand(fought, { ...emptyProgress(), defeated: [bug(1).id, bug(2).id] })).toBe(false);
+    const halfLeft = makeAnalysis([{ ...makeFile("a.py", { findings: [bug(2)] }), realFixes: 1, fixedFindings: [bug(1)] }]);
+    expect(isRestoredByHand(halfLeft, emptyProgress())).toBe(false);
+    const allGone = makeAnalysis([{ ...makeFile("a.py"), realFixes: 2, fixedFindings: [bug(1), bug(2)] }]);
+    expect(isRestoredByHand(allGone, emptyProgress())).toBe(true);
+    expect(isRestoredByHand(allGone, { ...emptyProgress(), sealed: [bug(1).id] })).toBe(true);
+    expect(isRestoredByHand(allGone, { ...emptyProgress(), sealed: [bug(1).id, bug(2).id] })).toBe(false);
   });
 
   it("is not handed out for a repo that was spotless from the start", () => {
     expect(isRestoredByHand(makeAnalysis([makeFile("clean.py")]), emptyProgress())).toBe(false);
-    expect(isRestoredByHand(makeAnalysis([{ ...makeFile("clean.py"), realFixes: 3 }]), emptyProgress())).toBe(true);
   });
 });
 

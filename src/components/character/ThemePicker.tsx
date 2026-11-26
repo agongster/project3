@@ -102,9 +102,9 @@ export function ThemePicker({ value, onChange, audio, previewScale = 2, columns 
           >
             <ThemePreview theme={theme.id} scale={previewScale} />
             {/* Small cards wrap the name onto two lines instead of cutting it off. */}
-            <span className={cx("px-1 text-center font-bold leading-tight", previewScale > 1 ? "text-[14px]" : "text-[12px]")}>{theme.name}</span>
+            <span className={cx("px-1 text-center font-bold leading-tight", previewScale > 1 ? "text-sm" : "text-xs")}>{theme.name}</span>
             {selected && (
-              <span className="anim-pop absolute -right-2 -top-2 bg-gold px-1 text-[12px] font-bold text-ink" style={{ boxShadow: BADGE_SHADOW }}>
+              <span className="anim-pop absolute -right-2 -top-2 bg-gold px-1 text-xs font-bold text-ink" style={{ boxShadow: BADGE_SHADOW }}>
                 ✓
               </span>
             )}

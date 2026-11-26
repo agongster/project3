@@ -200,7 +200,8 @@ function handMadeMap(rooms: Rect[]) {
 
 describe("layoutCarvings on hand-made rooms", () => {
   const room: Rect = { x: 2, y: 3, w: 16, h: 8 };
-  const base = { ...handMadeMap([room]), chest: { x: 15, y: 7 }, props: [] };
+  // The end door sits in the room's east wall; its landing is the two floor tiles west of it.
+  const base = { ...handMadeMap([room]), chest: { x: 15, y: 7 }, endDoor: { x: 18, y: 5 }, props: [] };
   const longFinding = (id: string, n: number) => finding(id, [{ n, text: `${LONG_LINE} # ${id}`, hit: true }]);
 
   it("never overlaps carvings of monsters that start close together", () => {
@@ -212,12 +213,13 @@ describe("layoutCarvings on hand-made rooms", () => {
     for (const c of carvings) expectInside(c, room);
   });
 
-  it("keeps off the chest, the tile above it (its arrow) and solid props", () => {
+  it("keeps off the chest, the tiles above it (its arrow) and below it (where the hero opens it), the end door's landing, and solid props", () => {
     const monsters = [spawn("a", 15, 5)];
     const props = [{ kind: "crate" as const, x: 14, y: 7, variant: 0, solid: true }];
     const [c] = layoutCarvings({ ...base, props, monsters }, [longFinding("a", 3)]);
     const { chest } = base;
-    for (const t of [chest, { x: chest.x, y: chest.y - 1 }, props[0]]) expect(boxesTouch(c, { x: t.x * TILE_PX, y: t.y * TILE_PX, w: TILE_PX, h: TILE_PX }, 0)).toBe(false);
+    const landing = [{ x: 17, y: 5 }, { x: 16, y: 5 }];
+    for (const t of [chest, { x: chest.x, y: chest.y - 1 }, { x: chest.x, y: chest.y + 1 }, ...landing, props[0]]) expect(boxesTouch(c, { x: t.x * TILE_PX, y: t.y * TILE_PX, w: TILE_PX, h: TILE_PX }, 0)).toBe(false);
   });
 
   it("does not lie under another monster's starting spot", () => {

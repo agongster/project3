@@ -6,7 +6,7 @@
  * Each step:
  *   1. refresh what the monsters may see (hero position, grace period)
  *   2. noticing / forgetting the hero (engagement.ts: max 3 pursuers, one boss at a time)
- *   3. boss intros (bossShow.ts)
+ *   3. boss and champion intros (bossShow.ts, champion.ts)
  *   4. each living monster thinks and moves (a dazed one waits to be finished,
  *      dazed.ts); defeated ones play their death (deaths.ts)
  *   5. separation, contact damage, landing hazards
@@ -18,9 +18,14 @@
  * left-behind tags, and makes sure a finding with two bodies is still
  * defeated exactly once (traits/oneDefeat.ts).
  *
- * It also draws the monsters, their telegraphs, name tags and badges,
- * reports the HUD's boss bar and how many monsters remain, offers the
- * "finish it with a fix" spots of dazed monsters, and takes the answer.
+ * It also draws the monsters, their telegraphs, name tags, badges and a
+ * champion's crown, reports the HUD's boss bar (a boss's or the champion's)
+ * and how many monsters remain, offers the "finish it with a fix" spots of
+ * dazed monsters, and takes the answer.
+ *
+ * Which monster is the dungeon's CHAMPION comes from championOf
+ * (src/lib/game/champions.ts); each body's look, modifier and crown come
+ * from its body plan (variety.ts), built in createBodies.
  *
  * When the code is edited in the Workshop, the dungeon scene asks it to
  * `rewrite` the monsters whose bugs were fixed for real (they dissolve, see
@@ -28,7 +33,8 @@
  * recorded under the finding's id from before the edit.
  */
 import { getProgress } from "@/lib/game";
-import type { AnalyzedFile, Dungeon } from "@/lib/types";
+import { championOf, championTitle } from "@/lib/game/champions";
+import type { AnalyzedFile, Dungeon, FileOutline } from "@/lib/types";
 import type { HudState } from "../../bridge";
 import type { SceneContext } from "../../scenes/context";
 import { recordFindingDefeated } from "../../scenes/defeat";
@@ -37,7 +43,8 @@ import type { MonsterDirector } from "../../scenes/monsterDirector";
 import type { Interactable } from "../../scenes/interactions";
 import type { Drawable, Light } from "../../scenes/scene";
 import { BossShow } from "./bossShow";
-import { BOSS_SLOWMO, bugCardDue, deathDuration, finishDeath, isDeathAnimating, lingerDuration, startDeath, updateDeathFx } from "./deaths";
+import { CHAMPION_FOCUS_SEC, championBanner, drawChampionCrown, roar } from "./champion";
+import { BOSS_SLOWMO, bugCardDue, deathDuration, finishDeath, hasGrandDeath, isDeathAnimating, lingerDuration, startDeath, updateDeathFx } from "./deaths";
 import { answerFinisher, declineUnanswered, drawFinisherRing, finisherSpot, spareFinisher } from "./dazed";
 import { applyContactDamage, separate, updateEngagement } from "./engagement";
 import { hazardDrawables } from "./hazards";
@@ -60,11 +67,16 @@ const RESPAWN_GRACE_SEC = 1.5;
 const DRAW_MARGIN_PX = 48;
 
 /**
- * A boss keeps its bar and its music while it fights, and also while it is
- * dazed: the fight logic counts it as beaten, but the show isn't over yet.
+ * A boss (or champion) keeps its bar and its music while it fights, and also
+ * while it is dazed: the fight logic counts it as beaten, but the show isn't over yet.
  */
 function onStage(m: Monster): boolean {
   return m.alive && (m.engaged || m.dazed);
+}
+
+/** Bosses and champions get an intro, the boss tune and the HUD's boss bar. */
+function headlines(m: Monster): boolean {
+  return m.isBoss || m.champion;
 }
 
 export class Director implements MonsterDirector {
@@ -76,8 +88,10 @@ export class Director implements MonsterDirector {
   private readonly leftovers: Leftovers;
   /** Monsters whose bug was fixed in the code, dissolving (rewritten.ts). */
   private readonly rewrites: Rewrites;
-  /** Bosses whose intro already played during this engagement. */
+  /** Bosses and champions whose intro already played during this engagement. */
   private readonly introduced = new Set<Monster>();
+  /** The file's functions and classes (a champion's banner names the one it lives in). */
+  private readonly outline: FileOutline;
   private grace = ENTRY_GRACE_SEC;
 
   constructor(
@@ -93,7 +107,8 @@ export class Director implements MonsterDirector {
     const defeated = getProgress(ctx.save.get(), ctx.repoKey).defeated;
     // Runes and echoes go on free floor of the real map (walls, pots and carvings as they are now).
     const spots = new FloorSpots(dungeonSpotMap(dungeon, (tx, ty) => !ctx.isSolidTile(tx, ty), layoutCarvings(dungeon, file.findings)));
-    const setup = { spots, outline: file.outline };
+    this.outline = file.outline;
+    const setup = { spots, outline: file.outline, championId: championOf(file)?.id ?? null };
     this.monsters = spawnsToCreate(dungeon.monsters, defeated).flatMap((spawn) => {
       const finding = findings.get(spawn.findingId);
       return finding ? createBodies(spawn, finding, this.world, setup) : [];
@@ -160,6 +175,7 @@ export class Director implements MonsterDirector {
     this.tags.draw(g);
     for (const m of this.monsters) {
       drawMonsterBadges(g, m, this.ctx.time);
+      drawChampionCrown(g, m, this.ctx.time);
       if (m.alive) m.trait?.drawOverlay?.(g, m, this.ctx.time);
     }
     this.leftovers.draw(g);
@@ -173,12 +189,14 @@ export class Director implements MonsterDirector {
   }
 
   boss(): HudState["boss"] {
-    const b = this.monsters.find((m) => m.isBoss && onStage(m));
-    return b ? { name: b.def.name, hp: b.hp, maxHp: b.maxHp } : null;
+    const b = this.monsters.find((m) => headlines(m) && onStage(m));
+    if (!b) return null;
+    const name = b.champion ? championTitle(b.finding, this.outline).title : b.def.name;
+    return { name, hp: b.hp, maxHp: b.maxHp };
   }
 
   timeScale(): number {
-    return this.monsters.some((m) => (m.isBoss || m.criticalFix) && isDeathAnimating(m)) ? BOSS_SLOWMO : 1;
+    return this.monsters.some((m) => (hasGrandDeath(m) || m.criticalFix) && isDeathAnimating(m)) ? BOSS_SLOWMO : 1;
   }
 
   interactables(): Interactable[] {
@@ -256,19 +274,29 @@ export class Director implements MonsterDirector {
 
   // ───────────── internals ─────────────
 
-  /** Boss intro when a boss starts fighting; back to the dungeon tune if it loses the hero. */
+  /** The intro when a boss or champion starts fighting; back to the dungeon tune if it loses the hero. */
   private introduceBosses(): void {
     for (const m of this.monsters) {
-      if (!m.isBoss) continue;
+      if (!headlines(m)) continue;
       if (m.alive && m.engaged && !this.introduced.has(m)) {
         this.introduced.add(m);
-        this.show.introduce(this.ctx, m);
+        this.introduce(m);
       } else if (!onStage(m) && this.introduced.has(m)) {
         this.introduced.delete(m);
         // (A defeated boss changes the music itself, in its big burst.)
         if (m.alive) this.show.cancel(this.ctx);
       }
     }
+  }
+
+  /** A boss roars through its own brain; a champion roars here, with its own banner. */
+  private introduce(m: Monster): void {
+    if (!m.champion) {
+      this.show.introduce(this.ctx, m);
+      return;
+    }
+    this.show.introduce(this.ctx, m, championBanner(m, this.outline), CHAMPION_FOCUS_SEC);
+    roar(m, this.world);
   }
 
   private updateDeath(m: Monster, dt: number): void {

@@ -7,6 +7,15 @@
  *   2. add a row to RULE_TABLE with a friendly title, a monster and a tip.
  * Rules without a row still work: they fall back to PREFIX_FALLBACKS.
  *
+ * Which rules are BOSSES (SPEC section F3): only what is as serious as it
+ * gets, in three families. A secret leaks (Key Thief): passwords in the
+ * code, and certificate checks switched off, which hands every secret sent
+ * to an eavesdropper. Input becomes code or commands (Eval Serpent): eval /
+ * exec, shells, unpickling, SQL glued from strings, a debug console open to
+ * visitors. The file does not run at all (Glitch King): a syntax error, or
+ * code Python parses but refuses to compile (`return` outside a function…),
+ * which stops the whole file just the same.
+ *
  * Rule codes are Ruff's: https://docs.astral.sh/ruff/rules/
  * The rule selection below was tuned by linting ~15 real Python packages
  * (click, attrs, boltons, conda, matplotlib, httpx, …) and dropping rules
@@ -210,6 +219,18 @@ const RULE_TABLE: Record<string, RuleRow> = {
   // ── Syntax ──
   [SYNTAX_CODE]: { monster: "glitchKing", title: "Syntax error", tip: "Python can't read this file at all — check the marked line for a missing bracket, colon or quote." },
 
+  // ── Code Python refuses to compile (a SyntaxError the moment the file is imported): bosses ──
+  F622: { monster: "glitchKing", title: "Two starred targets", tip: "Python won't compile this file: only one `*name` is allowed on the left of `=`." },
+  F701: { monster: "glitchKing", title: "`break` outside a loop", tip: "Python won't compile this file: `break` only works inside a `for` or `while` loop." },
+  F702: { monster: "glitchKing", title: "`continue` outside a loop", tip: "Python won't compile this file: `continue` only works inside a `for` or `while` loop." },
+  F704: { monster: "glitchKing", title: "`yield` outside a function", tip: "Python won't compile this file: move the `yield` into a function (or remove it)." },
+  F706: { monster: "glitchKing", title: "`return` outside a function", tip: "Python won't compile this file: `return` only works inside a function." },
+  F707: { monster: "glitchKing", title: "Bare `except` before others", tip: "Python won't compile this file: the bare `except:` must be the last handler." },
+  PLE0115: { monster: "glitchKing", title: "Both `nonlocal` and `global`", tip: "Python won't compile this file: a name is either `nonlocal` or `global`, not both." },
+  PLE0117: { monster: "glitchKing", title: "`nonlocal` with nothing to bind", tip: "Python won't compile this file: `nonlocal` needs the name in an enclosing function." },
+  PLE0118: { monster: "glitchKing", title: "Name used before `global`", tip: "Python won't compile this file: put the `global` line before the name is used." },
+  PLE1142: { monster: "glitchKing", title: "await outside async function", tip: "Python won't compile this file: mark the function `async def`, or don't await here." },
+
   // ── Pyflakes ──
   F401: { monster: "dustBunny", title: "Unused import", tip: "Delete the import, or add the name to `__all__` if it is meant to be re-exported." },
   F402: { monster: "mimic", title: "Loop variable hides an import", tip: "Rename the loop variable so it doesn't replace the imported module." },
@@ -262,13 +283,23 @@ const RULE_TABLE: Record<string, RuleRow> = {
   S105: { monster: "keyThief", title: "Hardcoded password", tip: "Read secrets from an environment variable or a secrets manager, never the source." },
   S106: { monster: "keyThief", title: "Hardcoded password argument", tip: "Pass the secret in from an environment variable instead of a string literal." },
   S107: { monster: "keyThief", title: "Hardcoded password default", tip: "Don't give passwords a default value; require the caller to provide one." },
+  S201: { monster: "evalSerpent", title: "Flask debug mode", tip: "Never ship `debug=True`; its console lets visitors run Python on your server." },
   S301: { monster: "evalSerpent", title: "Unsafe pickle load", tip: "Unpickling untrusted data runs arbitrary code — use JSON for data you didn't create." },
+  S302: { monster: "evalSerpent", title: "Unsafe marshal load", tip: "`marshal` data can crash or trick the interpreter — use JSON for data you didn't create." },
   S307: { monster: "evalSerpent", title: "Use of eval()", tip: "Use `ast.literal_eval` for data, or parse the input explicitly." },
+  S323: { monster: "keyThief", title: "Unverified SSL context", tip: "Use `ssl.create_default_context()`, which checks the server's certificate." },
+  S501: { monster: "keyThief", title: "TLS verification disabled", tip: "Remove `verify=False`; it lets anyone impersonate the server and read your secrets." },
   S506: { monster: "evalSerpent", title: "Unsafe yaml.load", tip: "Use `yaml.safe_load`, which can't construct arbitrary objects." },
+  S507: { monster: "keyThief", title: "SSH host key not checked", tip: "Don't auto-accept unknown host keys; load known hosts and reject the rest." },
+  S601: { monster: "evalSerpent", title: "Shell command over SSH", tip: "Never build the remote command from input; quote it with `shlex.quote` or avoid the shell." },
   S602: { monster: "evalSerpent", title: "Shell injection (shell=True)", tip: "Pass a list of arguments without `shell=True` so input can't become commands." },
   S604: { monster: "evalSerpent", title: "Call with shell=True", tip: "Avoid `shell=True`; pass arguments as a list." },
   S605: { monster: "evalSerpent", title: "Command run through a shell", tip: "Use `subprocess.run([...])` with an argument list instead of `os.system`." },
   S608: { monster: "evalSerpent", title: "SQL built from strings", tip: "Use query parameters (`?` / `%s` placeholders) instead of formatting SQL yourself." },
+  S609: { monster: "evalSerpent", title: "Wildcard in a shell command", tip: "A `*` in a shell command expands to file names an attacker can choose — list the files yourself." },
+  S610: { monster: "evalSerpent", title: "Raw SQL in Django extra()", tip: "Use Django's query API (or `params=`) instead of SQL text in `extra()`." },
+  S611: { monster: "evalSerpent", title: "Django RawSQL", tip: "Pass values through `params`, never by formatting them into the SQL text." },
+  S612: { monster: "evalSerpent", title: "logging.config.listen", tip: "The listener runs any config sent to its port — don't open it, or pass `verify=`." },
 
   // ── flake8-bandit: lower-danger traps (elites) ──
   S103: { monster: "mimic", category: "security", title: "Overly open file permissions", tip: "Grant only the permissions needed, e.g. `0o600` for private files." },
@@ -277,12 +308,10 @@ const RULE_TABLE: Record<string, RuleRow> = {
   S110: { monster: "swallowToad", title: "try-except-pass", tip: "At least log the exception so failures don't vanish silently." },
   S112: { monster: "swallowToad", title: "try-except-continue", tip: "Log the exception before skipping, so you know what went wrong." },
   S113: { monster: "gremlin", category: "security", title: "Request without a timeout", tip: "Pass `timeout=…` so a slow server can't hang your program forever." },
-  S201: { monster: "mimic", category: "security", title: "Flask debug mode", tip: "Never ship `debug=True`; it lets visitors run code on your server." },
   S202: { monster: "mimic", category: "security", title: "Unsafe tar extraction", tip: "Pass `filter=\"data\"` to `extractall` so archives can't write outside the folder." },
   S306: { monster: "mimic", category: "security", title: "Insecure mktemp", tip: "Use `tempfile.mkstemp` or `NamedTemporaryFile` instead." },
   S310: { monster: "mimic", category: "security", title: "URL open with any scheme", tip: "Check that the URL starts with `http://` or `https://` before opening it." },
   S324: { monster: "mimic", category: "security", title: "Weak hash function", tip: "Use SHA-256 for security, or pass `usedforsecurity=False` for checksums." },
-  S501: { monster: "mimic", category: "security", title: "TLS verification disabled", tip: "Remove `verify=False`; it lets anyone impersonate the server." },
   S701: { monster: "mimic", category: "security", title: "Template autoescape off", tip: "Turn autoescaping on so user input can't inject HTML." },
 
   // ── Complexity ──
@@ -294,7 +323,6 @@ const RULE_TABLE: Record<string, RuleRow> = {
 
   // ── Pylint ──
   PLE0704: { monster: "gremlin", title: "Bare raise outside except", tip: "A lone `raise` only works inside an `except` block; raise a specific exception." },
-  PLE1142: { monster: "gremlin", title: "await outside async function", tip: "Mark the function `async def`, or don't await here." },
   PLE1205: { monster: "gremlin", title: "Too many logging arguments", tip: "Make the number of `%s` placeholders match the arguments." },
   PLE1206: { monster: "gremlin", title: "Too few logging arguments", tip: "Make the number of `%s` placeholders match the arguments." },
   PLW0120: { monster: "echoBat", title: "Pointless else on a loop", tip: "Without a `break`, the `else` always runs — un-indent its body." },

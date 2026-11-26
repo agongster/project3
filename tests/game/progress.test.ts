@@ -4,13 +4,19 @@ import {
   BASE_MAGNET_RADIUS,
   MAX_LEVEL,
   MAX_SAVED_REPOS,
+  aliveFindings,
   emptyProgress,
+  fileTally,
+  findingState,
   getProgress,
-  isDungeonCleared,
+  isDungeon,
+  isDungeonPurified,
+  isDungeonQuiet,
+  isRepoPurified,
   levelForXp,
   playerStats,
-  remainingFindings,
   repoHealth,
+  subduedFindings,
   withRepoProgress,
 } from "@/lib/game/progress";
 import { defaultSave } from "@/lib/game/store";
@@ -157,6 +163,63 @@ describe("repo progress helpers", () => {
   });
 });
 
+describe("finding states (alive, subdued, fixed, sealed)", () => {
+  const bugA = makeFinding("a.py", 1);
+  const bugB = makeFinding("a.py", 9, "gremlin", { code: "B006" });
+  const fixedBug = makeFinding("a.py", 4, "dustBunny", { code: "F841" });
+  const sealedBug = makeFinding("a.py", 6, "keyThief", { code: "S105" });
+  const file = { ...makeFile("a.py", { findings: [bugA, bugB] }), realFixes: 2, fixedFindings: [fixedBug, sealedBug] };
+  const progress = progressWith({ defeated: [bugA.id], sealed: [sealedBug.id] });
+
+  it("derives each finding's state from the code and the save", () => {
+    expect(findingState(file, bugA, progress)).toBe("subdued");
+    expect(findingState(file, bugB, progress)).toBe("alive");
+    expect(findingState(file, fixedBug, progress)).toBe("fixed");
+    expect(findingState(file, sealedBug, progress)).toBe("sealed");
+    expect(fileTally(file, progress)).toEqual({ alive: 1, subdued: 1, fixed: 1, sealed: 1 });
+  });
+
+  it("lists the monsters still fighting and the ones subdued", () => {
+    expect(aliveFindings(file, emptyProgress())).toEqual([bugA, bugB]);
+    expect(aliveFindings(file, progress)).toEqual([bugB]);
+    expect(subduedFindings(file, progress)).toEqual([bugA]);
+  });
+});
+
+describe("quiet and purified dungeons", () => {
+  const bugA = makeFinding("a.py", 1);
+  const bugB = makeFinding("a.py", 9);
+  const file = makeFile("a.py", { findings: [bugA, bugB] });
+
+  it("is quiet once every monster still in the code is subdued (a fight is enough)", () => {
+    expect(isDungeonQuiet(file, emptyProgress())).toBe(false);
+    expect(isDungeonQuiet(file, progressWith({ defeated: [bugA.id] }))).toBe(false);
+    expect(isDungeonQuiet(file, progressWith({ defeated: [bugA.id, bugB.id] }))).toBe(true);
+  });
+
+  it("is purified only when the code has no finding left (a fight is not enough)", () => {
+    expect(isDungeonPurified(file)).toBe(false);
+    const fixedAll = { ...makeFile("a.py"), realFixes: 2, fixedFindings: [bugA, bugB] };
+    expect(isDungeonPurified(fixedAll)).toBe(true);
+    expect(isDungeonQuiet(fixedAll, emptyProgress())).toBe(true);
+  });
+
+  it("does not take the old `cleared` list as proof of anything", () => {
+    expect(isDungeonQuiet(file, progressWith({ cleared: ["a.py"] }))).toBe(false);
+  });
+
+  it("knows a clean file is not a dungeon at all", () => {
+    expect(isDungeon(makeFile("clean.py"))).toBe(false);
+    expect(isDungeonPurified(makeFile("clean.py"))).toBe(false);
+    expect(isDungeon(makeFile("broken.py", { status: "failed", findings: [bugA] }))).toBe(false);
+  });
+
+  it("calls the repo purified (the victory) only when no file has a finding left", () => {
+    expect(isRepoPurified(makeAnalysis([file, makeFile("clean.py")]))).toBe(false);
+    expect(isRepoPurified(makeAnalysis([{ ...makeFile("a.py"), fixedFindings: [bugA, bugB] }, makeFile("clean.py")]))).toBe(true);
+  });
+});
+
 describe("repoHealth", () => {
   const bugA = makeFinding("a.py", 1);
   const bugB = makeFinding("a.py", 2, "gremlin", { code: "B006" });
@@ -172,10 +235,14 @@ describe("repoHealth", () => {
     const health = repoHealth(makeAnalysis([makeFile("clean.py")]), emptyProgress());
     expect(health).toEqual({
       ratio: 1,
-      defeated: 0,
+      subduedRatio: 0,
+      alive: 0,
+      subdued: 0,
       fixed: 0,
+      sealed: 0,
       total: 0,
-      dungeonsCleared: 0,
+      dungeonsQuiet: 0,
+      dungeonsPurified: 0,
       dungeonsTotal: 0,
       chestsOpened: 0,
       chestsTotal: 1,
@@ -186,10 +253,14 @@ describe("repoHealth", () => {
   it("starts at 0 and counts dungeons and chests (failed files have none)", () => {
     expect(repoHealth(analysis, emptyProgress())).toEqual({
       ratio: 0,
-      defeated: 0,
+      subduedRatio: 0,
+      alive: 3,
+      subdued: 0,
       fixed: 0,
+      sealed: 0,
       total: 3,
-      dungeonsCleared: 0,
+      dungeonsQuiet: 0,
+      dungeonsPurified: 0,
       dungeonsTotal: 2,
       chestsOpened: 0,
       chestsTotal: 3,
@@ -202,42 +273,41 @@ describe("repoHealth", () => {
     expect(health.chestsTotal).toBe(1);
   });
 
-  it("counts defeated findings, cleared dungeons and opened chests", () => {
-    const progress = progressWith({ defeated: [bugA.id, bugB.id], opened: ["clean.py", "a.py"] });
+  it("does not fill the bar with fights: subdued bugs are its lighter part", () => {
+    const progress = progressWith({ defeated: [bugA.id, bugB.id], opened: ["clean.py"] });
     const health = repoHealth(analysis, progress);
-    expect(health.defeated).toBe(2);
+    expect(health.ratio).toBe(0);
+    expect(health.subdued).toBe(2);
+    expect(health.subduedRatio).toBeCloseTo(2 / 3);
+    expect(health.dungeonsQuiet).toBe(1);
+    expect(health.dungeonsPurified).toBe(0);
+    expect(health.chestsOpened).toBe(1);
+  });
+
+  it("fills the bar with fixed and sealed bugs alike, counting them apart", () => {
+    const edited = makeAnalysis([
+      { ...makeFile("a.py"), realFixes: 2, fixedFindings: [bugA, bugB] },
+      makeFile("b.py", { findings: [bugC] }),
+      makeFile("clean.py"),
+    ]);
+    const health = repoHealth(edited, progressWith({ sealed: [bugB.id], defeated: [bugC.id] }));
+    expect(health).toMatchObject({ fixed: 1, sealed: 1, subdued: 1, alive: 0, total: 3, dungeonsPurified: 1, dungeonsQuiet: 2, dungeonsTotal: 2 });
     expect(health.ratio).toBeCloseTo(2 / 3);
-    expect(health.dungeonsCleared).toBe(1);
-    expect(health.chestsOpened).toBe(2);
+    expect(health.subduedRatio).toBeCloseTo(1 / 3);
   });
 
   it("ignores stale ids that are not in this analysis", () => {
-    const progress = progressWith({ defeated: ["ghost.py:1:1:F401", bugC.id], opened: ["ghost.py"] });
+    const progress = progressWith({ defeated: ["ghost.py:1:1:F401", bugC.id], opened: ["ghost.py"], sealed: ["ghost.py:2:1:S105"] });
     const health = repoHealth(analysis, progress);
-    expect(health.defeated).toBe(1);
+    expect(health.subdued).toBe(1);
+    expect(health.sealed).toBe(0);
     expect(health.chestsOpened).toBe(0);
     expect(health.ratio).toBeLessThanOrEqual(1);
   });
-});
 
-describe("isDungeonCleared / remainingFindings", () => {
-  const bugA = makeFinding("a.py", 1);
-  const bugB = makeFinding("a.py", 9);
-  const file = makeFile("a.py", { findings: [bugA, bugB] });
-
-  it("lists the monsters still alive", () => {
-    expect(remainingFindings(file, emptyProgress())).toEqual([bugA, bugB]);
-    expect(remainingFindings(file, progressWith({ defeated: [bugA.id] }))).toEqual([bugB]);
-  });
-
-  it("is cleared once every monster is defeated or the engine recorded it", () => {
-    expect(isDungeonCleared(file, emptyProgress())).toBe(false);
-    expect(isDungeonCleared(file, progressWith({ defeated: [bugA.id] }))).toBe(false);
-    expect(isDungeonCleared(file, progressWith({ defeated: [bugA.id, bugB.id] }))).toBe(true);
-    expect(isDungeonCleared(file, progressWith({ cleared: ["a.py"] }))).toBe(true);
-  });
-
-  it("is false for clean files, which are not dungeons", () => {
-    expect(isDungeonCleared(makeFile("clean.py"), progressWith({ cleared: ["clean.py"] }))).toBe(false);
+  it("loads an old save whose dungeons were cleared by fighting as quiet dungeons, nothing purified", () => {
+    const oldSave = progressWith({ defeated: [bugA.id, bugB.id, bugC.id], cleared: ["a.py", "b.py"], opened: ["a.py", "b.py"], milestones: [25, 50, 75, 100] });
+    const health = repoHealth(analysis, oldSave);
+    expect(health).toMatchObject({ ratio: 0, subdued: 3, dungeonsQuiet: 2, dungeonsPurified: 0, chestsOpened: 2 });
   });
 });

@@ -6,28 +6,31 @@
  * and "Fix it for real", which opens the Workshop on that line.
  */
 import { MONSTERS } from "@/lib/game/catalog";
+import { lookOf } from "@/lib/game/monsterLooks";
 import type { Finding, RepoAnalysis } from "@/lib/types";
 import { CodeSnippet } from "../CodeSnippet";
 import { MonsterIcon } from "../MonsterIcon";
 import { SEVERITY_INFO } from "../monsterText";
 import { githubLineUrl, type BugStatus } from "../codexData";
 import { TraitLine } from "./TraitLine";
+import { VarietyLine } from "./VarietyLine";
 import { WorkshopLink } from "../WorkshopLink";
 
 const DETAIL_ICON_BOX = 64;
 
 /** One line about where the bug stands, and its colour. */
 const STATUS_LINE: Record<BugStatus, { text: string; className: string }> = {
-  lurking: { text: "Still lurking in the code.", className: "font-bold text-berry" },
-  squashed: { text: "Monster squashed! Now fix it in the code.", className: "font-bold text-leaf-deep" },
+  alive: { text: "Still lurking in the code, and its monster still fights.", className: "font-bold text-berry" },
+  subdued: { text: "Subdued! Its monster waits on its glowing line: fix the line in the Workshop to finish it.", className: "font-bold text-[#2a6f8a]" },
   fixed: { text: "Fixed in the code ✓ You rewrote this line in the Workshop, so its monster is gone for good.", className: "font-bold text-leaf-deep" },
+  sealed: { text: "Sealed with # noqa: accepted as it is. It counts as dealt with, but it was not fixed.", className: "font-bold text-ink-soft" },
 };
 
 interface FindingDetailProps {
   finding: Finding;
   analysis: RepoAnalysis;
   status: BugStatus;
-  /** Opens the Workshop on the finding's line (not offered for a bug already fixed in the code). */
+  /** Opens the Workshop on the finding's line (not offered for a bug already gone from the code). */
   onFix: () => void;
 }
 
@@ -37,7 +40,7 @@ export function FindingDetail({ finding, analysis, status, onFix }: FindingDetai
   return (
     <article className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
-        <MonsterIcon kind={finding.monster} box={DETAIL_ICON_BOX} />
+        <MonsterIcon kind={finding.monster} box={DETAIL_ICON_BOX} look={lookOf(finding)} />
         <div className="min-w-0">
           <h3 className="text-lg font-bold leading-tight">{finding.title}</h3>
           <p className="text-sm">
@@ -51,6 +54,8 @@ export function FindingDetail({ finding, analysis, status, onFix }: FindingDetai
           </p>
         </div>
       </div>
+
+      <VarietyLine finding={finding} analysis={analysis} />
 
       <p className={STATUS_LINE[status].className}>{STATUS_LINE[status].text}</p>
 
@@ -77,7 +82,7 @@ export function FindingDetail({ finding, analysis, status, onFix }: FindingDetai
             View on GitHub (line {finding.line})
           </a>
         )}
-        {status !== "fixed" && <WorkshopLink onClick={onFix} />}
+        {(status === "alive" || status === "subdued") && <WorkshopLink onClick={onFix} />}
       </div>
     </article>
   );

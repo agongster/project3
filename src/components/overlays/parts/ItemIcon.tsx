@@ -39,7 +39,7 @@ export function ItemIcon({ item, scale = 3, found = true, equipped, tight, class
     <span data-rarity={item.rarity} className={cx("rarity-ring relative inline-flex shrink-0 items-center justify-center", className)} style={tileStyle}>
       <PixelSprite sprite={itemSprite(item.id)} scale={scale} silhouette={!found} label={found ? item.name : "Not found yet"} />
       {!found && (
-        <span aria-hidden="true" className="font-title absolute inset-0 flex items-center justify-center text-sm text-cream/80">
+        <span aria-hidden="true" className="font-title absolute inset-0 flex items-center justify-center text-pixel-sm text-cream/80">
           ?
         </span>
       )}

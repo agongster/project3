@@ -9,7 +9,7 @@ import { useState } from "react";
 import { HeroStage } from "@/components/character/HeroStage";
 import { LookEditor } from "@/components/character/LookEditor";
 import { ThemePicker } from "@/components/character/ThemePicker";
-import { PixelButton, PixelPanel } from "@/components/ui/kit";
+import { cx, PixelButton, PixelPanel } from "@/components/ui/kit";
 import { useMusic } from "@/components/app/audioHooks";
 import { ROOMY_SCREEN, useMediaQuery } from "@/components/app/useMediaQuery";
 import { targetLabel, type WorldTarget } from "@/components/app/flow";
@@ -63,16 +63,17 @@ export function CreatorScreen({ services, next, onDone, onBack }: Props) {
   return (
     <main className="flex h-full w-full flex-col items-center overflow-y-auto bg-night px-4 py-3">
       {/* my-auto centres the creator vertically on tall windows and lets it scroll on tiny ones. */}
-      <div className="my-auto flex w-full max-w-[1040px] flex-col">
+      {/* Big windows give the bigger hero stage more room, so the option panel keeps its width. */}
+      <div className={cx("my-auto flex w-full flex-col", roomy ? "max-w-[1240px]" : "max-w-[1040px]")}>
         <header className="flex w-full items-center gap-4">
           <PixelButton tone="cream" small onClick={back}>
             ◀ Back
           </PixelButton>
-          <h1 className="font-title text-[18px] leading-loose text-gold">{firstTime ? "Create your hero" : "Edit your hero"}</h1>
+          <h1 className="font-title text-pixel-md leading-loose text-gold">{firstTime ? "Create your hero" : "Edit your hero"}</h1>
           {next && <span className="ml-auto text-cream/70">Next stop: {targetLabel(next)}</span>}
         </header>
 
-        <div className="grid w-full grid-cols-1 items-start gap-4 py-2 md:grid-cols-[auto_1fr]">
+        <div className="grid w-full grid-cols-1 items-start gap-4 py-1.5 md:grid-cols-[auto_1fr]">
           <PixelPanel tone="wood" className="flex flex-col items-center gap-3 p-4">
             <HeroStage look={draft.look} hatId={draft.hatId} theme={theme} audio={audio} scale={roomy ? 4 : 3} />
             <div className="w-full">
@@ -81,7 +82,7 @@ export function CreatorScreen({ services, next, onDone, onBack }: Props) {
             </div>
           </PixelPanel>
 
-          <PixelPanel className="flex flex-col gap-2 p-4">
+          <PixelPanel className="flex flex-col gap-2 px-4 py-3">
             <LookEditor
               look={draft.look}
               hatId={draft.hatId}

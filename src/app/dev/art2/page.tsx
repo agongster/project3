@@ -4,7 +4,7 @@
  * in-hand weapons, projectiles, pets, UI/FX sprites and the bitmap font.
  *
  * Query parameters (all optional):
- *   ?section=monsters|items|weapons|projectiles|pets|ui|font|all
+ *   ?section=monsters|variants|marks|items|weapons|projectiles|pets|ui|font|all
  *   ?scale=4      integer zoom
  *   ?anim=1       play animations in place instead of listing frames
  *   ?only=a,b     show only these ids (monster kinds, item ids, sprite names...)

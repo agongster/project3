@@ -19,6 +19,11 @@ export interface ForgeRewards {
    * total is shown.
    */
   paidFixes?: readonly Finding[];
+  /**
+   * Optional: ids of the report's `fixed` findings that were only SEALED with
+   * `# noqa` (they pay nothing and are shown plainly, apart from the fixes).
+   */
+  sealedIds?: readonly string[];
 }
 
 /** Lets an extra side-panel tab talk to the editor. */
@@ -46,8 +51,11 @@ export interface WorkshopProps {
   audio: AudioApi;
   /** Open this file (at this 1-based line) when the Workshop opens. */
   initial?: { path: string; line?: number };
-  /** Called after every forge and revert with the workspace's report; returns what the game paid, if anything. */
-  onForged?: (report: ForgeReport) => ForgeRewards | void;
+  /**
+   * Called after every forge and revert with the workspace's report and the
+   * text now saved (the original after a revert); returns what the game paid, if anything.
+   */
+  onForged?: (report: ForgeReport, savedText: string) => ForgeRewards | void;
   /** "Back to the world". Unforged typing is kept for the next visit. */
   onClose: () => void;
   extraTabs?: readonly WorkshopExtraTab[];

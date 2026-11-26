@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { repoKey } from "@/game/bridge";
-import { addToTally, EMPTY_TALLY, followBounties, originalIds, returnBanner, settleForge, summaryLines, traceIds } from "@/components/app/forgeFlow";
+import { addToTally, EMPTY_TALLY, followBounties, originalIds, returnBanner, settleForge, summaryLines, traceIds, type VisitTally } from "@/components/app/forgeFlow";
 import { questToast } from "@/components/app/questToasts";
 import { defaultSave, getProgress } from "@/lib/game";
 import { isBountyClaimed, type Bounty } from "@/lib/game/bounties";
@@ -32,8 +32,11 @@ function wanted(finding: Finding): Bounty {
 async function forgeAndSettle(workspace: Workspace, save: SaveData, text: string, bounties: readonly Bounty[]) {
   const report = await workspace.forge(ORDERS, text);
   const key = repoKey(workspace.analysis.get());
-  return { report, key, ...settleForge({ save, repoKey: key, analysis: workspace.analysis.get(), report, bounties }) };
+  return { report, key, ...settleForge({ save, repoKey: key, analysis: workspace.analysis.get(), report, text, bounties }) };
 }
+
+/** The mutable default argument, sealed instead of fixed. */
+const SEAL_DEFAULT = (text: string) => text.replace("def add_to_basket(item, basket=[]):", "def add_to_basket(item, basket=[]):  # noqa: B006");
 
 describe("settleForge", () => {
   it("pays a real fix once, with the quests on top, and says so in the summary", async () => {
@@ -52,11 +55,11 @@ describe("settleForge", () => {
     const bounty = wanted(mutableDefault(workspace));
     const first = await forgeAndSettle(workspace, defaultSave(), FIX_DEFAULT(demoSource(ORDERS)), [bounty]);
     expect(first.bountiesPaid).toEqual([bounty]);
-    expect(first.rewards.lines[0]).toBe("Bounty claimed: line 4 in bakery/ · +40 coins");
+    expect(first.rewards.lines[0]).toBe("Wanted bug fixed: line 4 in bakery/ · +40 coins");
     expect(isBountyClaimed(getProgress(first.save, first.key), bounty)).toBe(true);
 
     const revert = await workspace.revert(ORDERS);
-    const reverted = settleForge({ save: first.save, repoKey: first.key, analysis: workspace.analysis.get(), report: revert, bounties: first.bounties });
+    const reverted = settleForge({ save: first.save, repoKey: first.key, analysis: workspace.analysis.get(), report: revert, text: demoSource(ORDERS), bounties: first.bounties });
     expect(isBountyClaimed(getProgress(reverted.save, first.key), bounty)).toBe(true);
 
     const again = await forgeAndSettle(workspace, reverted.save, FIX_DEFAULT(demoSource(ORDERS)), reverted.bounties);
@@ -75,6 +78,22 @@ describe("settleForge", () => {
     const fixed = await forgeAndSettle(workspace, moved.save, FIX_DEFAULT(MOVE_DOWN(demoSource(ORDERS))), moved.bounties);
     expect(fixed.bountiesPaid.map((b) => b.line)).toEqual([6]);
   });
+
+  it("tells a seal from a fix: no reward, no streak, the wanted notice closed unpaid, the seal remembered", async () => {
+    const workspace = await openDemo();
+    const bug = mutableDefault(workspace);
+    const bounty = wanted(bug);
+    const sealed = await forgeAndSettle(workspace, defaultSave(), SEAL_DEFAULT(demoSource(ORDERS)), [bounty]);
+    expect(sealed.sealed.map((f) => f.code)).toEqual(["B006"]);
+    expect(sealed.fixed).toEqual([]);
+    expect(sealed.rewards.paidFixes).toEqual([]);
+    expect(sealed.rewards.sealedIds).toEqual([bug.id]);
+    expect(sealed.bountiesPaid).toEqual([]);
+    expect(isBountyClaimed(getProgress(sealed.save, sealed.key), bounty)).toBe(true);
+    expect(getProgress(sealed.save, sealed.key).sealed).toEqual([bug.id]);
+    expect(sealed.save.workshop?.streak ?? 0).toBe(0);
+    expect(sealed.save.stats.realFixes ?? 0).toBe(0);
+  });
 });
 
 describe("ids through a Workshop visit", () => {
@@ -85,24 +104,29 @@ describe("ids through a Workshop visit", () => {
     const trace = traceIds(new Map(), moveReport);
     const fixReport = await workspace.forge(ORDERS, FIX_DEFAULT(MOVE_DOWN(demoSource(ORDERS))));
     expect(fixReport.fixed.map((f) => f.id)).not.toEqual([original]);
-    expect(originalIds(trace, fixReport)).toEqual([original]);
+    expect(originalIds(trace, fixReport.fixed)).toEqual([original]);
   });
 });
 
 describe("the banner after a visit", () => {
-  const report = (fixed: number, introduced: number, purified = false) =>
-    ({ path: "a.py", linted: true, fixed: Array(fixed).fill(null), introduced: Array(introduced).fill(null), purified }) as never;
+  /** One forge: how many bugs it fixed, sealed and introduced. */
+  const forge = (tally: VisitTally, fixed: number, introduced: number, options: { sealed?: number; purified?: boolean } = {}) => {
+    const report = { path: "a.py", linted: true, introduced: Array(introduced).fill(null), purified: options.purified ?? false } as never;
+    return addToTally(tally, report, { fixed: Array(fixed).fill(null), sealed: Array(options.sealed ?? 0).fill(null) });
+  };
 
-  it("sums up real fixes, new monsters and purified dungeons", () => {
-    const tally = [report(2, 0), report(1, 1, true)].reduce(addToTally, EMPTY_TALLY);
+  it("sums up real fixes, seals, new monsters and purified dungeons", () => {
+    const tally = forge(forge(EMPTY_TALLY, 2, 0), 1, 1, { purified: true });
     expect(returnBanner(tally)).toEqual({ title: "THE CODE CHANGED!", subtitle: "3 bugs fixed for real · 1 new monster · 1 dungeon purified" });
-    expect(returnBanner(addToTally(EMPTY_TALLY, report(1, 0)))).toEqual({ title: "FIXED FOR REAL!", subtitle: "1 bug fixed for real" });
-    expect(returnBanner(addToTally(EMPTY_TALLY, report(0, 2)))?.title).toBe("NEW MONSTERS!");
+    expect(returnBanner(forge(EMPTY_TALLY, 1, 0))).toEqual({ title: "FIXED FOR REAL!", subtitle: "1 bug fixed for real" });
+    expect(returnBanner(forge(EMPTY_TALLY, 1, 0, { sealed: 2 }))).toEqual({ title: "FIXED FOR REAL!", subtitle: "1 bug fixed for real · 2 bugs sealed" });
+    expect(returnBanner(forge(EMPTY_TALLY, 0, 0, { sealed: 1 }))).toEqual({ title: "SEALED", subtitle: "1 bug sealed" });
+    expect(returnBanner(forge(EMPTY_TALLY, 0, 2))?.title).toBe("NEW MONSTERS!");
   });
 
   it("stays quiet when nothing changed (or only a README was saved)", () => {
     expect(returnBanner(EMPTY_TALLY)).toBeNull();
-    expect(returnBanner(addToTally(EMPTY_TALLY, { linted: false } as never))).toBeNull();
+    expect(returnBanner(addToTally(EMPTY_TALLY, { linted: false } as never, { fixed: [], sealed: [] }))).toBeNull();
   });
 });
 
@@ -112,7 +136,7 @@ describe("summary lines and quest toasts", () => {
   it("lists bounties, a level-up and the quest news", () => {
     const bounty: Bounty = { findingId: "x", monster: "mimic", severity: "elite", folder: "", line: 3, code: "x", reward: 40 };
     expect(summaryLines([bounty], { level: 3, title: "Bug Hunter" }, [quest])).toEqual([
-      "Bounty claimed: line 3 in Town Square · +40 coins",
+      "Wanted bug fixed: line 3 in Town Square · +40 coins",
       "Level up! Level 3: Bug Hunter",
       "Quest complete: Light the lantern in take_order()",
     ]);

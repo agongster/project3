@@ -2,7 +2,8 @@
  * The boss "presentation": when a boss notices the hero, boss music starts,
  * the camera eases toward the boss for the intro (BOSS_INTRO_SEC), and a
  * banner with its name and the finding it stands for slides in at the top
- * of the screen.
+ * of the screen. A champion (champion.ts) gets the same show with its own
+ * banner and a shorter camera pull.
  */
 import { drawText } from "@/game/art/font";
 import { VIEW_W } from "../../bridge";
@@ -13,7 +14,8 @@ import { tagText } from "./nameTags";
 
 const BANNER_SEC = 2.8;
 const BANNER_SLIDE_SEC = 0.3;
-const BANNER_TOP_PX = 18;
+/** Below the HUD's top row (location pill and boss bar), so the bar never covers the name. */
+const BANNER_TOP_PX = 40;
 const BANNER_HEIGHT_PX = 34;
 const BANNER_BG = "#1a1226";
 const BANNER_BG_ALPHA = 0.72;
@@ -28,10 +30,11 @@ export class BossShow {
   private focus: Monster | null = null;
   private focusLeft = 0;
 
-  introduce(ctx: SceneContext, boss: Monster): void {
-    this.banner = { title: boss.def.name.toUpperCase(), subtitle: tagText(boss.finding), age: 0 };
+  /** `banner` defaults to the boss's name over its finding; `focusSec` to the boss intro's length. */
+  introduce(ctx: SceneContext, boss: Monster, banner?: { title: string; subtitle: string }, focusSec = BOSS_INTRO_SEC): void {
+    this.banner = { ...(banner ?? { title: boss.def.name.toUpperCase(), subtitle: tagText(boss.finding) }), age: 0 };
     this.focus = boss;
-    this.focusLeft = BOSS_INTRO_SEC;
+    this.focusLeft = focusSec;
     ctx.audio.music("boss");
   }
 

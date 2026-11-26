@@ -267,19 +267,92 @@ export function getTheme(id: ThemeId): ThemeDef {
 
 // ─────────────────────── Character options ──────────────────────
 
-export const SKIN_TONES = ["#ffe0c2", "#f6c9a0", "#e0a878", "#c68653", "#9a5f3c", "#6b4027"];
+/*
+ * A save stores every look choice as an INDEX into one of these lists, so
+ * options are only ever APPENDED: reordering or removing one would change
+ * existing heroes. The creator shows each list in the friendlier order of
+ * its `..._ORDER` list instead (every index exactly once; a test checks).
+ * Style names are also the keys of the pixel art in src/game/art/character*.ts.
+ */
 
-export const HAIR_STYLES = ["Short", "Bob", "Long", "Ponytail", "Spiky", "Curly", "Buns", "Bald"];
+/** A named colour choice. `fantasy` colours are skipped by most random villagers. */
+export interface ColorOption {
+  name: string;
+  hex: string;
+  fantasy?: boolean;
+}
 
-export const HAIR_COLORS = ["#3b2a20", "#6b4226", "#a8672f", "#e3b55c", "#f4e3b1", "#d9534f", "#ff8fab", "#7c5cff", "#4dabf7", "#3ddc97", "#e9ecef", "#2b2b35"];
+export const SKIN_TONES: readonly ColorOption[] = [
+  { name: "Peach", hex: "#ffe0c2" }, { name: "Sand", hex: "#f6c9a0" }, { name: "Honey", hex: "#e0a878" }, { name: "Caramel", hex: "#c68653" },
+  { name: "Cocoa", hex: "#9a5f3c" }, { name: "Umber", hex: "#6b4027" }, { name: "Porcelain", hex: "#fff0e4" }, { name: "Olive", hex: "#c9a079" },
+  { name: "Bronze", hex: "#b2714a" }, { name: "Ebony", hex: "#4e2e20" }, { name: "Moss", hex: "#a9d79a", fantasy: true }, { name: "Frost", hex: "#bccbff", fantasy: true },
+];
+export const SKIN_TONE_ORDER = [6, 0, 1, 2, 7, 3, 8, 4, 5, 9, 10, 11];
 
-export const OUTFITS = ["Tee", "Hoodie", "Overalls", "Dress", "Robe"];
+export const HAIR_STYLES = ["Short", "Bob", "Long", "Ponytail", "Spiky", "Curly", "Buns", "Bald", "Pixie", "Undercut", "Buzz", "Mohawk", "Afro", "Puffs", "Braids", "Locs", "Wavy", "Twintails", "Hijab"];
+export const HAIR_STYLE_ORDER = [7, 10, 0, 8, 9, 4, 11, 5, 12, 13, 1, 6, 3, 17, 14, 15, 2, 16, 18];
+/** Hair styles that are a head covering: their "hair colour" is the cloth's colour. */
+export const COVERING_HAIR_STYLES: readonly string[] = ["Hijab"];
 
-export const OUTFIT_COLORS = ["#e5484d", "#f08c3a", "#f2c94c", "#58b368", "#3cc7c0", "#4a90e2", "#7c5cff", "#e667af", "#8d6e63", "#f1f3f5", "#343a40"];
+export const HAIR_COLORS: readonly ColorOption[] = [
+  { name: "Espresso", hex: "#3b2a20" }, { name: "Chestnut", hex: "#6b4226" }, { name: "Copper", hex: "#a8672f" }, { name: "Golden", hex: "#e3b55c" },
+  { name: "Flaxen", hex: "#f4e3b1" }, { name: "Scarlet", hex: "#d9534f", fantasy: true }, { name: "Bubblegum", hex: "#ff8fab", fantasy: true }, { name: "Violet", hex: "#7c5cff", fantasy: true },
+  { name: "Sky", hex: "#4dabf7", fantasy: true }, { name: "Mint", hex: "#3ddc97", fantasy: true }, { name: "Snow", hex: "#e9ecef" }, { name: "Black", hex: "#2b2b35" },
+  { name: "Ash brown", hex: "#8b6b52" }, { name: "Ginger", hex: "#c8582a" }, { name: "Strawberry", hex: "#e2a072" }, { name: "Grey", hex: "#a3a8b4" },
+  { name: "Berry", hex: "#b8336a", fantasy: true }, { name: "Lavender", hex: "#b79cff", fantasy: true }, { name: "Indigo", hex: "#3d4fc4", fantasy: true }, { name: "Teal", hex: "#1f9e9a", fantasy: true },
+];
+export const HAIR_COLOR_ORDER = [11, 0, 1, 12, 2, 13, 14, 3, 4, 15, 10, 5, 16, 6, 17, 7, 18, 8, 19, 9];
 
-export const EYE_STYLES = ["Dot", "Sparkle", "Sleepy"];
+export const OUTFITS = ["Tee", "Hoodie", "Overalls", "Dress", "Robe", "Jacket", "Sweater", "Apron", "Armor", "Cloak", "Sporty", "Kimono", "Tunic"];
+export const OUTFIT_ORDER = [0, 10, 1, 6, 5, 2, 7, 3, 11, 12, 4, 9, 8];
 
-export const ACCESSORIES = ["None", "Glasses", "Blush", "Freckles"];
+export const OUTFIT_COLORS: readonly ColorOption[] = [
+  { name: "Tomato", hex: "#e5484d" }, { name: "Pumpkin", hex: "#f08c3a" }, { name: "Sunflower", hex: "#f2c94c" }, { name: "Leaf", hex: "#58b368" },
+  { name: "Lagoon", hex: "#3cc7c0" }, { name: "Cornflower", hex: "#4a90e2" }, { name: "Grape", hex: "#7c5cff" }, { name: "Peony", hex: "#e667af" },
+  { name: "Cocoa", hex: "#8d6e63" }, { name: "Cloud", hex: "#f1f3f5" }, { name: "Charcoal", hex: "#343a40" }, { name: "Wine", hex: "#9b2c4a" },
+  { name: "Forest", hex: "#3a7a4a" }, { name: "Navy", hex: "#2c4580" }, { name: "Blossom", hex: "#ffb3c7" }, { name: "Lilac", hex: "#b9a2f0" },
+  { name: "Ice", hex: "#a6dcf2" }, { name: "Lime", hex: "#a6c84a" }, { name: "Oat", hex: "#e8d6b0" }, { name: "Camel", hex: "#b5835a" },
+  { name: "Slate", hex: "#7a8691" },
+];
+export const OUTFIT_COLOR_ORDER = [0, 11, 1, 19, 8, 2, 18, 17, 3, 12, 4, 16, 5, 13, 6, 15, 7, 14, 9, 20, 10];
+
+/**
+ * The outfit's second colour (trim, sleeves, trousers...): 0 = "Classic",
+ * the pairing each outfit was designed with; n ≥ 1 = OUTFIT_COLORS[n - 1].
+ */
+export const OUTFIT_COLOR2_COUNT = OUTFIT_COLORS.length + 1;
+
+export const EYE_STYLES = ["Dot", "Sparkle", "Sleepy", "Happy", "Wide", "Wink", "Lashes", "Fierce"];
+export const EYE_STYLE_ORDER = [0, 1, 4, 6, 3, 5, 2, 7];
+
+/** The first eye colour is the original near-black every hero had before eye colours existed. */
+export const EYE_COLORS: readonly ColorOption[] = [
+  { name: "Dark", hex: "#2b1d34" }, { name: "Brown", hex: "#7a4526" }, { name: "Hazel", hex: "#8f7a2a" }, { name: "Green", hex: "#2e9a52" }, { name: "Blue", hex: "#3473e0" },
+  { name: "Grey", hex: "#6f8296" }, { name: "Violet", hex: "#8a52e0", fantasy: true }, { name: "Amber", hex: "#d4881a", fantasy: true }, { name: "Ruby", hex: "#d0344a", fantasy: true },
+];
+
+export const MOUTHS = ["Smile", "Grin", "Open", "Smirk", "Tongue", "Flat"];
+
+/** Marks on the skin. Separate from eyewear, so glasses and blush can be worn together. */
+export const FACE_DETAILS = ["None", "Blush", "Freckles", "Beauty mark", "Scar", "Face paint", "Bandage"];
+
+export const EYEWEAR = ["None", "Glasses", "Round specs", "Shades", "Eye patch", "Monocle"];
+
+export const FACIAL_HAIR = ["None", "Mustache", "Goatee", "Short beard", "Beard"];
+
+/** Worn on the back: drawn behind the hero, or over the back when seen from behind. */
+export const BACK_ITEMS = ["None", "Cape", "Backpack", "Wings", "Quiver", "Tail"];
+
+/**
+ * Before face details and eyewear were separate, one "accessory" index held
+ * either: None, Glasses, Blush, Freckles. An old save's accessory becomes these.
+ */
+export const LEGACY_ACCESSORIES: readonly { faceDetail: number; eyewear: number }[] = [
+  { faceDetail: 0, eyewear: 0 },
+  { faceDetail: 0, eyewear: 1 },
+  { faceDetail: 1, eyewear: 0 },
+  { faceDetail: 2, eyewear: 0 },
+];
 
 // ───────────────────────── Levels & titles ──────────────────────
 

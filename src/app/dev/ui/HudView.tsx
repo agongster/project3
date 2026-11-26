@@ -25,7 +25,7 @@ export const BUSY_HUD: Partial<HudState> = {
   combo: 7,
   location: "bakery/orders.py",
   prompt: "Open the treasure of oven.py (grade S)",
-  dungeon: { path: "bakery/orders.py", remaining: 2, total: 5 },
+  dungeon: { path: "bakery/orders.py", remaining: 2, total: 5, toFix: 4 },
   boss: { name: "Eval Serpent", hp: 15, maxHp: 26 },
   dashReady: 0.6,
 };

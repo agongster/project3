@@ -35,5 +35,19 @@ export function devHealth(ratio: number): RepoHealth {
   const total = 20;
   const dealtWith = Math.round(ratio * total);
   const fixed = Math.min(DEV_FIXED, dealtWith);
-  return { ratio, defeated: dealtWith - fixed, fixed, total, dungeonsCleared: 2, dungeonsTotal: 8, chestsOpened: 3, chestsTotal: 17 };
+  const subdued = Math.min(total - dealtWith, 3);
+  return {
+    ratio,
+    subduedRatio: subdued / total,
+    alive: total - dealtWith - subdued,
+    subdued,
+    fixed,
+    sealed: dealtWith - fixed,
+    total,
+    dungeonsQuiet: 3,
+    dungeonsPurified: 2,
+    dungeonsTotal: 8,
+    chestsOpened: 3,
+    chestsTotal: 17,
+  };
 }

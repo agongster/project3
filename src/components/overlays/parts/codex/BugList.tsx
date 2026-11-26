@@ -3,31 +3,47 @@
 /**
  * The codex's left column: findings grouped by file. Only open groups render
  * their rows, so even a repo with hundreds of findings stays snappy.
- * Up/Down arrows move the selection through the visible findings. Bugs
- * fixed in the code (in the Workshop) are listed after a file's live ones,
- * with a FIXED tag.
+ * Up/Down arrows move the selection through the visible findings. Each row
+ * is tagged with its bug's state (nothing while its monster still fights,
+ * then SUBDUED, FIXED or SEALED); bugs gone from the code are listed after
+ * a file's live ones.
  */
 import type { KeyboardEvent } from "react";
 import { cx } from "@/components/ui/kit";
+import { lookOf } from "@/lib/game/monsterLooks";
 import type { Finding } from "@/lib/types";
 import { MonsterIcon } from "../MonsterIcon";
 import { SEVERITY_INFO } from "../monsterText";
-import type { BugStatus, FileGroup } from "../codexData";
+import type { BugStatus, DungeonState, FileGroup } from "../codexData";
 import { DoneMark } from "../DoneMark";
 
 const ROW_ICON_BOX = 32;
 
+/** The tag at the end of a row, by state (alive bugs get none). */
+const STATE_TAG: Readonly<Record<Exclude<BugStatus, "alive">, { label: string; background: string }>> = {
+  subdued: { label: "Subdued", background: "#2a6f8a" },
+  fixed: { label: "Fixed", background: "var(--color-leaf-deep)" },
+  sealed: { label: "Sealed", background: "#6f6a7d" },
+};
+
+/** The badge on a file's header, by its dungeon's state. */
+const DUNGEON_BADGE: Readonly<Record<DungeonState, { label: string; background: string }>> = {
+  cursed: { label: "Cursed", background: "var(--color-berry)" },
+  quiet: { label: "Quiet", background: "#2a6f8a" },
+  purified: { label: "Purified", background: "var(--color-leaf-deep)" },
+};
+
 interface BugListProps {
   groups: readonly FileGroup[];
-  defeated: ReadonlySet<string>;
+  statusOf: (finding: Finding) => BugStatus;
   openPaths: ReadonlySet<string>;
   selectedId: string | null;
   onToggle: (path: string) => void;
   onSelect: (finding: Finding) => void;
 }
 
-export function BugList({ groups, defeated, openPaths, selectedId, onToggle, onSelect }: BugListProps) {
-  const visible = groups.filter((group) => openPaths.has(group.file.path)).flatMap((group) => [...group.file.findings, ...group.fixed]);
+export function BugList({ groups, statusOf, openPaths, selectedId, onToggle, onSelect }: BugListProps) {
+  const visible = groups.filter((group) => openPaths.has(group.file.path)).flatMap((group) => [...group.file.findings, ...group.gone]);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
@@ -54,21 +70,16 @@ export function BugList({ groups, defeated, openPaths, selectedId, onToggle, onS
               <ul className="mt-1 flex flex-col gap-1">
                 {group.file.findings.map((finding) => (
                   <li key={finding.id}>
-                    <FindingRow
-                      finding={finding}
-                      status={defeated.has(finding.id) ? "squashed" : "lurking"}
-                      selected={finding.id === selectedId}
-                      onSelect={() => onSelect(finding)}
-                    />
+                    <FindingRow finding={finding} status={statusOf(finding)} selected={finding.id === selectedId} onSelect={() => onSelect(finding)} />
                   </li>
                 ))}
-                {group.fixed.map((finding) => (
-                  <li key={`fixed:${finding.id}`}>
-                    <FindingRow finding={finding} status="fixed" selected={finding.id === selectedId} onSelect={() => onSelect(finding)} />
+                {group.gone.map((finding) => (
+                  <li key={`gone:${finding.id}`}>
+                    <FindingRow finding={finding} status={statusOf(finding)} selected={finding.id === selectedId} onSelect={() => onSelect(finding)} />
                   </li>
                 ))}
                 {group.file.overflow > 0 && (
-                  <li className="px-2 text-xs opacity-70">+{group.file.overflow} smaller findings not shown as monsters</li>
+                  <li className="px-2 text-sm opacity-70">+{group.file.overflow} smaller findings not shown as monsters</li>
                 )}
               </ul>
             )}
@@ -80,7 +91,8 @@ export function BugList({ groups, defeated, openPaths, selectedId, onToggle, onS
 }
 
 function GroupHeader({ group, open, onToggle }: { group: FileGroup; open: boolean; onToggle: () => void }) {
-  const total = group.file.findings.length + group.fixed.length;
+  const total = group.file.findings.length + group.gone.length;
+  const badge = DUNGEON_BADGE[group.state];
   return (
     <button
       type="button"
@@ -93,13 +105,13 @@ function GroupHeader({ group, open, onToggle }: { group: FileGroup; open: boolea
       </span>
       <span className="min-w-0 flex-1 truncate">{group.file.path}</span>
       <span className="text-sm tabular-nums">
-        {group.defeated + group.fixed.length}/{total}
+        {group.gone.length}/{total}
       </span>
       <span
         className="px-1.5 text-xs uppercase text-cream"
-        style={{ background: group.purified ? "var(--color-leaf-deep)" : "var(--color-berry)" }}
+        style={{ background: badge.background }}
       >
-        {group.purified ? "Purified" : "Cursed"}
+        {badge.label}
       </span>
     </button>
   );
@@ -113,7 +125,7 @@ interface FindingRowProps {
 }
 
 function FindingRow({ finding, status, selected, onSelect }: FindingRowProps) {
-  const done = status !== "lurking";
+  const done = status === "fixed" || status === "sealed";
   return (
     <button
       type="button"
@@ -127,12 +139,21 @@ function FindingRow({ finding, status, selected, onSelect }: FindingRowProps) {
         done && !selected && "opacity-60",
       )}
     >
-      <MonsterIcon kind={finding.monster} box={ROW_ICON_BOX} />
+      <MonsterIcon kind={finding.monster} box={ROW_ICON_BOX} look={lookOf(finding)} />
       <span aria-hidden="true" className="h-3 w-1.5 shrink-0" style={{ background: SEVERITY_INFO[finding.severity].color }} />
       <code className="w-16 shrink-0 font-mono text-xs">{finding.code}</code>
       <span className="min-w-0 flex-1 truncate">{finding.title}</span>
       <span className="shrink-0 text-xs tabular-nums opacity-70">L{finding.line}</span>
-      {status === "fixed" ? <span className="shrink-0 bg-leaf-deep px-1 text-[11px] font-bold uppercase text-cream">Fixed</span> : <DoneMark done={done} />}
+      {status === "alive" ? <DoneMark done={false} /> : <StateTag status={status} />}
     </button>
+  );
+}
+
+function StateTag({ status }: { status: Exclude<BugStatus, "alive"> }) {
+  const tag = STATE_TAG[status];
+  return (
+    <span className="shrink-0 px-1 text-xs font-bold uppercase text-cream" style={{ background: tag.background }}>
+      {tag.label}
+    </span>
   );
 }

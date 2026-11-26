@@ -12,8 +12,8 @@
  *      ######### #=P^==^==^#=^==^==#      # wall top, = wall face, ^ torch
  *      #=P^==^=# #x.,.,..,.#.,%,.xx#      P plaque naming the room's code
  *      #p,,..pp# #..,....,,#,......#
- *      #p.....p###,...2...,#..,....#      1 2 3 minion / elite / boss
- *      #.......===.,.......#.......#
+ *      #p.....p###,...2...,#..,....>      1 2 3 minion / elite / boss
+ *      #.......===.,.......#.......#      > end door (opens once quiet)
  *      <@..,........,......=....C..#      < exit, @ entrance, C chest
  *      #...........,..#.,.......,..#
  *      #......,###x,..#..,,2.,....,#      p pot, x crate, $ crystal, % bones
@@ -35,13 +35,16 @@
  *    wall, a wall with floor right below it shows its front face, and the
  *    faces get a wall top above them (the classic 3/4 top-down look).
  * 7. Plaques, torches and clutter (dungeonDecor.ts).
- * 8. Repair + validate: everything important must be reachable on foot.
+ * 8. The end door (>) on the east wall of the last room, with free floor in
+ *    front of it (dungeonDoorSpot.ts; it draws no rng, so nothing else moves).
+ * 9. Repair + validate: everything important must be reachable on foot.
  */
 import { Ground, type AnalyzedFile, type Dungeon, type Finding, type MonsterSpawn, type Point, type PropKind, type Rect } from "@/lib/types";
 import { MONSTERS } from "@/lib/game/catalog";
 import { chance, hashString, mulberry32, randInt, type Rng } from "@/lib/rng";
 import { chebyshev, clamp, createTileMap, rectContains, setTile, tilesOf } from "./grid";
 import { decorateDungeon, plaqueSpot } from "./dungeonDecor";
+import { carvingReach, chooseEndDoor, endDoorLanding } from "./dungeonDoorSpot";
 import { clearBlockedPaths, solidPropTiles } from "./reachability";
 import { planRooms, type PlannedRoom } from "./roomPlan";
 import { mazeLevel, planInteriorWalls } from "./roomMaze";
@@ -178,13 +181,22 @@ function buildDungeon(file: AnalyzedFile, plan: PlannedRoom[], seed: number, rng
     }
   }
   const props = decorateDungeon(map, rooms, plan, busy, rng);
-
-  // 8. Repair: pots and crates must never wall off a monster, the chest or the exit.
   const propAt = new Map(props.map((p) => [p.y * width + p.x, p]));
+
+  // 8. The end door, with floor in front of it out of reach of every monster's carved
+  //    line if possible, else clear of each monster and its caption band; no clutter.
+  const floorOutside = (zones: Rect[]) => (p: Point) => isFloorTile(map.ground[p.y * width + p.x]) && !zones.some((r) => rectContains(r, p.x, p.y));
+  const farFromCarvings = chooseEndDoor(last, chest.y, floorOutside(monsters.map(carvingReach)));
+  const endDoor = farFromCarvings ?? chooseEndDoor(last, chest.y, floorOutside(monsters.flatMap(monsterSpace)));
+  if (!endDoor) return "no free floor in front of the end door";
+  setTile(map, endDoor.x, endDoor.y, Ground.DungeonExit, false);
+  for (const t of endDoorLanding(endDoor)) propAt.delete(t.y * width + t.x);
+
+  // 9. Repair: pots and crates must never wall off a monster, the chest or a way out.
   const repaired = clearBlockedPaths(
     map,
     entrance,
-    [exit, chest, ...monsters],
+    [exit, chest, ...monsters, endDoor],
     () => solidPropTiles([...propAt.values()]),
     (p) => REMOVABLE.has(propAt.get(p.y * width + p.x)?.kind ?? "plaque"),
     (p) => propAt.delete(p.y * width + p.x),
@@ -198,6 +210,7 @@ function buildDungeon(file: AnalyzedFile, plan: PlannedRoom[], seed: number, rng
     rooms,
     entrance,
     exit,
+    endDoor,
     monsters,
     props: [...propAt.values()].sort((a, b) => a.y - b.y || a.x - b.x),
     chest,

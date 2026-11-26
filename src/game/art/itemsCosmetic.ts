@@ -1,7 +1,7 @@
 /**
  * Item icons, part 2: hats, pets and trails (16×16 each).
  *
- * Hats copy the look of the hats the hero wears (characterParts.ts): the
+ * Hats copy the look of the hats the hero wears (characterHats.ts): the
  * icon grids use the same letters, and the colours come straight from
  * HAT_ART, so recolouring a hat there recolours its icon too.
  * Pets are big-headed portraits in the same colours as the pet sprites.
@@ -9,7 +9,7 @@
  */
 import { TRAILS } from "@/lib/game/catalog";
 import { INK, withAlpha } from "./color";
-import { HAT_ART } from "./characterParts";
+import { HAT_ART } from "./characterHats";
 import { Pix, type Palette } from "./engine";
 import type { IconArt } from "./itemsGear";
 import { PET_PAL } from "./pets";
@@ -17,7 +17,7 @@ import { outlined } from "./uiKit";
 
 // ───────────────────────────── hats ─────────────────────────────
 
-/** Hat grids. Letters (as in characterParts.ts): a main · A shade · z highlight · x/X accents · k dark. */
+/** Hat grids. Letters (as in characterHats.ts): a main · A shade · z highlight · x/X accents · k dark. */
 const HAT_ROWS: Record<string, string[]> = {
   beanie: ["......xx......", ".....xXxX.....", "....zaaaaA....", "..zzaaaaaaaA..", ".zaaaaaaaaaaA.", ".zaaaaaaaaaaA.", "zaaaaaaaaaaaAA", "zaaaaaaaaaaaAA", "XxXxXxXxXxXxXx", "xXxXxXxXxXxXxX"],
   strawHat: ["....zzaaaa....", "...zaaaaaaA...", "...zaaaaaaaA..", "...xxxxxxxxX..", ".zzaaaaaaaaaA.", "zaaaaaaaaaaaaA", ".AAAAAAAAAAAA."],

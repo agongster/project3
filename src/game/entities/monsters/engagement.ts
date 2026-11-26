@@ -14,7 +14,7 @@
  *  - CONTACT DAMAGE: bumping into a monster that is "harmful" right now
  *    costs its `touchDamage` (1 half-heart for regular monsters, 0 for the
  *    Todo Mite and an echo bat's echo), and it bounces back. A dazed
- *    monster never is.
+ *    monster never is, nor a Shy one running away (flight.ts).
  */
 import type { MonsterWorld } from "./brain";
 import { ALERT_SEC, type Monster } from "./monster";
@@ -82,7 +82,7 @@ export function updateEngagement(monsters: readonly Monster[], world: MonsterWor
     }
     if (!m.provoked) {
       const d = m.heroDistance();
-      if (d > m.brain.noticeRadius || !sees(m, world)) continue;
+      if (d > m.noticeRadius || !sees(m, world)) continue;
       if (m.brain.pursues && pursuers >= MAX_PURSUERS && d > CLOSE_WAKE_PX) continue;
     }
     engage(m, world);
@@ -119,7 +119,7 @@ export function applyContactDamage(monsters: readonly Monster[], world: MonsterW
   if (!world.mayAttack) return;
   const hero = world.hero;
   for (const m of monsters) {
-    if (!m.alive || m.dazed || !m.engaged || m.touchDamage <= 0 || !m.brain.harmful(m)) continue;
+    if (!m.alive || m.dazed || m.fleeing || !m.engaged || m.touchDamage <= 0 || !m.brain.harmful(m)) continue;
     // The body radius, not the (maybe grown) hit radius: a bigger monster is easier to hit, never harder to avoid.
     if (distance(m.x, m.y, hero.x, hero.y) > m.bodyRadius * CONTACT_SHRINK + HERO_RADIUS_PX) continue;
     if (world.hurtHero(m.touchDamage, m.x, m.y, m)) m.recoil(hero.x, hero.y);

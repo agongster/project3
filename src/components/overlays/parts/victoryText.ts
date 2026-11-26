@@ -1,16 +1,20 @@
 /**
- * The victory screen's closing nudge: what is left to do in the real code.
- * The game only beats the monsters; a bug squashed in the game is still in
- * the code until it is fixed for real. A player who never opened the
- * Workshop reads the game's original line.
+ * The victory screen's closing nudge. Victory only comes once every bug is
+ * gone from the code (SPEC.md F1): fixed for real, or sealed with `# noqa`.
+ * A clean sweep of real fixes is celebrated; seals get a gentle reminder
+ * that they are accepted, not fixed.
  */
 import type { RepoHealth } from "@/lib/game";
 
-export const CLASSIC_TAKEAWAY = "The monsters are gone, but the bugs are still in the code. Now go fix them for real!";
+export const ALL_FIXED_TAKEAWAY = "Every bug is fixed in the code itself! Your patch is waiting in the Workshop's Changes tab.";
 
-export function victoryTakeaway(health: Pick<RepoHealth, "defeated" | "fixed">): string {
-  if (health.fixed === 0) return CLASSIC_TAKEAWAY;
-  if (health.defeated === 0) return "You fixed every bug in the code itself! Your patch is waiting in the Workshop's Changes tab.";
-  const still = health.defeated === 1 ? "1 squashed bug is" : `${health.defeated} squashed bugs are`;
-  return `You fixed ${health.fixed} in the code, but ${still} still there. Fix them for real in the Workshop!`;
+export function victoryTakeaway(health: Pick<RepoHealth, "fixed" | "sealed">): string {
+  if (health.sealed === 0) return ALL_FIXED_TAKEAWAY;
+  const seals = health.sealed === 1 ? "1 bug is only sealed" : `${health.sealed} bugs are only sealed`;
+  return `You fixed ${health.fixed} for real, and ${seals} with # noqa. Come back and fix them properly some day!`;
+}
+
+/** "fixed" or "fixed or sealed": how the bugs left the code, for the victory headline. */
+export function howDealtWith(health: Pick<RepoHealth, "sealed">): string {
+  return health.sealed === 0 ? "fixed" : "fixed or sealed";
 }

@@ -5,10 +5,10 @@
  * straight away (see ChestOverlay) so that closing early can neither lose
  * the loot nor let the same chest be opened twice.
  */
-import { getProgress, rollChest } from "@/lib/game";
+import { getProgress, goneFindings, rollChest } from "@/lib/game";
 import type { ChestLoot } from "@/lib/game";
 import type { Rng } from "@/lib/rng";
-import type { RepoAnalysis, SaveData } from "@/lib/types";
+import type { AnalyzedFile, RepoAnalysis, SaveData } from "@/lib/types";
 import type { OverlayRequest } from "../../types";
 
 export type PreparedChest =
@@ -24,7 +24,18 @@ export function prepareChest(request: ChestRequest, analysis: RepoAnalysis, save
   const file = analysis.files.find((candidate) => candidate.path === request.path && candidate.status === "ok");
   if (!file) return { status: "missing" };
   if (getProgress(save, key).opened.includes(request.path)) return { status: "opened" };
-  return { status: "ready", loot: rollChest({ source: request.source, file, owned: save.owned }, rng) };
+  return { status: "ready", loot: rollChest({ source: request.source, file: chestFile(file, request.source), owned: save.owned }, rng) };
+}
+
+/**
+ * The file a chest is rolled from. A dungeon's prize is only given once the
+ * dungeon is purified, when its code has no finding left; the loot tables
+ * judge it by the bugs it HELD (the toughest one, and how many), which are
+ * the findings gone from its code (fixed or sealed).
+ */
+function chestFile(file: AnalyzedFile, source: ChestRequest["source"]): AnalyzedFile {
+  if (source !== "dungeon-clear" || file.findings.length > 0) return file;
+  return { ...file, findings: goneFindings(file) };
 }
 
 /**

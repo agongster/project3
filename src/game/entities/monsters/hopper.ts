@@ -22,6 +22,8 @@ const HOP_SPEED_MULT = 2.6;
 const HOP_HEIGHT_PX = 6;
 /** Total random wobble (radians) around "toward the hero". */
 const AIM_WOBBLE = 1.4;
+/** A champion's hops are aimed: its wobble is this share of the usual one. */
+const CHAMPION_WOBBLE_SHARE = 0.35;
 /** A calm bunny further than this from home hops back toward it. */
 const HOME_RANGE_PX = 20;
 /** The squashed "about to hop" frame shows this long before take-off. */
@@ -38,6 +40,12 @@ export class HopperBrain implements Brain {
   readonly facesMovement = false;
   private readonly clock = new StateClock<"rest" | "hop">("rest", 1);
   private readonly hop = new Hop();
+  /** Random wobble of its hops toward the hero (a champion aims better). */
+  private readonly wobble: number;
+
+  constructor(champion = false) {
+    this.wobble = champion ? AIM_WOBBLE * CHAMPION_WOBBLE_SHARE : AIM_WOBBLE;
+  }
 
   update(m: Monster, world: MonsterWorld, dt: number): void {
     this.clock.tick(dt);
@@ -78,7 +86,7 @@ export class HopperBrain implements Brain {
   private chooseAngle(m: Monster, world: MonsterWorld): number | null {
     for (let i = 0; i < AIM_TRIES; i++) {
       let angle: number;
-      if (m.engaged) angle = m.heroAngle() + (world.random() - 0.5) * AIM_WOBBLE;
+      if (m.engaged) angle = m.heroAngle() + (world.random() - 0.5) * this.wobble;
       else if (m.homeDistance() > HOME_RANGE_PX) angle = Math.atan2(m.homeY - m.y, m.homeX - m.x) + (world.random() - 0.5) * AIM_WOBBLE * 0.5;
       else angle = world.random() * Math.PI * 2;
       if (clearDistance(m.x, m.y, angle, m.fitsAt, MIN_HOP_CLEAR_PX) >= MIN_HOP_CLEAR_PX) return angle;

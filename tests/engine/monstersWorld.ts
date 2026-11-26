@@ -6,6 +6,7 @@
 import { emptyOutline } from "@/lib/analysis/outline";
 import { ruleInfo } from "@/lib/analysis/rules";
 import type { HostileShot, MonsterFx, MonsterWorld } from "@/game/entities/monsters/brain";
+import { applyContactDamage, separate, updateEngagement } from "@/game/entities/monsters/engagement";
 import type { TraitSetup } from "@/game/entities/monsters/traits";
 import { dungeonSpotMap, FloorSpots } from "@/game/entities/monsters/traits/floorSpots";
 import { layoutCarvings } from "@/game/scenes/floorCodeLayout";
@@ -13,11 +14,22 @@ import { Hazards } from "@/game/entities/monsters/hazards";
 import type { Monster } from "@/game/entities/monsters/monster";
 import { hasLineOfSight } from "@/game/entities/monsters/steering";
 import { MONSTERS } from "@/lib/game/catalog";
+import { championOf } from "@/lib/game/champions";
 import { mulberry32 } from "@/lib/rng";
 import { MONSTER_KINDS, type AnalyzedFile, type Dungeon, type Finding, type MonsterKind } from "@/lib/types";
 
 const TILE = 16;
 const HERO_SPEED = 80;
+/** One simulation step (s). */
+export const DT = 1 / 60;
+/** Steps the hero spends with each monster (≈ 7 s) before defeating it. */
+const VISIT_STEPS = 420;
+/** The hero swings at monsters this close… */
+const SWING_REACH_PX = 26;
+/** …this often per step (a frantic button-masher). */
+const SWING_CHANCE = 0.08;
+/** Monsters within this distance always count as woken up by the hero (see CLOSE_WAKE_PX). */
+export const CLOSE_PX = 28;
 
 const noFx: MonsterFx = { sfx() {}, dust() {}, sparkles() {}, poof() {}, bits() {}, noodles() {}, shake() {}, floatText() {}, flash() {}, bubbles() {}, spitOut() {}, ring() {} };
 
@@ -82,12 +94,12 @@ export function fileWithEveryTrait(path = "every/trait.py"): AnalyzedFile {
   return { ...base, findings };
 }
 
-/** What the director gives trait building, made from the dungeon data alone (every pot still unbroken). */
+/** What the director gives body building, made from the dungeon data alone (every pot still unbroken). */
 export function traitSetup(dungeon: Dungeon, file: AnalyzedFile): TraitSetup {
   const solidProps = new Set(dungeon.props.filter((p) => p.solid).map((p) => p.y * dungeon.width + p.x));
   const isOpen = (tx: number, ty: number) =>
     tx >= 0 && ty >= 0 && tx < dungeon.width && ty < dungeon.height && dungeon.solid[ty * dungeon.width + tx] === 0 && !solidProps.has(ty * dungeon.width + tx);
-  return { spots: new FloorSpots(dungeonSpotMap(dungeon, isOpen, layoutCarvings(dungeon, file.findings))), outline: file.outline };
+  return { spots: new FloorSpots(dungeonSpotMap(dungeon, isOpen, layoutCarvings(dungeon, file.findings))), outline: file.outline, championId: championOf(file)?.id ?? null };
 }
 
 export class TestWorld implements MonsterWorld {
@@ -185,5 +197,40 @@ export class TestWorld implements MonsterWorld {
       }
     }
     return false;
+  }
+}
+
+/** A random swing: no damage (so the monster keeps being tested), random knockback. */
+function swingAt(m: Monster, world: TestWorld): void {
+  const a = world.random() * Math.PI * 2;
+  const push = 4 + world.random() * 12;
+  m.takeHit({ damage: 0, knockbackX: Math.cos(a) * push, knockbackY: Math.sin(a) * push, crit: false, source: "weapon" });
+}
+
+/**
+ * The headless tour: the hero visits the monsters one after another
+ * (wandering around each, swinging wildly with random knockback, then
+ * defeating it), while the others keep pottering about; `check` runs after
+ * every step.
+ */
+export function runTour(world: TestWorld, monsters: Monster[], check: (world: TestWorld, monsters: Monster[], step: number) => void): void {
+  const steps = monsters.length * VISIT_STEPS;
+  for (let step = 0; step < steps; step++) {
+    const visiting = monsters[Math.floor(step / VISIT_STEPS)];
+    if (step % VISIT_STEPS === 0) world.visit(visiting);
+    world.moveHero(DT, visiting);
+    updateEngagement(monsters, world, true, DT);
+    for (const m of monsters) {
+      if (!m.alive) continue;
+      m.update(DT);
+      const near = Math.hypot(m.x - world.hero.x, m.y - world.hero.y) < SWING_REACH_PX;
+      if (m.targetable && near && world.random() < SWING_CHANCE) swingAt(m, world);
+    }
+    separate(monsters);
+    applyContactDamage(monsters, world);
+    world.hazards.update(DT, world);
+    check(world, monsters, step);
+    // End of the visit: the hero wins, the next boss may take its turn.
+    if (step % VISIT_STEPS === VISIT_STEPS - 1) visiting.takeHit({ damage: visiting.hp, knockbackX: 0, knockbackY: 0, crit: false, source: "weapon" });
   }
 }

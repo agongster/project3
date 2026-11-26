@@ -29,11 +29,12 @@ import { Villager } from "../entities/npc";
 import { propDrawables, propLights } from "../entities/scenery";
 import type { GameServices } from "../services";
 import { BuildingLabels } from "../ui/labels";
+import { guideLineFor, guideOf, lairDoorPrompt, withLairLine } from "../ui/lairMarks";
 import { SpeechBubbles } from "../ui/speechBubbles";
 import { MapView } from "../ui/minimap";
 import { SceneContext } from "./context";
 import { nearestInteractable, propInteractable, type Interactable } from "./interactions";
-import { allDungeonsCleared, bugsLeft, shortPath, type BuildingStatus } from "./progressView";
+import { allDungeonsPurified, isCursed, linesToFix, monstersLeft, shortPath, type BuildingStatus } from "./progressView";
 import type { Drawable, Light, Scene } from "./scene";
 import { FaintSequence, heroLight, renderShared, updateShared } from "./world";
 import type { HeroSituation } from "./workshopTarget";
@@ -53,6 +54,8 @@ export class OverworldScene implements Scene {
   private readonly scenery: Prop[];
   private readonly breakables: Breakable[];
   private readonly villagers: Villager[];
+  /** The villager by the spawn point, who also tells where the bosses are (ui/lairMarks.ts). */
+  private readonly guide: Villager | null;
   private readonly interactables: Interactable[];
   private readonly labels = new BuildingLabels();
   private readonly bubbles: SpeechBubbles;
@@ -84,6 +87,8 @@ export class OverworldScene implements Scene {
     this.breakables = createBreakables(ctx, world.props, (p) => broken.has(key(p)), (b) => broken.add(key(b.prop)));
 
     this.villagers = world.npcs.map((n) => new Villager(n));
+    const guideSpawn = guideOf(world.npcs, world.spawn);
+    this.guide = this.villagers.find((v) => v.spawn === guideSpawn) ?? null;
     this.interactables = [
       ...this.buildings.map((b) => this.buildingInteractable(b)),
       ...this.scenery.map((p) => propInteractable(ctx, p)).filter((i): i is Interactable => i !== null),
@@ -242,11 +247,12 @@ export class OverworldScene implements Scene {
     this.edited.clear();
   }
 
-  /** Line of the first bug still alive in a building's file, or null. */
+  /** Line of the first bug still in a building's code: a fighting monster's first, else a subdued one's. Null when none. */
   private firstLivingLine(b: BuildingEntity, save: SaveData, repoKey: string): number | null {
-    if (!b.file || b.status !== "cursed") return null;
+    if (!b.file || !isCursed(b.status)) return null;
     const defeated = new Set(getProgress(save, repoKey).defeated);
-    return b.file.findings.find((finding) => !defeated.has(finding.id))?.line ?? null;
+    const fighting = b.file.findings.find((finding) => !defeated.has(finding.id));
+    return (fighting ?? b.file.findings[0])?.line ?? null;
   }
 
   // ───────────── interactions ─────────────
@@ -270,8 +276,13 @@ export class OverworldScene implements Scene {
     const grade = b.file?.quality.grade ?? "C";
     switch (b.status) {
       case "cursed": {
-        const n = b.file ? bugsLeft(this.ctx.save.get(), this.ctx.repoKey, b.file) : 0;
+        if (b.lair) return lairDoorPrompt(name, b.lair);
+        const n = b.file ? monstersLeft(this.ctx.save.get(), this.ctx.repoKey, b.file) : 0;
         return `Enter ${name} — ${n} ${n === 1 ? "bug" : "bugs"} lurking`;
+      }
+      case "quiet": {
+        const n = b.file ? linesToFix(b.file) : 0;
+        return `Enter ${name} — quiet, ${n} ${n === 1 ? "line" : "lines"} to fix`;
       }
       case "treasure":
         return `Open the treasure of ${name} (grade ${grade})`;
@@ -286,6 +297,7 @@ export class OverworldScene implements Scene {
     const game = this.game;
     switch (b.status) {
       case "cursed":
+      case "quiet":
         game.enterDungeon(b.path);
         return;
       case "treasure":
@@ -314,9 +326,16 @@ export class OverworldScene implements Scene {
       prompt: () => `Talk to ${v.spawn.name}`,
       activate: () => {
         v.faceToward(game.player.x, game.player.y);
-        game.emitPausing({ type: "dialog", speaker: v.spawn.name, lines: v.spawn.lines });
+        game.emitPausing({ type: "dialog", speaker: v.spawn.name, lines: this.linesOf(v) });
       },
     };
+  }
+
+  /** What a villager says; the guide also tells how many bosses are left and where the nearest one is. */
+  private linesOf(v: Villager): string[] {
+    if (v !== this.guide) return v.spawn.lines;
+    const lairLine = guideLineFor(this.buildings, { x: v.x, y: v.y }, this.game.save.get(), this.game.repoKey);
+    return withLairLine(v.spawn.lines, lairLine);
   }
 
   // ───────────── misc ─────────────
@@ -342,7 +361,7 @@ export class OverworldScene implements Scene {
 
   private checkVictory(): void {
     const { game } = this;
-    if (game.session.victoryShown || !allDungeonsCleared(game.save.get(), game.repoKey, game.analysis)) return;
+    if (game.session.victoryShown || !allDungeonsPurified(game.analysis)) return;
     game.session.victoryShown = true;
     game.emitPausing({ type: "victory" });
   }
@@ -355,7 +374,7 @@ function isCleanFile(b: BuildingEntity): boolean {
 
 /** How a building's edit looks: purified, newly cursed, or just a changed bug count. */
 function pulseFor(before: BuildingStatus, after: BuildingStatus): BuildingPulse {
-  if (before === "cursed" && after !== "cursed") return "cleansed";
-  if (before !== "cursed" && after === "cursed") return "cursed";
+  if (isCursed(before) && !isCursed(after)) return "cleansed";
+  if (!isCursed(before) && isCursed(after)) return "cursed";
   return "changed";
 }

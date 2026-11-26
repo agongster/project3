@@ -16,17 +16,19 @@
  *             with "…" when longer.
  *   position  centred just below the monster's feet, kept inside the
  *             monster's room. If that spot touches a wall, another carving,
- *             a monster's starting body, the chest or a solid prop, try small
+ *             a monster's starting body, the chest (or the spot in front of
+ *             it), the end door's landing or a solid prop, try small
  *             slides sideways, then just above its head, then rows further
  *             out; if nothing is free, shorten the text and try again; below
  *             MIN_CARVING_PX the carving is skipped.
  *
- * Positions are world pixels; a carving's box includes the 1 px of room
- * around the letters that floorCode.ts uses for the groove and the glow.
+ * Positions are world pixels; a carving's box includes the CARVING_PAD_PX
+ * of room around the letters that floorCodeLook.ts uses for the outline and the glow.
  */
 import { FONT_CAP_HEIGHT, measureText } from "@/game/art/font";
 import { GLYPHS } from "@/game/art/fontGlyphs";
 import { MONSTERS } from "@/lib/game/catalog";
+import { endDoorLanding } from "@/lib/worldgen/dungeonDoorSpot";
 import { rectContains, tilesOf } from "@/lib/worldgen/grid";
 import { Ground, type Dungeon, type Finding, type MonsterSpawn, type Rect } from "@/lib/types";
 import { TILE_PX } from "../engine/collision";
@@ -37,8 +39,8 @@ export const MAX_CARVING_PX = 128;
 export const MIN_CARVING_PX = 40;
 /** Each retry for a crowded spot shortens the text to this share of the previous width. */
 const SHRINK_FACTOR = 0.75;
-/** Room around the letters inside a carving's box, for the stone lip under them and the heal's white halo. */
-export const CARVING_PAD_PX = 1;
+/** Room around the letters inside a carving's box: 1 px for their dark outline, 1 more for the glow beyond it. */
+export const CARVING_PAD_PX = 2;
 /** Rows the pixel font draws below the capitals, for "g", "_", "," (see font.ts). */
 const FONT_DESCENDER_ROWS = 2;
 /** Rows a glyph can ink. */
@@ -85,7 +87,7 @@ export interface Carving {
 type Box = Rect;
 
 /** The parts of a dungeon the layout looks at. */
-export type FloorPlan = Pick<Dungeon, "rooms" | "width" | "ground" | "monsters" | "chest" | "props">;
+export type FloorPlan = Pick<Dungeon, "rooms" | "width" | "ground" | "monsters" | "chest" | "endDoor" | "props">;
 
 // ───────────────────────────── text ─────────────────────────────
 
@@ -166,21 +168,28 @@ function nonFloorInRooms(map: Pick<Dungeon, "rooms" | "width" | "ground">): Box[
   return tiles.filter((t) => !isFloor(map.ground[t.y * map.width + t.x])).map((t) => tileBox(t.x, t.y));
 }
 
-/** The prize chest's spot plus the tile above it, where its bobbing "over here" arrow floats. */
+/**
+ * The prize chest's spot, the tile above it (where its bobbing "over here"
+ * arrow floats) and the tile below it (where the hero stands to open it, so
+ * a line's "press E" never steals the chest's).
+ */
 function chestArea(chest: Dungeon["chest"]): Box {
-  return { x: chest.x * TILE_PX, y: (chest.y - 1) * TILE_PX, w: TILE_PX, h: 2 * TILE_PX };
+  return { x: chest.x * TILE_PX, y: (chest.y - 1) * TILE_PX, w: TILE_PX, h: 3 * TILE_PX };
 }
 
 /**
- * Where a carving must not go: anything in a room that is not floor, and
- * floor where it would be hidden (every monster's starting body, the
- * chest and its arrow, every solid prop: pots, crates, crystals).
+ * Where a carving must not go: anything in a room that is not floor, floor
+ * where it would be hidden (every monster's starting body, the chest and
+ * its arrow, every solid prop: pots, crates, crystals), and the floor the
+ * hero stands on to use the chest or the end door (a line's "press E"
+ * there would compete with theirs).
  */
 function keepOffBoxes(dungeon: FloorPlan): Box[] {
   return [
     ...nonFloorInRooms(dungeon),
     ...dungeon.monsters.map(monsterBody),
     chestArea(dungeon.chest),
+    ...endDoorLanding(dungeon.endDoor).map((t) => tileBox(t.x, t.y)),
     ...dungeon.props.filter((p) => p.solid).map((p) => tileBox(p.x, p.y)),
   ];
 }

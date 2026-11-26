@@ -94,8 +94,11 @@ export interface HudState {
   location: string;
   /** "Press E to …" hint, or null. */
   prompt: string | null;
-  /** Set while inside a dungeon. */
-  dungeon: { path: string; remaining: number; total: number } | null;
+  /**
+   * Set while inside a dungeon: `remaining` monsters still fight (out of
+   * `total`), and `toFix` of the file's bugs are still in its code.
+   */
+  dungeon: { path: string; remaining: number; total: number; toFix: number } | null;
   /** Set while a boss is alive in the current dungeon. */
   boss: { name: string; hp: number; maxHp: number } | null;
   /** Dash cooldown progress, 0 (just used) → 1 (ready). */
@@ -155,11 +158,13 @@ export type GameEvent =
   | { type: "finisher"; finding: Finding }
   /** (pauses) The player pressed the menu key (Esc / Tab). */
   | { type: "menu" }
-  /** (pauses) Every dungeon in the repo is cleared. */
+  /** (pauses) Every bug in the repo is fixed or sealed: every dungeon is purified. */
   | { type: "victory" }
-  /** A monster was defeated (small toast with the bug title; does not pause). */
+  /** A monster was beaten in a fight: subdued (small toast with the bug title; does not pause). */
   | { type: "squashed"; finding: Finding; coins: number }
-  /** A dungeon was fully cleared (celebration banner; does not pause). */
+  /** The last fighting monster of a dungeon was subdued: the dungeon is quiet (banner; does not pause). */
+  | { type: "quiet"; path: string }
+  /** A dungeon's file has no bug left: it is purified (celebration banner; does not pause). */
   | { type: "purified"; path: string }
   /** The player levelled up (does not pause). */
   | { type: "levelUp"; level: number; title: string }
@@ -201,10 +206,11 @@ export interface GameHandle {
    * workspace's new one) without restarting. Buildings change state at once;
    * a dungeon the hero stands in re-forms when the game resumes. `fixedIds`
    * are ids (as the world knew them) of findings fixed for real in the code:
-   * their monsters dissolve as "rewritten" instead of just vanishing.
-   * Calling it again with the same analysis only adds `fixedIds`.
+   * their monsters dissolve as "rewritten" instead of just vanishing;
+   * `sealedIds` were only sealed with `# noqa` and fade out more plainly.
+   * Calling it again with the same analysis only adds ids.
    */
-  updateAnalysis(analysis: RepoAnalysis, fixedIds?: readonly string[]): void;
+  updateAnalysis(analysis: RepoAnalysis, fixedIds?: readonly string[], sealedIds?: readonly string[]): void;
   /** Where the Workshop should open for the hero's situation (the file they are in or in front of). */
   workshopTarget(): WorkshopTarget;
   /** Stop the loop and remove every listener. */

@@ -16,7 +16,8 @@ export const GRADE_INFO: Readonly<Record<Grade, { color: string; word: string }>
   C: { color: "var(--color-common)", word: "Okay" },
 };
 
-const BOX_SIZE = { sm: "h-7 w-7 text-xs", md: "h-10 w-10 text-lg", lg: "h-14 w-14 text-2xl" } as const;
+/** Box and letter size; the letters use the pixel font's crisp sizes (see the type scale in globals.css). */
+const BOX_SIZE = { sm: "h-7 w-7 text-pixel-sm", md: "h-10 w-10 text-pixel-md", lg: "h-14 w-14 text-pixel-lg" } as const;
 
 interface GradeBadgeProps {
   grade: Grade;

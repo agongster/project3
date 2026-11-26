@@ -17,7 +17,8 @@ export interface GameDebug {
   /**
    * Tile to stand on to use the nearest thing of a kind: a prop kind
    * ("well", "sign", "bush"...), "npc", or a building status
-   * ("cursed", "treasure", "claimable", "done"). Null when there is none.
+   * ("cursed", "treasure", "claimable", "done"); in a dungeon also "exit"
+   * (the entrance doormat), "endDoor" and "chest". Null when there is none.
    */
   nearest(kind: string): { x: number; y: number } | null;
   /** A snapshot of what is going on (scene, hero position, HP...). */
@@ -69,6 +70,8 @@ export function createDebug(game: GameServices, currentScene: () => Scene): Game
       // Inside a dungeon the scene's map is the Dungeon itself, which lists its props.
       const map = scene.ctx.map as Partial<Dungeon>;
       if (kind === "exit" && map.exit) return { x: map.exit.x + 1, y: map.exit.y };
+      // The end door is in the east wall of the last room: stand on the floor tile west of it.
+      if (kind === "endDoor" && map.endDoor) return { x: map.endDoor.x - 1, y: map.endDoor.y };
       if (kind === "chest" && map.chest) return { x: map.chest.x, y: map.chest.y + 1 };
       return nearestOf((map.props ?? []).filter((p) => p.kind === kind), (p) => ({ x: p.x, y: p.y + 1 }));
     },

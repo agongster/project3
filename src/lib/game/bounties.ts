@@ -2,7 +2,11 @@
  * Bounties: the Town Square notice board posts up to MAX_BOUNTIES "WANTED"
  * notices, each quoting a real line of code a monster hides at, and naming
  * only the file's folder and the line ("the creature hiding at line 42,
- * somewhere in potions/"). Defeating that exact monster pays BOUNTY_REWARD.
+ * somewhere in potions/"). A WANTED monster is paid for when it is
+ * CAPTURED: subdued in a fight (useBountyPayouts.ts), or its bug fixed for
+ * real before anyone caught it (forgeFlow.ts); either way BOUNTY_REWARD,
+ * once. A wanted bug SEALED with `# noqa` before it was caught closes its
+ * notice without pay: the poster then says SEALED.
  *
  * Targets are chosen deterministically from the repo (the same seed as the
  * world), preferring bosses and elites and spreading over different files.
@@ -12,7 +16,7 @@
  * marked settled without paying: its notice simply shows CLAIMED.
  */
 import { addCoins } from "@/lib/game/actions";
-import { getProgress, withRepoProgress } from "@/lib/game/progress";
+import { getProgress, isSealed, withRepoProgress } from "@/lib/game/progress";
 import { MAX_SETTLED_BOUNTIES } from "@/lib/game/store";
 import { clipPath, clipWords, oneLine } from "@/lib/analysis/repoText";
 import { hashString } from "@/lib/rng";
@@ -40,7 +44,7 @@ export interface Bounty {
   line: number;
   /** The real line of code the monster hides at, trimmed and clipped. */
   code: string;
-  /** Coins paid when the monster is defeated. */
+  /** Coins paid when the monster is captured. */
   reward: number;
 }
 
@@ -97,13 +101,22 @@ export function bountyClue(bounty: Pick<Bounty, "folder" | "line">): string {
   return `the creature hiding at line ${bounty.line}, somewhere in ${bounty.folder || "Town Square"}`;
 }
 
-/** True once the wanted monster is defeated (whether or not it paid: see the file comment). */
+/** True once the notice is closed: its monster captured (paid or not, see the file comment) or its bug sealed. */
 export function isBountyClaimed(progress: RepoProgress, bounty: Pick<Bounty, "findingId">): boolean {
   return progress.defeated.includes(bounty.findingId) || (progress.bounties ?? []).includes(bounty.findingId);
 }
 
+/** What a WANTED poster shows: still open, CAPTURED, or SEALED (closed without pay). */
+export type BountyState = "open" | "captured" | "sealed";
+
+export function bountyState(progress: RepoProgress, bounty: Pick<Bounty, "findingId">): BountyState {
+  if (!isBountyClaimed(progress, bounty)) return "open";
+  const caught = progress.defeated.includes(bounty.findingId);
+  return !caught && isSealed(progress, { id: bounty.findingId }) ? "sealed" : "captured";
+}
+
 /**
- * Settles every bounty whose monster is defeated but not yet settled. With
+ * Settles every bounty whose monster is subdued but not yet settled. With
  * `pay` it adds their rewards to the coins and returns them in `paid` (for
  * the toast); without, it only marks them settled (old defeats). Returns
  * the very same save when there is nothing to settle.

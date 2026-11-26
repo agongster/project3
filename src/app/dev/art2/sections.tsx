@@ -15,6 +15,7 @@ import { PET_FRAMES, petSprite } from "@/game/art/pets";
 import { rarityGlow, UI_FRAMES, UI_SPRITE_NAMES, uiSprite } from "@/game/art/ui";
 import { RARITIES } from "@/lib/game/catalog";
 import { Px, Row } from "./Px";
+import { LairMarks, Variants } from "./variants";
 
 export interface SectionProps {
   scale: number;
@@ -182,6 +183,7 @@ const FONT_SAMPLES = [
   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
   "abcdefghijklmnopqrstuvwxyz",
   "0123456789",
+  "look-alikes: 0O 1lI| 2Z 5S 6b 8B 9g rn m c o e a",
   "_ . / : ( ) [ ] ' \" ! ? + - = # % & , ; < > @ * ~ $ ^ ` { } | \\",
   "The quick brown fox jumps over the lazy dog.",
   "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG!",
@@ -242,6 +244,8 @@ function Font({ scale }: SectionProps) {
 
 export const SECTIONS: { id: string; title: string; Component: ComponentType<SectionProps> }[] = [
   { id: "monsters", title: "Monsters (frames · flash · mimic disguise)", Component: Monsters },
+  { id: "variants", title: "Monster looks (colour family per rule × feature · markings · size steps)", Component: Variants },
+  { id: "marks", title: "Lair marks (boss / champion badges, banners, map marks, champion crown)", Component: LairMarks },
   { id: "items", title: "Item icons (16×16, on cream UI and dark panels)", Component: Items },
   { id: "weapons", title: "In-hand weapons", Component: Weapons },
   { id: "projectiles", title: "Projectiles (centre anchor marked)", Component: Projectiles },

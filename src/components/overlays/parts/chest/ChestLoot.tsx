@@ -46,7 +46,7 @@ export function ChestLoot({ loot, coins, clean }: ChestLootProps) {
           <div className={`${FX.cardPop} relative flex flex-col items-center gap-3`}>
             <span aria-hidden="true" className={FX.rays} style={POUCH_RAYS} />
             <PixelSprite sprite={uiIcon("coinBig")} scale={POUCH_SCALE} className="relative" label="A pouch of coins" />
-            <p className="font-title relative text-xs text-cream">A pouch of coins!</p>
+            <p className="relative font-extrabold text-cream">A pouch of coins!</p>
           </div>
         )}
       </div>
@@ -54,11 +54,11 @@ export function ChestLoot({ loot, coins, clean }: ChestLootProps) {
       <section className="flex min-h-0 flex-col gap-2">
         <p className="anim-pop flex items-center gap-2 self-start bg-ink px-3 py-1 text-gold shadow-[0_0_0_3px_var(--color-gold)]" aria-live="polite">
           <PixelSprite sprite={uiIcon("coin")} scale={COIN_SCALE} />
-          <span className="font-title text-base tabular-nums">+{coins}</span>
+          <span className="font-title text-pixel-sm">+{coins}</span>
           <span className="font-bold">coins</span>
         </p>
         <div className="anim-slide-up flex min-h-0 flex-col gap-2 [animation-delay:350ms]">
-          <h3 className="font-title text-xs leading-normal">{clean ? "Why this code earned it" : "What you did"}</h3>
+          <h3 className="font-label text-xs leading-normal">{clean ? "Why this code earned it" : "What you did"}</h3>
           <ul className="px-scroll flex min-h-0 flex-col gap-2 pr-1">
             {loot.reasons.map((reason) => (
               <li key={reason} className="flex gap-2 bg-leaf/20 p-2">

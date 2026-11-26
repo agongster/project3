@@ -1,14 +1,15 @@
 /**
- * Notice-board bounties: whenever a wanted monster is defeated (wherever it
- * dies), pay its reward once and celebrate it with a toast. The engine only
- * records the defeat in the save; this hook watches the save, like
- * useMilestones does, and `settleBounties` remembers which bounties are paid.
- * (A wanted bug fixed for real in the Workshop is paid by the forge itself,
- * see forgeFlow.ts, and is then remembered as settled the same way.)
+ * Notice-board bounties: whenever a wanted monster is CAPTURED (subdued in a
+ * fight, wherever it falls), pay its reward once and celebrate it with a
+ * toast. The engine only records the fight in the save; this hook watches
+ * the save, like useMilestones does, and `settleBounties` remembers which
+ * bounties are paid. (A wanted bug fixed for real in the Workshop before
+ * anyone caught it is paid by the forge itself, see forgeFlow.ts; one only
+ * sealed closes its notice unpaid.)
  *
  * The first check after the game screen opens pays nothing: a wanted monster
- * that is already defeated by then (a save from before bounties existed) is
- * only marked settled, and its poster simply shows CLAIMED.
+ * that is already subdued by then (a save from before bounties existed) is
+ * only marked settled, and its poster simply shows CAPTURED.
  *
  * The bounties are the board's list for this visit to the world: chosen
  * once when it opened, then following the code (`createBountyBoard`).
@@ -48,7 +49,7 @@ export function useBountyPayouts(save: Store<SaveData>, repoKey: string, board: 
     if (paid.length > 0) audio.sfx("coin");
     for (const bounty of paid) {
       feed.toast({
-        text: `Bounty claimed: line ${bounty.line} in ${bounty.folder || "Town Square"}!`,
+        text: `Wanted monster captured: line ${bounty.line} in ${bounty.folder || "Town Square"}!`,
         detail: bounty.code,
         tone: "good",
         icon: { type: "monster", kind: bounty.monster },

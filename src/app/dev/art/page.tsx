@@ -3,7 +3,7 @@
  * /dev/art — the pixel-art gallery. Shows every sprite the game can draw.
  *
  * Query parameters (all optional):
- *   ?section=world|props|buildings|characters|monsters|items|pets|ui|font
+ *   ?section=world|props|buildings|characters|hero-hats|hero-back|hero-crowd|monsters|items|pets|ui|font
  *   ?theme=meadow|sakura|autumn|snow|beach|night   (default: all themes where it matters)
  *   ?scale=3                                         (integer zoom)
  *   ?anim=1                                          (animate frames in place)

@@ -2,6 +2,11 @@
  * The forge streak ("Clean forge ×3") and the lifetime editing counts that
  * achievements read, both updated from a ForgeReport.
  *
+ * The report handed in here lists only REAL fixes in `fixed`: findings
+ * sealed with `# noqa` are taken out first (`realReport` in seal-aware
+ * callers, see src/components/app/forgeFlow.ts), so a seal never extends a
+ * streak, mends a boss or purifies a file "by hand".
+ *
  *   clean forge   fixed at least one finding and introduced none → streak + 1,
  *                 and from ×2 on a small bonus that grows (capped)
  *   broken forge  introduced a new finding → the streak starts over at 0
@@ -92,7 +97,7 @@ export function recordForge(
     lastForge: fingerprint,
     counts: {
       ...counts,
-      handPurified: counts.handPurified + (report.purified ? 1 : 0),
+      handPurified: counts.handPurified + (report.purified && report.fixed.length > 0 ? 1 : 0),
       bossesMended: counts.bossesMended + report.fixed.filter((f) => f.severity === "boss" && !fought.has(f.id)).length,
       raisedToS: counts.raisedToS + (report.before.grade !== "S" && report.after.grade === "S" ? 1 : 0),
     },

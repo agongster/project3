@@ -3,6 +3,7 @@
  * game paid for it into the little celebration the Workshop plays:
  *
  *   - every bug fixed for real is "banished" (its monster, its name, the coins);
+ *   - every bug only sealed with `# noqa` is listed plainly, without a reward;
  *   - every new bug is announced gently ("A Gremlin crept in at line 12 — no harm done");
  *   - a file whose last bug is gone gets a big "purified" banner;
  *   - a grade change flips the letter.
@@ -34,6 +35,8 @@ export interface ForgeMoment {
   /** The forged files, in the order they were forged. */
   paths: string[];
   banished: MomentMonster[];
+  /** Bugs gone from the code because they were sealed, not fixed (no coins). */
+  sealed: MomentMonster[];
   creptIn: MomentMonster[];
   /** Files whose last bug was fixed. */
   purified: string[];
@@ -71,9 +74,15 @@ function hasRewards(rewards: ForgeRewards | null): boolean {
 export function describeForge(report: ForgeReport, rewards: ForgeRewards | null | undefined | void): ForgeMoment {
   const paid = rewards ? rewards : null;
   const gradeChanged = report.linted && report.before.grade !== report.after.grade;
+  const sealedIds = new Set(paid?.sealedIds ?? []);
+  const gone = report.linted ? report.fixed : [];
   const moment: ForgeMoment = {
     paths: [report.path],
-    banished: report.linted ? banishedWithCoins(report.fixed, paid?.paidFixes ?? []) : [],
+    banished: banishedWithCoins(
+      gone.filter((finding) => !sealedIds.has(finding.id)),
+      paid?.paidFixes ?? [],
+    ),
+    sealed: gone.filter((finding) => sealedIds.has(finding.id)).map((finding) => toMomentMonster(finding)),
     creptIn: report.linted ? report.introduced.map((finding) => toMomentMonster(finding)) : [],
     purified: report.linted && report.purified ? [report.path] : [],
     grades: gradeChanged ? [{ path: report.path, from: report.before.grade, to: report.after.grade }] : [],
@@ -85,21 +94,23 @@ export function describeForge(report: ForgeReport, rewards: ForgeRewards | null 
 }
 
 function isQuiet(moment: ForgeMoment): boolean {
-  return moment.banished.length === 0 && moment.creptIn.length === 0 && moment.purified.length === 0 && moment.grades.length === 0 && !hasRewards(moment.rewards);
+  const nothingGone = moment.banished.length === 0 && moment.sealed.length === 0;
+  return nothingGone && moment.creptIn.length === 0 && moment.purified.length === 0 && moment.grades.length === 0 && !hasRewards(moment.rewards);
 }
 
 function addRewards(a: ForgeRewards | null, b: ForgeRewards | null): ForgeRewards | null {
   if (!a) return b;
   if (!b) return a;
-  return { coins: a.coins + b.coins, xp: a.xp + b.xp, lines: [...a.lines, ...b.lines] };
+  return { coins: a.coins + b.coins, xp: a.xp + b.xp, lines: [...a.lines, ...b.lines], sealedIds: [...(a.sealedIds ?? []), ...(b.sealedIds ?? [])] };
 }
 
 /** One moment for several forges ("Forge all"). */
 export function mergeMoments(moments: readonly ForgeMoment[]): ForgeMoment {
-  const merged: ForgeMoment = { paths: [], banished: [], creptIn: [], purified: [], grades: [], rewards: null, quiet: true };
+  const merged: ForgeMoment = { paths: [], banished: [], sealed: [], creptIn: [], purified: [], grades: [], rewards: null, quiet: true };
   for (const moment of moments) {
     merged.paths.push(...moment.paths);
     merged.banished.push(...moment.banished);
+    merged.sealed.push(...moment.sealed);
     merged.creptIn.push(...moment.creptIn);
     merged.purified.push(...moment.purified);
     merged.grades.push(...moment.grades);
@@ -118,6 +129,11 @@ export function withArticle(name: string): string {
 export function creptInText(monster: MomentMonster, reverted = false): string {
   const how = reverted ? "is back" : "crept in";
   return `${withArticle(monster.name)} ${how} at line ${monster.line} — no harm done`;
+}
+
+/** The plain line for a bug that was sealed instead of fixed: no fanfare, no coins. */
+export function sealedText(monster: MomentMonster): string {
+  return `${monster.name} sealed at line ${monster.line} — accepted with # noqa, no reward`;
 }
 
 /** Grade letters from worst to best, to tell an improvement from a drop. */

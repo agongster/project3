@@ -16,7 +16,7 @@ const CONTROLS: readonly { action: string; keys: readonly string[] }[] = [
   { action: "Move", keys: ["WASD", "Arrows"] },
   { action: "Attack", keys: ["Space", "J", "Click"] },
   { action: "Dash", keys: ["Shift", "K"] },
-  { action: "Interact", keys: ["E", "Enter"] },
+  { action: "Interact / fix a glowing line", keys: ["E", "Enter"] },
   { action: "Bag", keys: ["I", "B"] },
   { action: "Codex", keys: ["C"] },
   { action: "Workshop", keys: ["F"] },
@@ -77,7 +77,7 @@ export default function PauseOverlay({ ctx }: OverlayProps<"pause">) {
   return (
     <Modal label="Paused" onClose={resume} className="w-[min(720px,100%)] overflow-y-auto p-5">
       <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 className="font-title text-[20px] leading-relaxed">Paused</h2>
+        <h2 className="font-title text-pixel-md leading-relaxed">Paused</h2>
         <PixelButton onClick={resume}>Resume ▶</PixelButton>
       </div>
 

@@ -3,19 +3,24 @@
  * `options.makeDungeon(path)` each time the hero walks in.
  *
  * The scene handles the map (floor, walls, torches with flickering light,
- * pots and crates to smash), the exit doormat, fainting, and the clear
- * flow: once the last monster falls the dungeon PURIFIES (a sparkle wave
- * turns the cursed purple torch light warm, see dungeonCleanse.ts) and the
- * prize chest drops in with a bobbing arrow. Monsters are delegated to a
- * MonsterDirector (see monsterDirector.ts).
+ * pots and crates to smash), the exit doormat, fainting, and its two
+ * endings (SPEC.md F1): once the last monster is subdued the dungeon goes
+ * QUIET (a banner and calmer music; each beaten monster's wisp dozes over
+ * its glowing line, where E opens the Workshop, see floorCode.ts); once the
+ * file has no bug left it is PURIFIED (a sparkle wave turns the cursed
+ * purple torch light warm, see dungeonCleanse.ts, and the prize chest drops
+ * in with a bobbing arrow). Monsters are delegated to a MonsterDirector
+ * (see monsterDirector.ts). The end door in the last room,
+ * a second way out once the dungeon is quiet, is its own module
+ * (dungeonEndDoor.ts).
  *
  * When the file is edited in the Workshop while the hero is inside, the
  * engine calls `follow`; once the game runs again the dungeon RE-FORMS
- * (dungeonReform.ts): fixed monsters dissolve, then the room is purified on
- * the spot or rebuilt from the new code.
+ * (dungeonReform.ts): fixed and sealed monsters dissolve, then the room is
+ * purified on the spot or rebuilt from the new code.
  */
 import { DUNGEON } from "@/game/art";
-import { getProgress, isDungeonCleared, recordDungeonCleared } from "@/lib/game";
+import { getProgress, isDungeonPurified, isDungeonQuiet, recordDungeonQuiet } from "@/lib/game";
 import { locationLabel } from "@/lib/worldgen";
 import type { AnalyzedFile, Dungeon, Prop } from "@/lib/types";
 import { VIEW_H, VIEW_W } from "../bridge";
@@ -31,9 +36,9 @@ import { nearestInteractable, propInteractable, type Interactable } from "./inte
 import { PrizeChest } from "./dungeonChest";
 import { drawRoomNames, plaqueInteractable, roomLineAt } from "./dungeonRooms";
 import { Cleanse } from "./dungeonCleanse";
-import { REFORM_SEC, WALK_OUT_CAPTION, WALK_OUT_SEC, reformCaption, reformOutcome, type ReformOutcome } from "./dungeonReform";
+import { EndDoor } from "./dungeonEndDoor";
+import { REFORM_SEC, WALK_OUT_CAPTION, WALK_OUT_SEC, followEdit, reformCaption, reformOutcome, settledCaption, type ReformOutcome } from "./dungeonReform";
 import { FloorCode } from "./floorCode";
-import { layoutCarvings } from "./floorCodeLayout";
 import { createMonsterDirector, type MonsterDirector } from "./monsterDirector";
 import type { Drawable, Light, Scene } from "./scene";
 import { FaintSequence, heroLight, renderShared, updateShared } from "./world";
@@ -67,23 +72,23 @@ export class DungeonScene implements Scene {
   private readonly ambient = new Ambient(VIEW_W, VIEW_H);
   private readonly faint = new FaintSequence(FAINT_MESSAGE);
   private readonly cleanse: Cleanse;
-  /** Each monster's line of code carved into the floor where it starts (floorCode.ts). */
+  /** Each monster's line of code carved into the floor where it starts, and its wisp once subdued (floorCode.ts). */
   private readonly floorCode: FloorCode;
-  /** True once every monster is gone (the chest is out). */
-  private cleared: boolean;
+  /** True once no monster is left to fight (every one subdued). */
+  private quiet: boolean;
+  /** True once the file has no bug left (the chest is out). */
+  private purified: boolean;
   private readonly chest: PrizeChest;
+  private readonly endDoor: EndDoor;
   private leaving = false;
   /** Says on screen why the dungeon just changed. */
   private readonly caption = new Caption();
-  /** The edited file and the ids of its findings fixed for real, waiting for the game to run again. */
-  private pending: { file: AnalyzedFile; fixedIds: Set<string> } | null = null;
+  /** The edited file and the ids of its findings fixed for real or sealed, waiting for the game to run again. */
+  private pending: { file: AnalyzedFile; fixedIds: Set<string>; sealedIds: Set<string> } | null = null;
   /** The re-forming in progress (see dungeonReform.ts). */
   private reform: { age: number; file: AnalyzedFile; outcome: ReformOutcome } | null = null;
   /** Seconds until a purified dungeon with nothing left to give walks the hero out (null: not scheduled). */
   private walkOutIn: number | null = null;
-  /** Finding ids fixed in the code: their carvings heal like defeated ones. */
-  private healedByCode: string[] = [];
-  private healedCache: { defeated: readonly string[]; all: readonly string[] } | null = null;
 
   constructor(
     private readonly game: GameServices,
@@ -101,16 +106,17 @@ export class DungeonScene implements Scene {
     for (const p of this.scenery) if (p.solid) ctx.setBlocked(p.x, p.y, true);
     this.breakables = createBreakables(ctx, this.dungeon.props, () => false);
     this.director = createMonsterDirector(ctx, this.dungeon, file);
-    this.cleared = isDungeonCleared(file, getProgress(game.save.get(), game.repoKey));
-    this.cleanse = new Cleanse(this.dungeon, this.cleared);
-    const { cleared } = this;
-    const defeated = getProgress(game.save.get(), game.repoKey).defeated;
-    this.floorCode = new FloorCode(layoutCarvings(this.dungeon, file.findings), (id) => cleared || defeated.includes(id));
+    this.quiet = isDungeonQuiet(file, getProgress(game.save.get(), game.repoKey));
+    this.purified = isDungeonPurified(file);
+    this.cleanse = new Cleanse(this.dungeon, this.purified);
+    this.floorCode = new FloorCode(ctx, this.dungeon, file);
     this.chest = new PrizeChest(ctx, this.dungeon, path);
-    if (this.cleared) this.chest.place();
+    if (this.purified) this.chest.place();
+    this.endDoor = new EndDoor(ctx, this.dungeon, { file: () => this.file, leave: () => this.leave(), say: (text) => this.announce(text) });
     this.interactables = [
       ...this.scenery.map((p) => (p.kind === "plaque" ? plaqueInteractable(ctx, game, this.dungeon, p) : propInteractable(ctx, p))).filter((i): i is Interactable => i !== null),
       this.exitInteractable(),
+      this.endDoor.interactable(),
       this.chest.interactable(() => this.openChest()),
     ];
   }
@@ -120,7 +126,7 @@ export class DungeonScene implements Scene {
     game.player.placeAtTile(dungeon.entrance.x, dungeon.entrance.y, "right");
     game.pet.placeNear(game.player.x, game.player.y);
     ctx.camera.centerOn(game.player.x, game.player.y);
-    if (this.cleared) this.ambient.setKind("sparkles", PURIFIED_AMBIENT);
+    if (this.purified) this.ambient.setKind("sparkles", PURIFIED_AMBIENT);
     else this.ambient.setKind("dust", DUNGEON.ambient);
     game.audio.music("dungeon");
     this.patchHud();
@@ -137,15 +143,16 @@ export class DungeonScene implements Scene {
     const step = dt * this.director.timeScale();
     if (!updateShared(ctx, step)) return;
     this.director.update(step);
-    this.floorCode.update(step, ctx.particles, this.healedIds());
+    this.floorCode.update(step, this.director.living());
     this.cleanse.update(ctx, step);
     this.chest.update(step);
     this.ambient.update(step);
     this.faint.update(step, ctx, () => this.respawn());
     this.updateWalkOut(step);
-    if (!this.cleared && this.director.remaining() === 0) this.onCleared();
+    if (!this.quiet && this.director.remaining() === 0) this.onQuiet();
     this.checkExit();
-    const current = game.player.fainted ? null : nearestInteractable(ctx, [...this.interactables, ...this.director.interactables()]);
+    this.endDoor.update(step);
+    const current = game.player.fainted ? null : nearestInteractable(ctx, [...this.interactables, ...this.director.interactables(), ...this.floorCode.interactables()]);
     game.hud.patch({ prompt: current ? current.prompt() : null });
     if (current && game.input.pressed("interact")) current.activate();
     this.patchHud();
@@ -159,7 +166,9 @@ export class DungeonScene implements Scene {
     propDrawables(this.scenery, theme, ctx.time, game.player, visible, drawables);
     breakableDrawables(this.breakables, theme, drawables, visible);
     this.chest.drawables(drawables);
+    this.endDoor.drawables(drawables);
     this.director.drawables(drawables);
+    this.floorCode.drawables(drawables);
 
     const lights: Light[] = [];
     propLights(this.otherScenery, true, ctx.time, visible, lights);
@@ -168,6 +177,7 @@ export class DungeonScene implements Scene {
     for (let i = firstTorch; i < lights.length; i++) lights[i].color = this.cleanse.torchColor(lights[i].x, lights[i].y);
     lights.push({ ...EXIT_LIGHT, x: dungeon.exit.x * 16 + 8, y: dungeon.exit.y * 16 + 8 });
     this.chest.lights(lights);
+    this.endDoor.lights(lights);
     heroLight(ctx, lights);
     this.director.lights(lights);
     this.floorCode.lights(lights, ctx.camera);
@@ -182,10 +192,11 @@ export class DungeonScene implements Scene {
       vignette: VIGNETTE,
       lighting: this.lighting,
       ambient: this.ambient,
-      floor: (g) => this.floorCode.draw(g, ctx.camera),
+      floor: (g) => this.floorCode.drawFloor(g, ctx.camera),
       overlay: (g) => {
         this.director.overlay(g);
         this.chest.drawArrow(g);
+        this.endDoor.drawArrow(g);
         drawRoomNames(g, ctx, dungeon);
       },
     });
@@ -209,7 +220,9 @@ export class DungeonScene implements Scene {
   workshopSituation(): HeroSituation {
     const { player } = this.game;
     const roomLine = roomLineAt(this.dungeon, Math.floor(player.x / 16), Math.floor(player.y / 16));
-    return { scene: "dungeon", path: this.path, hero: { x: player.x, y: player.y }, monsters: this.director.living(), roomLine };
+    // A subdued monster's glowing line counts as where a bug is, like a living monster.
+    const bugs = [...this.director.living(), ...this.floorCode.subduedSpots()];
+    return { scene: "dungeon", path: this.path, hero: { x: player.x, y: player.y }, monsters: bugs, roomLine };
   }
 
   /** Shows a caption, e.g. why the hero is standing in a freshly re-formed dungeon. */
@@ -225,14 +238,16 @@ export class DungeonScene implements Scene {
   follow(file: AnalyzedFile): void {
     if (!this.pending) {
       this.director.settleNow();
-      this.pending = { file, fixedIds: new Set() };
+      this.pending = { file, fixedIds: new Set(), sealedIds: new Set() };
     }
     this.pending.file = file;
   }
 
-  /** Ids (before the edit) of findings fixed for real: their monsters will dissolve as "rewritten". */
-  noteFixed(fixedIds: readonly string[]): void {
-    if (this.pending) for (const id of fixedIds) this.pending.fixedIds.add(id);
+  /** Ids (before the edit) of findings fixed for real or sealed: their monsters and lines will dissolve. */
+  noteFixed(fixedIds: readonly string[], sealedIds: readonly string[] = []): void {
+    if (!this.pending) return;
+    for (const id of fixedIds) this.pending.fixedIds.add(id);
+    for (const id of sealedIds) this.pending.sealedIds.add(id);
   }
 
   destroy(): void {
@@ -249,14 +264,13 @@ export class DungeonScene implements Scene {
     if (!pending) return;
     this.pending = null;
     const outcome = reformOutcome(pending.file, getProgress(game.save.get(), game.repoKey));
-    // When the dungeon purifies, every monster still standing is gone from the code.
-    const rewritten = outcome === "purify" ? new Set(this.director.living().map((m) => m.id)) : pending.fixedIds;
-    const fixed = this.director.rewrite(rewritten);
-    this.healedByCode = [...this.healedByCode, ...rewritten];
-    this.healedCache = null;
+    const { renamed, fixed, sealed } = followEdit(this.file, pending.file, pending.fixedIds, pending.sealedIds);
+    this.director.rewrite(new Set([...fixed, ...sealed]));
+    // The save already knows the moved findings by their new ids: the lines and wisps follow them at once.
+    this.floorCode.follow(renamed, fixed, sealed);
     this.reform = { age: 0, file: pending.file, outcome };
-    this.caption.show(reformCaption(this.path, fixed));
-    game.audio.sfx(fixed > 0 ? "revealRare" : "uiSelect");
+    this.caption.show(reformCaption(this.path, fixed.size, sealed.size));
+    game.audio.sfx(fixed.size > 0 ? "revealRare" : "uiSelect");
     // Nothing can be hit while the room re-forms (a blow now would land on a monster of the old code).
     ctx.hittables.clear();
   }
@@ -269,7 +283,7 @@ export class DungeonScene implements Scene {
     if (!updateShared(ctx, dt)) return;
     reform.age += dt;
     this.director.updateEffects(dt);
-    this.floorCode.update(dt, ctx.particles, this.healedIds());
+    this.floorCode.update(dt, []);
     this.cleanse.update(ctx, dt);
     this.ambient.update(dt);
     this.shimmer();
@@ -278,6 +292,7 @@ export class DungeonScene implements Scene {
     if (reform.age < REFORM_SEC || this.director.rewriting()) return;
     this.reform = null;
     if (reform.outcome === "purify") this.purifyByCode(reform.file);
+    else if (reform.outcome === "settle") this.settle(reform.file);
     else this.game.rebuildDungeon(reformCaption(this.path, 0));
   }
 
@@ -293,20 +308,15 @@ export class DungeonScene implements Scene {
   }
 
   /**
-   * No monster of the new code is left alive: the dungeon purifies right
-   * here. A dungeon that still has (defeated) monsters is cleared as after a
-   * fight; a file with no findings at all is now a clean file, whose
-   * treasure is a clean-file chest. If that chest was opened before, there
-   * is nothing to give, and the hero is walked out.
+   * The new code has no bug left: the dungeon PURIFIES right here (the
+   * sparkle wave, then the prize chest). If this file's one chest was
+   * opened before, there is nothing to give, and the hero is walked out.
    */
   private purifyByCode(file: AnalyzedFile): void {
     this.file = file;
-    if (file.findings.length > 0) {
-      this.onCleared();
-      return;
-    }
     const { ctx, game } = this;
-    this.cleared = true;
+    this.quiet = true;
+    this.purified = true;
     ctx.juice.flash("#ffffff", 0.5, 0.5);
     ctx.emit({ type: "purified", path: this.path });
     this.cleanse.start(game.player.x, game.player.y);
@@ -319,6 +329,12 @@ export class DungeonScene implements Scene {
     this.chest.drop();
   }
 
+  /** Still quiet after the edit: the room stays as it is, with the lines that were dealt with healed or sealed where they lie. */
+  private settle(file: AnalyzedFile): void {
+    this.file = file;
+    this.caption.show(settledCaption(file.findings.length));
+  }
+
   private updateWalkOut(dt: number): void {
     if (this.walkOutIn === null) return;
     this.walkOutIn -= dt;
@@ -328,33 +344,24 @@ export class DungeonScene implements Scene {
     }
   }
 
-  /** Defeated ids plus the ids fixed in the code (a new array only when either changes, see FloorCode.update). */
-  private healedIds(): readonly string[] {
-    const defeated = getProgress(this.game.save.get(), this.game.repoKey).defeated;
-    if (this.healedByCode.length === 0) return defeated;
-    if (this.healedCache?.defeated !== defeated) this.healedCache = { defeated, all: [...defeated, ...this.healedByCode] };
-    return this.healedCache.all;
-  }
+  // ───────────── going quiet & the prize chest ─────────────
 
-  // ───────────── clearing & the prize chest ─────────────
-
-  private onCleared(): void {
+  /**
+   * The last fighting monster is subdued: the dungeon goes QUIET. The UI
+   * shows the banner and calms the music; nothing else is given away (the
+   * chest waits for the code to be purified).
+   */
+  private onQuiet(): void {
     const { ctx, game } = this;
-    this.cleared = true;
-    game.save.set((save) => recordDungeonCleared(save, game.repoKey, this.path));
-    // The UI plays the fanfare when it shows the "DUNGEON PURIFIED!" banner for this event.
-    ctx.juice.flash("#ffffff", 0.5, 0.5);
-    ctx.emit({ type: "purified", path: this.path });
-    this.cleanse.start(game.player.x, game.player.y);
-    this.ambient.setKind("sparkles", PURIFIED_AMBIENT);
-    this.chest.drop();
+    this.quiet = true;
+    game.save.set((save) => recordDungeonQuiet(save, game.repoKey, this.path));
+    ctx.emit({ type: "quiet", path: this.path });
   }
 
-  /** The chest overlay: a dungeon's prize, or, for a file purified by editing, a clean file's treasure (by grade, as in the overworld). */
+  /** A purified dungeon's prize: the dungeon-clear chest, by the toughest bug the dungeon held. */
   private openChest(): void {
-    if (!this.cleared) return;
-    const source = this.file.findings.length === 0 ? "clean-file" : "dungeon-clear";
-    this.game.emitPausing({ type: "chest", source, path: this.path });
+    if (!this.purified) return;
+    this.game.emitPausing({ type: "chest", source: "dungeon-clear", path: this.path });
   }
 
   // ───────────── leaving, fainting ─────────────
@@ -386,14 +393,14 @@ export class DungeonScene implements Scene {
   }
 
   private patchHud(): void {
-    const remaining = this.cleared ? 0 : this.director.remaining();
+    const remaining = this.quiet ? 0 : this.director.remaining();
     // While the room re-forms, the count is already the new code's.
     const file = this.reform?.file ?? this.file;
     this.game.hud.patch({
       scene: "dungeon",
       // The room the hero stands in names the code it stands for: "orders.py · def take_order()".
       location: locationLabel(this.dungeon, Math.floor(this.game.player.x / 16), Math.floor(this.game.player.y / 16)),
-      dungeon: { path: this.path, remaining, total: file.findings.length },
+      dungeon: { path: this.path, remaining, total: this.dungeon.monsters.length, toFix: file.findings.length },
       boss: this.director.boss(),
     });
   }

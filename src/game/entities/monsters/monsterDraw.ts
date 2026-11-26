@@ -9,8 +9,14 @@ import type { MonsterKind } from "@/lib/types";
 import type { Light } from "../../scenes/scene";
 import { ALERT_SEC, HIT_FLASH_SEC, type Monster } from "./monster";
 
-/** Shadow sprite per sprite size. */
-const SHADOWS: Record<number, UiSpriteName> = { 16: "shadowSmall", 24: "shadowMedium", 32: "shadowLarge" };
+/** Shadow sprites from small to large, and the drawn body size (px) each one suits up to. */
+const SHADOWS: readonly { upTo: number; name: UiSpriteName }[] = [
+  { upTo: 20, name: "shadowSmall" },
+  { upTo: 28, name: "shadowMedium" },
+  { upTo: Infinity, name: "shadowLarge" },
+];
+/** A champion's glow reaches this much further than its species' own. */
+const CHAMPION_GLOW_SCALE = 1.6;
 /** Normal monsters squash flat over this long when defeated (bosses: see BOSS_DEATH_SEC in deaths.ts). */
 export const DEATH_SQUASH_SEC = 0.3;
 /** Strongest opacity of the white hit flash over the body (bosses get hit a lot, so theirs is softer). */
@@ -73,28 +79,31 @@ export function tinted(sprite: Sprite, color: string): Sprite {
 export function currentSprite(m: Monster): Sprite {
   // A dazed monster's brain is switched off, so it shows its plain face.
   const pose = m.dazed ? null : (m.trait?.pose?.(m) ?? m.brain.pose?.(m));
-  return monsterSprite(m.species, pose?.frame ?? m.idleFrame(), pose?.variant ?? "normal");
+  return monsterSprite(m.species, pose?.frame ?? m.idleFrame(), pose?.variant ?? "normal", m.look);
 }
 
 /** How white the body is drawn over: a fading flash after a hit, blinking while it dies. */
 function flashAmount(m: Monster): number {
   if (m.dyingFor >= 0) return Math.floor(m.dyingFor * 20) % 2 === 0 ? 1 : 0;
-  return (m.flash / HIT_FLASH_SEC) * (m.isBoss ? BOSS_FLASH_ALPHA : FLASH_ALPHA);
+  return (m.flash / HIT_FLASH_SEC) * (m.isBoss || m.champion ? BOSS_FLASH_ALPHA : FLASH_ALPHA);
 }
 
 export function drawMonsterShadow(g: CanvasRenderingContext2D, m: Monster): void {
   if (m.alpha < 0.2) return;
   const fade = Math.max(0.35, 1 - m.z / 30);
-  drawSprite(g, uiSprite(SHADOWS[m.def.size] ?? "shadowSmall"), m.x, m.y, { alpha: fade * m.alpha });
+  const drawnSize = m.def.size * m.sizeScale;
+  const shadow = SHADOWS.find((s) => drawnSize <= s.upTo) ?? SHADOWS[0];
+  drawSprite(g, uiSprite(shadow.name), m.x, m.y, { alpha: fade * m.alpha });
 }
 
-/** Horizontal and vertical scale for squash & stretch, the flattening death squash, and a trait's size (`m.scale`). */
+/** Horizontal and vertical scale for squash & stretch, the flattening death squash, and its size (look, modifier, champion and a trait's growth). */
 function bodyScale(m: Monster, deathSec: number): { sx: number; sy: number } {
+  const size = m.scale * m.sizeScale;
   if (m.dyingFor >= 0) {
     const k = Math.min(1, m.dyingFor / deathSec);
-    return { sx: (1 + 0.6 * k) * m.scale, sy: Math.max(0.15, 1 - 0.8 * k) * m.scale };
+    return { sx: (1 + 0.6 * k) * size, sy: Math.max(0.15, 1 - 0.8 * k) * size };
   }
-  return { sx: (1 - m.stretch * 0.6) * m.scale, sy: (1 + m.stretch) * m.scale };
+  return { sx: (1 - m.stretch * 0.6) * size, sy: (1 + m.stretch) * size };
 }
 
 export function drawMonsterBody(g: CanvasRenderingContext2D, m: Monster, deathSec: number): void {
@@ -120,7 +129,7 @@ export function drawMonsterBody(g: CanvasRenderingContext2D, m: Monster, deathSe
 
 /** Top of the monster's head in world pixels (for badges and name tags). */
 export function headY(m: Monster): number {
-  return m.y - m.z - m.def.size * m.scale * (1 + Math.max(0, m.stretch));
+  return m.y - m.z - m.def.size * m.scale * m.sizeScale * (1 + Math.max(0, m.stretch));
 }
 
 /** "!", dizzy stars and "zzz" over the head. Drawn above the darkness so they always read. */
@@ -147,9 +156,10 @@ export function drawMonsterBadges(g: CanvasRenderingContext2D, m: Monster, time:
   }
 }
 
-/** The monster's glow (bosses get a big aura). */
+/** The monster's glow (bosses get a big aura, champions a bigger one than their species). */
 export function monsterLight(m: Monster): Light | null {
   if (!m.alive || m.alpha < 0.2) return null;
   const glow = GLOW[m.species];
-  return { x: m.x, y: m.y - m.def.size / 2 - m.z, radius: glow.radius, color: glow.color, strength: 0.55 * m.alpha };
+  const radius = m.champion ? glow.radius * CHAMPION_GLOW_SCALE : glow.radius;
+  return { x: m.x, y: m.y - (m.def.size * m.sizeScale) / 2 - m.z, radius, color: glow.color, strength: 0.55 * m.alpha };
 }

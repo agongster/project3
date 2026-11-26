@@ -5,22 +5,9 @@
  */
 import { emptyOutline } from "@/lib/analysis/outline";
 import { expect } from "vitest";
-import {
-  ACCESSORIES,
-  ALL_ITEMS,
-  EYE_STYLES,
-  HAIR_COLORS,
-  HAIR_STYLES,
-  MAX_CHARMS,
-  MONSTERS,
-  OUTFIT_COLORS,
-  OUTFITS,
-  SKIN_TONES,
-  THEMES,
-  getItem,
-} from "@/lib/game/catalog";
+import { ALL_ITEMS, MAX_CHARMS, MONSTERS, THEMES, getItem } from "@/lib/game/catalog";
 import { MAX_SAVED_REPOS } from "@/lib/game/progress";
-import { defaultSave } from "@/lib/game/store";
+import { LOOK_OPTION_COUNTS, defaultSave } from "@/lib/game/store";
 import type { AnalyzedFile, Finding, Grade, MonsterKind, RepoAnalysis, RepoRef, SaveData } from "@/lib/types";
 
 export const REPO: RepoRef = { owner: "octocat", repo: "potions", ref: "main", sha: "abc123def4567890abc123def4567890abc123de" };
@@ -132,16 +119,8 @@ export function expectValidSave(save: SaveData): void {
 
   expect(typeof save.look.name).toBe("string");
   expect(save.look.name.length).toBeGreaterThan(0);
-  const ranges: [number, number][] = [
-    [save.look.skin, SKIN_TONES.length],
-    [save.look.hairStyle, HAIR_STYLES.length],
-    [save.look.hairColor, HAIR_COLORS.length],
-    [save.look.outfit, OUTFITS.length],
-    [save.look.outfitColor, OUTFIT_COLORS.length],
-    [save.look.eyes, EYE_STYLES.length],
-    [save.look.accessory, ACCESSORIES.length],
-  ];
-  for (const [index, size] of ranges) {
+  const fields = Object.keys(LOOK_OPTION_COUNTS) as (keyof typeof LOOK_OPTION_COUNTS)[];
+  for (const [index, size] of fields.map((field) => [save.look[field], LOOK_OPTION_COUNTS[field]])) {
     expect(Number.isInteger(index)).toBe(true);
     expect(index).toBeGreaterThanOrEqual(0);
     expect(index).toBeLessThan(size);

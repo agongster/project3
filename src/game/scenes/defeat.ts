@@ -1,12 +1,15 @@
 /**
- * Bookkeeping when a monster (= a finding) is defeated, for the monster
- * code to call once per kill:
+ * Bookkeeping when a monster (= a finding) is beaten in a fight, i.e.
+ * SUBDUED (it is only fully defeated once its code is fixed, see
+ * src/lib/game/progress.ts), for the monster code to call once per kill:
  *
  *   recordFindingDefeated(ctx, finding, coinsDropped, criticalFix)
  *
- * It records the defeat in the save (XP, bugs squashed) and tells the UI
- * about it with a `squashed` event, plus a `levelUp` event when the XP
- * crossed a level. A critical fix (the right pick in the finisher) also
+ * It records the subdue in the save (XP, bugs squashed) and tells the UI
+ * about it with a `squashed` event (the toast says "subdued"; the floor
+ * code sees the id in `defeated` and binds the monster's wisp to its line,
+ * floorCode.ts), plus a `levelUp` event when the XP crossed a level. A
+ * critical subdue (the right pick in the finisher) also
  * pays its bonus XP and counts in `stats.fixesPicked`, in the same save
  * update, so the level-up check sees all of the XP at once. The UI plays
  * the sounds for those events and pays the Repo Health milestones

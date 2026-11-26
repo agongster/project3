@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Boss defeated! A trophy card for the finding the boss embodied: the
+ * Boss subdued! A trophy card for the finding the boss embodied (it now
+ * waits on its glowing line until its code is fixed): the
  * monster, the real code it came from, and how to fix it in real life.
  * "Fix it for real" opens the Workshop on that line; "View in Codex" swaps
  * to the codex with this finding selected.
@@ -9,6 +10,7 @@
 import type { CSSProperties } from "react";
 import { KeyCap, Modal, PixelButton } from "@/components/ui/kit";
 import { MONSTERS } from "@/lib/game/catalog";
+import { lookOf } from "@/lib/game/monsterLooks";
 import { CodeSnippet } from "./parts/CodeSnippet";
 import { FX } from "./parts/fx";
 import { isConfirmKey, useKeyDown, useReady, useTicker } from "./parts/hooks";
@@ -42,18 +44,19 @@ export default function BugCardOverlay({ request, ctx }: OverlayProps<"bugCard">
   }
 
   return (
-    <Modal label="Boss defeated" onClose={ctx.close} className="flex h-full max-h-[560px] w-full max-w-[880px] flex-col overflow-hidden p-0">
+    <Modal label="Boss subdued" onClose={ctx.close} className="flex h-full max-h-[560px] w-full max-w-[880px] flex-col overflow-hidden p-0">
       <div className="bg-berry px-4 py-2 text-center text-cream">
-        <h2 className="font-title text-xl tracking-wider">BOSS DEFEATED!</h2>
+        <h2 className="font-title text-pixel-md">BOSS SUBDUED!</h2>
+        <p className="text-sm font-bold">Fix its line in the code to defeat it for good.</p>
       </div>
 
       <div className="px-scroll grid min-h-0 flex-1 grid-cols-[200px_minmax(0,1fr)] gap-5 p-4">
         <div className="flex flex-col items-center gap-2 text-center">
           <div className="relative flex h-44 w-44 items-center justify-center">
             <span className={FX.rays} style={{ "--fx-color": "var(--color-gold)", "--rays-size": "220px" } as CSSProperties} />
-            <MonsterIcon kind={finding.monster} box={MONSTER_BOX} frame={frame} className="relative" />
+            <MonsterIcon kind={finding.monster} box={MONSTER_BOX} frame={frame} look={lookOf(finding)} className="relative" />
           </div>
-          <p className="font-title text-xs leading-relaxed">{monster.name}</p>
+          <p className="text-lg font-extrabold leading-tight">{monster.name}</p>
           <p className="text-sm italic">{monster.blurb}</p>
         </div>
 

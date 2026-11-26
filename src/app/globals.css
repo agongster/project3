@@ -10,6 +10,11 @@
   --font-sans: var(--font-body);
   --font-title: var(--font-title);
 
+  /* Display sizes for the pixel font (classes text-pixel-sm/md/lg, see the type scale below). */
+  --text-pixel-sm: 16px;
+  --text-pixel-md: 24px;
+  --text-pixel-lg: 32px;
+
   --color-ink: #2b1b3d;
   --color-ink-soft: #6b5a7e;
   --color-cream: #fff4d9;
@@ -32,16 +37,46 @@
   --color-legendary: #ffc93c;
 }
 
+/*
+ * ─────────────────────────────── Type scale ───────────────────────────────
+ * Two fonts (loaded in src/app/layout.tsx): Nunito for all text and numbers,
+ * Press Start 2P (class `font-title`) for a few big display words. Pick a size
+ * from this list instead of inventing a new one.
+ *
+ *   Display — `font-title` + one of these (multiples of the font's 8 px grid, so its pixels stay crisp)
+ *     text-pixel-lg   32px  big single letters (the grade badge) and banner-size moments ("FILE PURIFIED!")
+ *     text-pixel-md   24px  screen titles and big moments ("Your world is ready!", "BOSS DEFEATED!")
+ *     text-pixel-sm   16px  panel and overlay titles ("Paused", "Wardrobe", "Quest Board")
+ *   Text — Nunito; the root size is 18px, so Tailwind's sizes come out as
+ *     text-lg         20px  important single lines (dialog text, an item's name in its detail view)
+ *     text-base       18px  main reading text, buttons
+ *     text-sm         16px  (15.75) most UI text: descriptions, list rows, hints
+ *     text-xs         13.5px dense labels only (counters, badges, captions) — never sentences
+ *   Small headings — `font-label` + text-xs or text-sm ("STATS", "WANTED", "Odds")
+ *   Numbers — tabular everywhere (rule below); amounts that matter get font-extrabold.
+ *   Pale coloured words on cream (rarity names) — `ink-outline`, or put them on an ink plate.
+ *   HUD — measured in art pixels so it grows with the game: src/components/hud/units.ts.
+ *   Workshop chrome — its own px sizes in src/components/workshop/*.css (code stays in the system monospace font).
+ *   Canvas — the bitmap font in src/game/art/font.ts.
+ * Smallest sizes on a 1280×800 window: 14px for sentences, 13px for dense labels.
+ *
+ * Weights: Nunito is a variable font, so every weight is real. Body text is 500
+ * (400 looks thin beside the chunky 4 px pixel borders), bold is 700, headings
+ * and big numbers 800.
+ */
 html,
 body {
   background: var(--color-night);
   color: var(--color-cream);
-  font-family: var(--font-body), ui-monospace, monospace;
+  font-family: var(--font-body), system-ui, sans-serif;
   font-size: 18px;
-  -webkit-font-smoothing: none;
-  /* The font's "fi" ligature is unreadable at small sizes ("config.py" → "conAg.py"). */
+  font-weight: 500;
+  /* Every digit the same width, so counting numbers do not jiggle (Nunito already
+     does this; the rule keeps it true for the fallback font while Nunito loads). */
+  font-variant-numeric: tabular-nums;
+  /* No ligatures: file names like "config.py" must show their letters one by one. */
   font-variant-ligatures: none;
-  /* Never fake a bold: use the heaviest weight that is loaded (500) instead. */
+  /* Never fake a bold: Press Start 2P has a single weight, and a synthesized bold smears its pixels. */
   font-synthesis: none;
 }
 
@@ -53,9 +88,23 @@ img.pixelated,
   image-rendering: crisp-edges;
 }
 
+/* The pixel display font. Use it only at the text-pixel-* sizes (see the type scale). */
 .font-title {
   font-family: var(--font-title), ui-monospace, monospace;
-  letter-spacing: 0.02em;
+  font-weight: 400;
+  /* Hard pixel edges instead of blurry ones (macOS honours this; at whole multiples of
+     8 px every font pixel lands on whole screen pixels). */
+  -webkit-font-smoothing: none;
+}
+
+/* A small section heading in the body font: "STATS", "WANTED", "Odds". */
+.font-label {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  /* Smooth edges even inside a `font-title` element (e.g. "x7 COMBO"). */
+  -webkit-font-smoothing: auto;
 }
 
 /* ───────────── Pixel panel / button (box-shadow "notched" borders) ───────────── */
@@ -103,8 +152,8 @@ img.pixelated,
   padding: 0.45em 0.9em 0.55em;
   background: var(--btn-bg);
   color: var(--color-ink);
-  font-family: var(--font-body), ui-monospace, monospace;
-  font-weight: 700;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-weight: 800;
   line-height: 1.1;
   cursor: pointer;
   user-select: none;
@@ -152,8 +201,8 @@ img.pixelated,
   padding: 0.5em 0.7em;
   background: #fffdf5;
   color: var(--color-ink);
-  font-family: var(--font-body), ui-monospace, monospace;
-  font-weight: 600;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-weight: 700;
   outline: none;
   box-shadow:
     0 calc(-1 * var(--px)) 0 0 var(--color-ink),
@@ -182,7 +231,9 @@ img.pixelated,
   text-align: center;
   background: var(--color-cream);
   color: var(--color-ink);
-  font-weight: 700;
+  /* The body font, not the browser's monospace default for <kbd>. */
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-weight: 800;
   box-shadow:
     0 -2px 0 0 var(--color-ink),
     0 2px 0 0 var(--color-ink),
@@ -198,6 +249,17 @@ img.pixelated,
 [data-rarity="epic"] { --rarity: var(--color-epic); }
 [data-rarity="legendary"] { --rarity: var(--color-legendary); }
 .rarity-text { color: var(--rarity); }
+
+/* A 1 px ink outline plus a small drop, so pale coloured words (Common grey,
+   Legendary gold) stay readable on cream paper. */
+.ink-outline {
+  text-shadow:
+    1px 0 0 var(--color-ink),
+    -1px 0 0 var(--color-ink),
+    0 1px 0 var(--color-ink),
+    0 -1px 0 var(--color-ink),
+    0 2px 0 var(--color-ink);
+}
 .rarity-ring {
   box-shadow:
     0 -4px 0 0 var(--rarity),

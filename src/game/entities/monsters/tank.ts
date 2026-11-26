@@ -20,6 +20,8 @@ const WINDUP_SEC = 1.3;
 const FLAIL_SEC = 0.45;
 /** Reach of the flail, measured from its feet to the hero's feet. */
 const FLAIL_RADIUS_PX = 30;
+/** A champion's flail reaches this much further (its warning ring is just as much bigger). */
+const CHAMPION_FLAIL_SCALE = 1.3;
 const RECOVER_SEC = 1.6;
 /** Half-hearts. */
 const FLAIL_DAMAGE = 1;
@@ -35,6 +37,11 @@ export class TankBrain implements Brain {
   readonly facesMovement = false;
   private readonly clock = new StateClock<State>("calm");
   private readonly wander = new Wander(CALM_WANDER_SPEED);
+  private readonly flailRadius: number;
+
+  constructor(champion = false) {
+    this.flailRadius = champion ? FLAIL_RADIUS_PX * CHAMPION_FLAIL_SCALE : FLAIL_RADIUS_PX;
+  }
 
   update(m: Monster, world: MonsterWorld, dt: number): void {
     this.clock.tick(dt);
@@ -92,8 +99,8 @@ export class TankBrain implements Brain {
   }
 
   drawFloor(g: CanvasRenderingContext2D, m: Monster): void {
-    if (this.clock.is("windup")) drawWarningRing(g, m.x, m.y, FLAIL_RADIUS_PX, this.clock.progress, m.anim);
-    else if (this.clock.is("flail")) drawWarningRing(g, m.x, m.y, FLAIL_RADIUS_PX, 1, m.anim);
+    if (this.clock.is("windup")) drawWarningRing(g, m.x, m.y, this.flailRadius, this.clock.progress, m.anim);
+    else if (this.clock.is("flail")) drawWarningRing(g, m.x, m.y, this.flailRadius, 1, m.anim);
   }
 
   /** The whole ring is hit once, at the start of the flail. */
@@ -103,6 +110,6 @@ export class TankBrain implements Brain {
     world.fx.sfx("slam", { pitch: 0.8 });
     world.fx.shake(FLAIL_SHAKE);
     world.fx.noodles(m.x, m.y - 10, 3);
-    if (m.heroDistance() <= FLAIL_RADIUS_PX) world.hurtHero(FLAIL_DAMAGE, m.x, m.y, m);
+    if (m.heroDistance() <= this.flailRadius) world.hurtHero(FLAIL_DAMAGE, m.x, m.y, m);
   }
 }

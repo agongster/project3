@@ -10,6 +10,7 @@
  */
 import type { BuildingKind, GroundId, PropKind, ThemeId } from "@/lib/types";
 import { BUILDING_VARIANTS, paintBuilding, type BuildingState } from "./buildings";
+import { END_DOOR_FRAMES, END_DOOR_OPEN_FRAME, endDoorArt } from "./dungeonProps";
 import { cached, mod, type Sprite } from "./engine";
 import { groundFrames, groundVariants, paintGround, usesMask } from "./ground";
 import { paintProp, PROP_FRAMES, PROP_VARIANTS } from "./props";
@@ -23,6 +24,12 @@ export interface Atlas {
   prop(kind: PropKind, variant: number, frame: number): Sprite;
   /** A building; anchor is the bottom-centre of its footprint (draw at (b.x + b.w/2)*16, (b.y + b.h)*16). */
   building(kind: BuildingKind, state: BuildingState, variant: number): Sprite;
+  /**
+   * A dungeon's end door (see dungeonProps.ts endDoorArt): `openness` 0 = shut
+   * … END_DOOR_OPEN_FRAME = open. Anchor: bottom-centre of the door tile
+   * (draw at tx*16 + 8, ty*16 + 16).
+   */
+  endDoor(openness: number, frame: number): Sprite;
 }
 
 const atlases = new Map<ThemeId, Atlas>();
@@ -50,6 +57,14 @@ function makeAtlas(theme: ThemeId): Atlas {
       const v = mod(variant, BUILDING_VARIANTS);
       return cached(store, `b${kind}:${state}:${v}`, () => {
         const art = paintBuilding(pal, kind, state, v);
+        return art.pix.toSprite(art.ax, art.ay);
+      });
+    },
+    endDoor(openness, frame) {
+      const o = Math.max(0, Math.min(END_DOOR_OPEN_FRAME, Math.floor(openness)));
+      const f = mod(frame, END_DOOR_FRAMES);
+      return cached(store, `door:${o}:${f}`, () => {
+        const art = endDoorArt(o, f);
         return art.pix.toSprite(art.ax, art.ay);
       });
     },

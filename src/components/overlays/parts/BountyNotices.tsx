@@ -4,21 +4,28 @@
  * The notice board's WANTED posters (see src/lib/game/bounties.ts): each one
  * quotes the real line of code a monster hides at and names only the folder
  * and the line. An open bounty shows the monster as a black silhouette; once
- * it is defeated (or its bug fixed in the code) the poster reveals it and
- * gets a red CLAIMED stamp. An open poster offers "Fix it for real", which
- * opens the Workshop where the monster hides.
+ * it is CAPTURED (subdued in a fight, or its bug fixed for real first) the
+ * poster reveals it and gets a red CAPTURED stamp; a bug sealed with
+ * `# noqa` before anyone caught it gets a grey SEALED stamp (unpaid). An
+ * open poster offers "Fix it for real", which opens the Workshop where the
+ * monster hides.
  */
-import { bountyClue, isBountyClaimed, type Bounty } from "@/lib/game/bounties";
+import { bountyClue, bountyState, type Bounty, type BountyState } from "@/lib/game/bounties";
 import type { RepoProgress } from "@/lib/types";
 import { MonsterIcon } from "./MonsterIcon";
 import { WorkshopLink } from "./WorkshopLink";
 import { PixelSprite } from "./PixelSprite";
-import { uiIcon } from "./sprites";
+import { lookFromId, uiIcon } from "./sprites";
 
 /** The wanted monster's picture box, in screen px. */
 const MUGSHOT_BOX = 48;
 /** Hides who the wanted monster is until it is caught. */
 const SILHOUETTE = { filter: "brightness(0)", opacity: 0.8 };
+/** The stamp across a closed poster: red ink for a capture, grey for a seal. */
+const STAMP: Readonly<Record<Exclude<BountyState, "open">, { label: string; className: string }>> = {
+  captured: { label: "CAPTURED", className: "border-berry text-berry" },
+  sealed: { label: "SEALED", className: "border-ink-soft text-ink-soft" },
+};
 
 interface BountyNoticesProps {
   bounties: readonly Bounty[];
@@ -30,32 +37,33 @@ export function BountyNotices({ bounties, progress, onFix }: BountyNoticesProps)
   return (
     <div className="grid grid-cols-3 gap-2">
       {bounties.map((bounty) => (
-        <WantedPoster key={bounty.findingId} bounty={bounty} claimed={isBountyClaimed(progress, bounty)} onFix={() => onFix(bounty)} />
+        <WantedPoster key={bounty.findingId} bounty={bounty} state={bountyState(progress, bounty)} onFix={() => onFix(bounty)} />
       ))}
     </div>
   );
 }
 
-function WantedPoster({ bounty, claimed, onFix }: { bounty: Bounty; claimed: boolean; onFix: () => void }) {
+function WantedPoster({ bounty, state, onFix }: { bounty: Bounty; state: BountyState; onFix: () => void }) {
+  const claimed = state !== "open";
   return (
     <article className="relative flex min-w-0 flex-col items-center gap-1 overflow-hidden bg-cream-deep/80 p-2 text-center shadow-[inset_0_0_0_2px_rgb(43_27_61_/_0.25)]">
-      <h4 className="font-title text-[10px] tracking-widest text-berry">WANTED</h4>
+      <h4 className="font-title text-pixel-sm text-berry">WANTED</h4>
       <span style={claimed ? undefined : SILHOUETTE}>
-        <MonsterIcon kind={bounty.monster} box={MUGSHOT_BOX} />
+        <MonsterIcon kind={bounty.monster} box={MUGSHOT_BOX} look={lookFromId(bounty.findingId, bounty.monster)} />
       </span>
-      <p className="text-xs font-bold leading-snug">{capitalize(bountyClue(bounty))}</p>
-      <code className="w-full break-all bg-ink px-1 py-0.5 text-left font-mono text-[11px] leading-snug text-cream">{bounty.code}</code>
+      <p className="text-sm font-bold leading-snug">{capitalize(bountyClue(bounty))}</p>
+      <code className="w-full break-all bg-ink px-1 py-0.5 text-left font-mono text-xs leading-snug text-cream">{bounty.code}</code>
       <p className="mt-auto flex items-center gap-1 text-xs font-bold">
         <PixelSprite sprite={uiIcon("coin")} scale={2} />
-        Reward: {bounty.reward} coins
+        Capture reward: {bounty.reward} coins
       </p>
-      {!claimed && <WorkshopLink className="text-xs" onClick={onFix} />}
-      {claimed && (
+      {!claimed && <WorkshopLink className="text-sm" onClick={onFix} />}
+      {state !== "open" && (
         <span
-          aria-label="Claimed"
-          className="font-title pointer-events-none absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 -rotate-12 border-4 border-berry px-2 py-1 text-sm text-berry opacity-90"
+          aria-label={STAMP[state].label}
+          className={`font-title pointer-events-none absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 -rotate-12 border-4 px-2 py-1 text-pixel-sm opacity-90 ${STAMP[state].className}`}
         >
-          CLAIMED
+          {STAMP[state].label}
         </span>
       )}
     </article>

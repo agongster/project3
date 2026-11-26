@@ -29,7 +29,7 @@
   padding: 0 2px;
   background: var(--color-berry);
   color: var(--color-cream);
-  font: 9px/11px var(--font-body), monospace;
+  font: 800 11px/12px var(--font-body), sans-serif;
   text-align: center;
 }
 .ws-monster-fresh::after {
@@ -38,7 +38,7 @@
   top: -9px;
   right: -5px;
   color: var(--color-gold);
-  font: 13px/1 var(--font-title), monospace;
+  font: 900 16px/1 var(--font-body), sans-serif;
   text-shadow: 1px 1px 0 var(--ws-edge);
   animation: ws-kf-alert 1.4s steps(6) both;
 }
@@ -104,18 +104,23 @@
   outline: none;
 }
 .ws-bug-card-head { display: flex; gap: 10px; align-items: flex-start; }
-.ws-bug-card-name { font-size: 11px; }
-.ws-bug-card-severity { font-size: 13px; font-weight: 500; }
-.ws-bug-card-title { font-size: 17px; font-weight: 500; line-height: 1.2; }
+.ws-bug-card-name { font-size: 16px; }
+.ws-bug-card-severity { font-size: 13px; font-weight: 700; }
+.ws-bug-card-title { font-size: 17px; font-weight: 800; line-height: 1.2; }
 .ws-bug-card-title code, .ws-bug-card code { font-family: var(--ws-code-font); font-size: 0.85em; }
-.ws-card-label { font-size: 12px; text-transform: uppercase; color: var(--color-ink-soft); font-weight: 500; }
+.ws-card-label { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-ink-soft); font-weight: 800; }
 .ws-card-trait { padding: 6px 8px; }
 .ws-card-tip { background: rgb(126 200 80 / 0.25); padding: 6px 8px; }
 .ws-bug-card-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
 .ws-fix { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .ws-fix .px-btn { margin-left: 4px; }
 .ws-fix-title { font-size: 13px; color: var(--color-ink-soft); }
-.ws-unsafe { color: var(--color-berry); font-weight: 500; }
+.ws-unsafe { color: var(--color-berry); font-weight: 700; }
+/* The seal scroll sits under the fix scroll, smaller and greyer: the fix is the celebrated path. */
+.ws-scrolls { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ws-scroll-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-left: 4px; }
+.ws-seal-note { font-size: 14px; color: var(--color-ink-soft); }
+.ws-seal-note code { font-family: var(--font-mono, monospace); color: var(--color-ink); }
 .ws-pager { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
 .ws-x {
   min-width: 26px;
@@ -144,7 +149,7 @@
   gap: 6px;
 }
 .ws-moment-head { display: flex; align-items: baseline; gap: 8px; }
-.ws-moment-title { color: var(--color-leaf-deep); font-size: 12px; }
+.ws-moment-title { color: var(--color-leaf-deep); font-size: 16px; }
 .ws-moment-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-ink-soft); font-size: 13px; }
 .ws-banished { display: flex; flex-direction: column; gap: 4px; }
 .ws-banish-row {
@@ -157,13 +162,16 @@
 .ws-banish-sprite { position: relative; display: inline-flex; }
 .ws-banish-sprite .ws-thumb { animation: ws-kf-banish 900ms steps(8) both; animation-delay: calc(var(--delay) + 250ms); }
 .ws-banish-sparkle { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; animation: ws-kf-sparkle-in 1.2s steps(6) both; animation-delay: calc(var(--delay) + 800ms); }
-.ws-banish-coin { display: inline-flex; align-items: center; gap: 2px; color: var(--color-wood-deep); font-weight: 500; animation: ws-kf-float 900ms steps(6) both; animation-delay: calc(var(--delay) + 400ms); }
+.ws-banish-coin { display: inline-flex; align-items: center; gap: 2px; color: var(--color-wood-deep); font-weight: 700; animation: ws-kf-float 900ms steps(6) both; animation-delay: calc(var(--delay) + 400ms); }
 .ws-crept { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--color-ink-soft); }
+/* A sealed bug: plain and grey, the opposite of a banished one's sparkle. */
+.ws-sealed { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--color-ink-soft); }
+.ws-sealed-thumb { display: inline-flex; filter: grayscale(1); opacity: 0.6; }
 .ws-moment-grade { display: flex; align-items: center; gap: 6px; }
 .ws-grade-flip { display: inline-flex; align-items: center; gap: 6px; }
-.ws-grade-flip .ws-grade-chip { width: 22px; height: 22px; font-size: 11px; }
+.ws-grade-flip .ws-grade-chip { width: 22px; height: 22px; font-size: 15px; }
 .ws-grade-new { animation: ws-kf-flip 700ms steps(7) both; animation-delay: 300ms; }
-.ws-moment-pay { display: flex; gap: 14px; font-weight: 500; }
+.ws-moment-pay { display: flex; gap: 14px; font-weight: 700; }
 .ws-pay-coins { display: inline-flex; align-items: center; gap: 4px; color: var(--color-wood-deep); }
 .ws-pay-xp { color: var(--color-grape); }
 .ws-pay-line { font-size: 14px; color: var(--color-ink); }
@@ -196,7 +204,7 @@
 /* In the upper part of the editor, clear of the forge summary in the bottom corner. */
 .ws-purified { position: absolute; inset: 0; z-index: 4; display: flex; align-items: flex-start; justify-content: center; padding-top: 16vh; pointer-events: none; }
 .ws-purified-inner { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: ws-kf-banner 2.4s steps(12) both; }
-.ws-purified-title { font-size: 30px; color: var(--color-leaf); text-shadow: 3px 3px 0 var(--ws-edge), -3px -3px 0 var(--ws-edge), 3px -3px 0 var(--ws-edge), -3px 3px 0 var(--ws-edge); }
+.ws-purified-title { font-size: 32px; color: var(--color-leaf); text-shadow: 3px 3px 0 var(--ws-edge), -3px -3px 0 var(--ws-edge), 3px -3px 0 var(--ws-edge), -3px 3px 0 var(--ws-edge); }
 .ws-purified-ribbon { padding: 2px 14px; background: #2f6b3a; color: var(--color-cream); font-weight: 500; box-shadow: 0 0 0 3px var(--ws-edge); max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ws-sparkle { position: absolute; animation: ws-kf-twinkle 1.2s steps(4) infinite; }
 .ws-sparkle-0 { top: -30px; left: -20px; }
@@ -243,7 +251,7 @@
 @media (max-height: 700px) {
   .ws-moment { width: min(330px, calc(100% - 28px)); padding: 8px 10px; gap: 3px; font-size: 13px; }
   .ws-purified { padding-top: 8vh; }
-  .ws-purified-title { font-size: 22px; }
+  .ws-purified-title { font-size: 24px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

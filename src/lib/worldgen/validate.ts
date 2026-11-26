@@ -7,8 +7,9 @@
  * list of human-readable problems; an empty list means "all good".
  */
 import { definitionAt } from "@/lib/analysis/outline";
-import { Ground, MONSTER_KINDS, type AnalyzedFile, type Dungeon, type Overworld, type Point, type PropKind } from "@/lib/types";
+import { Ground, MONSTER_KINDS, type AnalyzedFile, type Dungeon, type Overworld, type Point, type Prop, type PropKind } from "@/lib/types";
 import { MONSTERS } from "@/lib/game/catalog";
+import { endDoorLanding } from "./dungeonDoorSpot";
 import { chebyshev, inBounds, rectContains, rectsOverlap, tilesOf } from "./grid";
 import { reachableFrom, solidPropTiles } from "./reachability";
 import { clipText, MAX_LABEL_CHARS, MAX_NAME_CHARS } from "./roomPlan";
@@ -153,7 +154,7 @@ export function dungeonProblems(dungeon: Dungeon, file?: AnalyzedFile): string[]
   const g = (x: number, y: number) => (inBounds(dungeon, x, y) ? ground[y * width + x] : Ground.DungeonVoid);
 
   if (ground.length !== width * height || solid.length !== width * height) return ["ground/solid arrays do not match width × height"];
-  const points = [dungeon.entrance, dungeon.exit, dungeon.chest, ...dungeon.monsters, ...dungeon.props];
+  const points = [dungeon.entrance, dungeon.exit, dungeon.endDoor, dungeon.chest, ...dungeon.monsters, ...dungeon.props];
   if (points.some((p) => !inBounds(dungeon, p.x, p.y))) return ["something lies outside the dungeon"];
 
   // Tiles: solidity matches the tile kind, wall faces exactly where a wall has floor below.
@@ -220,10 +221,33 @@ export function dungeonProblems(dungeon: Dungeon, file?: AnalyzedFile): string[]
 
   // Reachability from the entrance with solid props in the way.
   const reach = reachableFrom(dungeon, dungeon.entrance, solidPropTiles(dungeon.props));
-  for (const target of [dungeon.exit, dungeon.chest, ...dungeon.monsters]) {
+  for (const target of [dungeon.exit, dungeon.endDoor, dungeon.chest, ...dungeon.monsters]) {
     if (!reach[idx(target)]) problems.push(`${at(target)} cannot be reached from the entrance`);
   }
+  problems.push(...endDoorProblems(dungeon, propAt));
   problems.push(...roomProblems(dungeon, file));
+  return problems;
+}
+
+/**
+ * The end door (see dungeonDoorSpot.ts): a way-out tile on the east wall of
+ * the last room, never at its corners, with free floor in front of it — no
+ * prop, no monster, not the chest. (Reachability is checked with the rest.)
+ */
+function endDoorProblems(dungeon: Dungeon, propAt: ReadonlyMap<number, Prop>): string[] {
+  const problems: string[] = [];
+  const door = dungeon.endDoor;
+  const last = dungeon.rooms[dungeon.rooms.length - 1];
+  const onEastWall = last !== undefined && door.x === last.x + last.w && door.y > last.y && door.y < last.y + last.h - 1;
+  if (!onEastWall) problems.push(`end door ${at(door)} is not on the east wall of the last room`);
+  if (dungeon.ground[door.y * dungeon.width + door.x] !== Ground.DungeonExit) problems.push("end door is not a way-out tile");
+  for (const t of endDoorLanding(door)) {
+    const i = t.y * dungeon.width + t.x;
+    const g = inBounds(dungeon, t.x, t.y) ? dungeon.ground[i] : Ground.DungeonVoid;
+    const underMonster = dungeon.monsters.some((m) => monsterFootprint(m).some((f) => f.x === t.x && f.y === t.y));
+    const isChest = t.x === dungeon.chest.x && t.y === dungeon.chest.y;
+    if (!isFloor(g) || propAt.has(i) || underMonster || isChest) problems.push(`the floor in front of the end door is not free at ${at(t)}`);
+  }
   return problems;
 }
 

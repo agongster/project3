@@ -1,9 +1,9 @@
 /**
  * Name tags: every monster wears its finding like a name tag. When the
  * hero comes within ~3 tiles, a small label fades in above the monster's
- * head ("Unused import · L12"). Only the MAX_TAGS nearest show at once,
- * and a label that would cover another one moves up a line, so labels never
- * pile up.
+ * head ("Unused import · L12"), led by its modifier ("Swift · …") or, in
+ * gold, "Champion · …". Only the MAX_TAGS nearest show at once, and a
+ * label that would cover another one moves up a line, so labels never pile up.
  */
 import { drawText, FONT_CAP_HEIGHT, FONT_LINE_HEIGHT, measureText } from "@/game/art/font";
 import type { Finding, Severity } from "@/lib/types";
@@ -19,11 +19,19 @@ const ABOVE_HEAD_PX = 13;
 /** …plus room for a "!", dizzy stars or "zzz" badge when one is showing. */
 const BADGE_ROOM_PX = 10;
 const TAG_COLORS: Record<Severity, string> = { minion: "#efe6ff", elite: "#ffd9a8", boss: "#ffb3c7" };
+const CHAMPION_TAG_COLOR = "#ffd36b";
+const CHAMPION_WORD = "Champion";
 const OUTLINE = "#2b1d34";
 
 /** "Unused import · L12" */
 export function tagText(finding: Pick<Finding, "title" | "line">): string {
   return `${finding.title} · L${finding.line}`;
+}
+
+/** A monster's whole tag: "Swift · Unused import · L12", "Champion · Likely bug · L3", or just the finding's tag. */
+export function monsterTagText(m: Pick<Monster, "finding" | "champion" | "modifier">): string {
+  const lead = m.champion ? CHAMPION_WORD : m.modifier?.label;
+  return lead ? `${lead} · ${tagText(m.finding)}` : tagText(m.finding);
 }
 
 export class NameTags {
@@ -50,14 +58,14 @@ export class NameTags {
   draw(g: CanvasRenderingContext2D): void {
     const placed: { left: number; right: number; top: number }[] = [];
     for (const [m, alpha] of this.alpha) {
-      const text = tagText(m.finding);
+      const text = monsterTagText(m);
       const half = measureText(text) / 2 + 1;
       const badge = m.alert > 0 || m.dizzy || m.sleepy ? BADGE_ROOM_PX : 0;
       let top = Math.round(headY(m) - ABOVE_HEAD_PX - badge);
       const overlaps = (t: number) => placed.some((p) => m.x - half < p.right && m.x + half > p.left && Math.abs(p.top - t) < FONT_CAP_HEIGHT + 2);
       while (overlaps(top)) top -= FONT_LINE_HEIGHT;
       placed.push({ left: m.x - half, right: m.x + half, top });
-      const color = TAG_COLORS[m.finding.severity];
+      const color = m.champion ? CHAMPION_TAG_COLOR : TAG_COLORS[m.finding.severity];
       drawText(g, text, Math.round(m.x), top, { color, outline: OUTLINE, align: "center", alpha: alpha * m.alpha });
     }
   }

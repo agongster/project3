@@ -3,10 +3,10 @@
  * The gallery sections. Each one lays out a family of sprites.
  */
 import type { ComponentType } from "react";
-import { Ground, type CharacterLook, type GroundId, type PropKind, type ThemeId } from "@/lib/types";
-import { ACCESSORIES, EYE_STYLES, HAIR_COLORS, HAIR_STYLES, OUTFIT_COLORS, OUTFITS, SKIN_TONES } from "@/lib/game/catalog";
-import { autotileMask, BUILDING_STATES, drawSprite, FACINGS, getAtlas, HAT_IDS, PROP_FRAMES, PROP_VARIANTS, randomLook, renderCharacter, type Facing } from "@/game/art";
+import { Ground, type GroundId, type PropKind, type ThemeId } from "@/lib/types";
+import { autotileMask, BUILDING_STATES, drawSprite, getAtlas, PROP_FRAMES, PROP_VARIANTS } from "@/game/art";
 import { DEMO_H, DEMO_W, drawDemoScene } from "./demoScene";
+import { HeroBackItems, HeroCrowd, HeroHats, HeroOptions } from "./heroSections";
 import { Px, Tile } from "./Px";
 
 export interface SectionProps {
@@ -174,79 +174,12 @@ function Buildings({ themes, scale }: SectionProps) {
   );
 }
 
-const BASE_LOOK: CharacterLook = { name: "Hero", skin: 1, hairStyle: 0, hairColor: 1, outfit: 1, outfitColor: 5, eyes: 1, accessory: 2 };
-
-/** All 4 directions × 3 steps of one look. */
-function charFrames(look: CharacterLook, hat: string | null, dirs: Facing[] = FACINGS, steps = [0, 1, 2]) {
-  const sheet = renderCharacter(look, hat);
-  return dirs.flatMap((d) => steps.map((s) => sheet.frame(d, s)));
-}
-
-function Characters({ scale, anim }: SectionProps) {
-  const big = Math.max(scale, 3);
-  return (
-    <>
-      <div style={sub}>one hero: down · up · left · right × stand / step A / step B (walk cycle = A, stand, B, stand)</div>
-      <Tile scale={big} sprites={() => charFrames(BASE_LOOK, null)} />
-      <Tile scale={big} animate label="walking (down)" sprites={() => [1, 0, 2, 0].map((s) => renderCharacter(BASE_LOOK, null).frame("down", s))} />
-      <Tile scale={big} animate label="walking (left)" sprites={() => [1, 0, 2, 0].map((s) => renderCharacter(BASE_LOOK, null).frame("left", s))} />
-
-      <div style={sub}>hair styles (front · back · side)</div>
-      {HAIR_STYLES.map((h, i) => (
-        <Tile key={h} label={h} scale={big} sprites={() => charFrames({ ...BASE_LOOK, hairStyle: i, hairColor: (i * 3 + 1) % HAIR_COLORS.length }, null, ["down", "up", "left"], [0])} />
-      ))}
-
-      <div style={sub}>hats (on Short / Long / Spiky / Buns hair, front + side + back)</div>
-      {HAT_IDS.map((hat) => (
-        <Tile
-          key={hat}
-          label={hat}
-          scale={big}
-          sprites={() => [
-            ...charFrames({ ...BASE_LOOK, hairStyle: 0 }, hat, ["down", "left", "up"], [0]),
-            ...charFrames({ ...BASE_LOOK, hairStyle: 2, hairColor: 6, skin: 3 }, hat, ["down"], [0]),
-            ...charFrames({ ...BASE_LOOK, hairStyle: 4, hairColor: 3, skin: 0 }, hat, ["down"], [0]),
-            ...charFrames({ ...BASE_LOOK, hairStyle: 6, hairColor: 8, skin: 5 }, hat, ["down"], [0]),
-          ]}
-        />
-      ))}
-
-      <div style={sub}>outfits × a few colours (front · back · side)</div>
-      {OUTFITS.map((o, i) => (
-        <Tile
-          key={o}
-          label={o}
-          scale={big}
-          sprites={() => [0, 3, 6, 9].flatMap((c) => charFrames({ ...BASE_LOOK, outfit: i, outfitColor: (c + i) % OUTFIT_COLORS.length }, null, c === 0 ? ["down", "up", "left"] : ["down"], [0]))}
-        />
-      ))}
-
-      <div style={sub}>eyes · accessories · skin tones · hair colours</div>
-      {EYE_STYLES.map((e, i) => (
-        <Tile key={e} label={`eyes: ${e}`} scale={big} sprites={() => charFrames({ ...BASE_LOOK, eyes: i, accessory: 0 }, null, ["down", "left"], [0])} />
-      ))}
-      {ACCESSORIES.map((a, i) => (
-        <Tile key={a} label={a} scale={big} sprites={() => charFrames({ ...BASE_LOOK, accessory: i, eyes: 0 }, null, ["down", "left"], [0])} />
-      ))}
-      <Tile label="skin tones" scale={big} sprites={() => SKIN_TONES.map((_, i) => renderCharacter({ ...BASE_LOOK, skin: i, hairStyle: 3 }, null).frame("down", 0))} />
-      <Tile label="hair colours" scale={big} sprites={() => HAIR_COLORS.map((_, i) => renderCharacter({ ...BASE_LOOK, hairColor: i, hairStyle: 5 }, null).frame("down", 0))} />
-      <Tile label="outfit colours (hoodie)" scale={big} sprites={() => OUTFIT_COLORS.map((_, i) => renderCharacter({ ...BASE_LOOK, outfitColor: i }, null).frame("down", 0))} />
-
-      <div style={sub}>24 random villagers (randomLook(seed); every third one also gets a hat)</div>
-      <div style={{ display: "flex", flexWrap: "wrap" }}>
-        {Array.from({ length: 24 }, (_, i) => {
-          const look = randomLook(i + 1);
-          const hat = i % 3 === 0 ? HAT_IDS[i % HAT_IDS.length] : null;
-          return <Tile key={i} label={`#${i + 1} ${look.name}`} scale={big} animate={anim} sprites={() => (anim ? [1, 0, 2, 0] : [0]).map((s) => renderCharacter(look, hat).frame("down", s))} />;
-        })}
-      </div>
-    </>
-  );
-}
-
 export const SECTIONS: { id: string; title: string; Component: ComponentType<SectionProps> }[] = [
   { id: "world", title: "World: demo scene, ground tiles & autotiling", Component: World },
   { id: "props", title: "Props", Component: Props },
   { id: "buildings", title: "Buildings × states × variants", Component: Buildings },
-  { id: "characters", title: "Characters (layered generator)", Component: Characters },
+  { id: "characters", title: "Hero options: every option of every category, four directions", Component: HeroOptions },
+  { id: "hero-hats", title: "Every hat on every hair style", Component: HeroHats },
+  { id: "hero-back", title: "Every back item on every outfit", Component: HeroBackItems },
+  { id: "hero-crowd", title: "Random villagers and Surprise-me heroes", Component: HeroCrowd },
 ];

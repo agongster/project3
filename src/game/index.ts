@@ -18,7 +18,7 @@
  * re-forms around the edited file (scenes/dungeonReform.ts).
  */
 import { renderCharacter } from "@/game/art";
-import { playerStats, type PlayerStats } from "@/lib/game";
+import { isRepoPurified, playerStats, type PlayerStats } from "@/lib/game";
 import { repoKey as makeRepoKey, VIEW_H, VIEW_W, type GameEvent, type GameHandle, type GameOptions, type WorkshopTarget } from "./bridge";
 import { Combo } from "./combat/combo";
 import { createLoop } from "./engine/loop";
@@ -32,7 +32,7 @@ import { createDebug, type GameDebug } from "./debug";
 import { DungeonScene } from "./scenes/dungeon";
 import { OverworldScene } from "./scenes/overworld";
 import { rebuiltCaption } from "./scenes/dungeonReform";
-import { allDungeonsCleared, bugsLeft } from "./scenes/progressView";
+import { linesToFix, monstersLeft } from "./scenes/progressView";
 import type { Scene } from "./scenes/scene";
 import { workshopTargetFor } from "./scenes/workshopTarget";
 import type { GameServices } from "./services";
@@ -103,7 +103,7 @@ export function createEngine(options: GameOptions): { handle: GameHandle; debug:
     pet,
     trail,
     combo: new Combo(),
-    session: { brokenBushes: new Set(), victoryShown: allDungeonsCleared(save.get(), repoKey, analysis) },
+    session: { brokenBushes: new Set(), victoryShown: isRepoPurified(analysis) },
     stats: () => stats,
     theme: () => save.get().theme,
     emit: (event: GameEvent) => options.emit(event),
@@ -149,7 +149,7 @@ export function createEngine(options: GameOptions): { handle: GameHandle; debug:
           // A hero who fainted mid-edit gets back up in the new dungeon.
           if (player.fainted) player.restore(stats.maxHp);
           const file = analysis.files.find((f) => f.path === path);
-          next.announce(file ? rebuiltCaption(bugsLeft(save.get(), repoKey, file)) : caption);
+          next.announce(file ? rebuiltCaption(monstersLeft(save.get(), repoKey, file), linesToFix(file)) : caption);
         },
         REBUILD_FADE_SEC,
       );
@@ -226,14 +226,14 @@ export function createEngine(options: GameOptions): { handle: GameHandle; debug:
     spareFinisher(findingId: string) {
       dungeon?.spareFinisher(findingId);
     },
-    updateAnalysis(next: RepoAnalysis, fixedIds: readonly string[] = []) {
+    updateAnalysis(next: RepoAnalysis, fixedIds: readonly string[] = [], sealedIds: readonly string[] = []) {
       const changed = changedFiles(analysis, next);
       analysis = next;
       overworld.follow(changed);
       const file = dungeon ? changed.get(dungeon.path) : undefined;
       if (file) dungeon?.follow(file);
       // Only counts while that dungeon waits to re-form; ids of other files match none of its monsters.
-      dungeon?.noteFixed(fixedIds);
+      dungeon?.noteFixed(fixedIds, sealedIds);
     },
     workshopTarget() {
       return workshopTargetFor(scene.workshopSituation());

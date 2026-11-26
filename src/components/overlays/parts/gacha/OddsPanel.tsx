@@ -42,8 +42,8 @@ export function OddsPanel({ gacha, owned }: OddsPanelProps) {
                   <span aria-hidden="true" className="h-3 w-3 bg-[var(--rarity)] shadow-[0_0_0_2px_var(--color-ink)]" />
                   {row.label}
                 </td>
-                <td className="text-right tabular-nums">{row.percent}%</td>
-                <td className="text-right tabular-nums">+{row.dupeRefund} coins</td>
+                <td className="text-right font-extrabold">{row.percent}%</td>
+                <td className="text-right font-bold">+{row.dupeRefund} coins</td>
               </tr>
             ))}
           </tbody>
@@ -68,11 +68,11 @@ export function OddsPanel({ gacha, owned }: OddsPanelProps) {
         </Heading>
         {collection.byRarity.map((row) => (
           <div key={row.rarity} className="grid grid-cols-[80px_minmax(0,1fr)_44px] items-center gap-2">
-            <span className="font-bold" style={{ color: RARITY_INFO[row.rarity].color, textShadow: "0 1px 0 var(--color-ink)" }}>
+            <span className="ink-outline font-bold" style={{ color: RARITY_INFO[row.rarity].color }}>
               {RARITY_INFO[row.rarity].label}
             </span>
             <PixelBar value={row.owned / row.total} color={RARITY_INFO[row.rarity].color} className="h-2" />
-            <span className="text-right tabular-nums">
+            <span className="text-right font-bold">
               {row.owned}/{row.total}
             </span>
           </div>
@@ -83,5 +83,5 @@ export function OddsPanel({ gacha, owned }: OddsPanelProps) {
 }
 
 function Heading({ children }: { children: ReactNode }) {
-  return <h3 className="mb-1 font-title text-[10px] uppercase leading-normal">{children}</h3>;
+  return <h3 className="mb-1 font-label text-xs leading-normal">{children}</h3>;
 }

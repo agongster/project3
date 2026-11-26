@@ -13,12 +13,19 @@
  * actions.ts, gacha.ts and loot.ts; this file only creates, loads and stores.
  */
 import {
-  ACCESSORIES,
   ALL_ITEMS,
+  BACK_ITEMS,
+  EYE_COLORS,
   EYE_STYLES,
+  EYEWEAR,
+  FACE_DETAILS,
+  FACIAL_HAIR,
   HAIR_COLORS,
   HAIR_STYLES,
+  LEGACY_ACCESSORIES,
   MAX_CHARMS,
+  MOUTHS,
+  OUTFIT_COLOR2_COUNT,
   OUTFIT_COLORS,
   OUTFITS,
   SKIN_TONES,
@@ -29,6 +36,7 @@ import {
 import { HEALTH_MILESTONES, MAX_SAVED_REPOS } from "@/lib/game/progress";
 import { sanitizeEngravings } from "@/lib/game/engraving";
 import { sanitizeRepoQuests, sanitizeWorkshop } from "@/lib/game/questsSave";
+import { sanitizeTaught } from "@/lib/game/lessons";
 import type { CharacterLook, EquippedItems, ItemSlot, RepoProgress, SaveData, Store, ThemeId } from "@/lib/types";
 
 // ─────────────────────────── Constants ───────────────────────────
@@ -71,8 +79,14 @@ const DEFAULT_LOOK: CharacterLook = {
   hairColor: 1,
   outfit: 1,
   outfitColor: 5,
+  outfitColor2: 0,
   eyes: 1,
-  accessory: 2,
+  eyeColor: 0,
+  mouth: 0,
+  faceDetail: 1,
+  eyewear: 0,
+  facialHair: 0,
+  backItem: 0,
 };
 
 const DEFAULT_SETTINGS: SaveData["settings"] = { sfx: 0.7, music: 0.4, screenShake: true };
@@ -80,16 +94,22 @@ const DEFAULT_SETTINGS: SaveData["settings"] = { sfx: 0.7, music: 0.4, screenSha
 /** Starter items are owned from the very first second and can never be lost. */
 const STARTER_ITEM_IDS: readonly string[] = ALL_ITEMS.filter((item) => item.starter).map((item) => item.id);
 
-/** Each look field is an index into one of these option lists in catalog.ts. */
-const LOOK_OPTIONS = {
-  skin: SKIN_TONES,
-  hairStyle: HAIR_STYLES,
-  hairColor: HAIR_COLORS,
-  outfit: OUTFITS,
-  outfitColor: OUTFIT_COLORS,
-  eyes: EYE_STYLES,
-  accessory: ACCESSORIES,
-} as const;
+/** Each look field is an index into one of the option lists in catalog.ts; this is how many options each has. */
+export const LOOK_OPTION_COUNTS = {
+  skin: SKIN_TONES.length,
+  hairStyle: HAIR_STYLES.length,
+  hairColor: HAIR_COLORS.length,
+  outfit: OUTFITS.length,
+  outfitColor: OUTFIT_COLORS.length,
+  outfitColor2: OUTFIT_COLOR2_COUNT,
+  eyes: EYE_STYLES.length,
+  eyeColor: EYE_COLORS.length,
+  mouth: MOUTHS.length,
+  faceDetail: FACE_DETAILS.length,
+  eyewear: EYEWEAR.length,
+  facialHair: FACIAL_HAIR.length,
+  backItem: BACK_ITEMS.length,
+} as const satisfies Record<Exclude<keyof CharacterLook, "name">, number>;
 
 const VALID_MILESTONES: ReadonlySet<number> = new Set(HEALTH_MILESTONES.map((m) => m.percent));
 
@@ -200,11 +220,17 @@ export function sanitizeName(raw: unknown, fallback: string = DEFAULT_NAME): str
   return Array.from(tidy).slice(0, MAX_NAME_LENGTH).join("").trim() || DEFAULT_NAME;
 }
 
-/** A look whose every index points at a real option in catalog.ts. Bad indices are clamped into range. */
+/**
+ * A look whose every index points at a real option in catalog.ts. Bad indices are clamped into range.
+ * Fields an older save lacks keep the fallback's (the default look uses the "classic" option of
+ * each new field, so old heroes look the same); an old `accessory` becomes its face detail and eyewear.
+ */
 export function sanitizeLook(raw: unknown, fallback: CharacterLook = DEFAULT_LOOK): CharacterLook {
   const look = asRecord(raw);
-  const index = (key: keyof typeof LOOK_OPTIONS): number =>
-    toInt(look[key], fallback[key], 0, LOOK_OPTIONS[key].length - 1);
+  const legacy = LEGACY_ACCESSORIES[toInt(look.accessory, -1, 0, LEGACY_ACCESSORIES.length - 1)];
+  const base: CharacterLook = legacy ? { ...fallback, ...legacy } : fallback;
+  const index = (key: keyof typeof LOOK_OPTION_COUNTS): number =>
+    toInt(look[key], base[key], 0, LOOK_OPTION_COUNTS[key] - 1);
   return {
     name: sanitizeName(look.name, fallback.name),
     skin: index("skin"),
@@ -212,8 +238,14 @@ export function sanitizeLook(raw: unknown, fallback: CharacterLook = DEFAULT_LOO
     hairColor: index("hairColor"),
     outfit: index("outfit"),
     outfitColor: index("outfitColor"),
+    outfitColor2: index("outfitColor2"),
     eyes: index("eyes"),
-    accessory: index("accessory"),
+    eyeColor: index("eyeColor"),
+    mouth: index("mouth"),
+    faceDetail: index("faceDetail"),
+    eyewear: index("eyewear"),
+    facialHair: index("facialHair"),
+    backItem: index("backItem"),
   };
 }
 
@@ -265,6 +297,7 @@ function sanitizeProgress(raw: unknown): RepoProgress {
   const bounties = sanitizeSettledBounties(progress.bounties);
   const quests = sanitizeRepoQuests(progress.quests);
   const fixes = sanitizeFindingIds(progress.fixes, MAX_PAID_FIXES);
+  const sealed = sanitizeFindingIds(progress.sealed, MAX_PAID_FIXES);
   return {
     defeated: toStringList(progress.defeated),
     cleared: toStringList(progress.cleared),
@@ -276,6 +309,8 @@ function sanitizeProgress(raw: unknown): RepoProgress {
     ...(quests && { quests }),
     // Only present once the Workshop has paid for a real fix in this repo.
     ...(fixes && { fixes }),
+    // Only present once a finding of this repo is sealed with `# noqa` (src/lib/game/seal.ts).
+    ...(sealed && { sealed }),
   };
 }
 
@@ -320,6 +355,7 @@ export function sanitizeSave(raw: unknown): SaveData {
     const owned = sanitizeOwned(save.owned);
     const engravings = sanitizeEngravings(save.engravings, owned);
     const workshop = sanitizeWorkshop(save.workshop);
+    const taught = sanitizeTaught(save.taught);
     return {
       version: 1,
       created: toBool(save.created, false),
@@ -340,6 +376,8 @@ export function sanitizeSave(raw: unknown): SaveData {
       ...(engravings && { engravings }),
       // Added with the Workshop: only present once the player has forged or settled quests.
       ...(workshop && { workshop }),
+      // Added with the fight-then-fix rule: only present once a lesson was taught.
+      ...(taught && { taught }),
       stats: {
         bugsSquashed: toCounter(stats.bugsSquashed),
         chestsOpened: toCounter(stats.chestsOpened),

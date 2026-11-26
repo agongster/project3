@@ -29,6 +29,7 @@
  *       dir: "down" | "up" | "left" | "right";  step 0 = stand, 1 / 2 = walking steps
  *       walk by cycling WALK_CYCLE = [1, 0, 2, 0], one entry every ~130 ms
  *   randomLook(seed) → a CharacterLook for villagers (same seed = same person)
+ *   characterSwatch(look, hatId, facing, crop) → one cached still (the creator's option swatches)
  */
 
 // sprite engine
@@ -43,10 +44,13 @@ export { DUNGEON, PALETTES, THEME_COLORS, type ThemeColors, type ThemePalette } 
 export { glowSprite } from "./light";
 
 // characters
-export { CHAR_H, CHAR_W, FACINGS, HAT_IDS, randomLook, renderCharacter, WALK_CYCLE, type CharacterSheet, type Facing } from "./character";
+export { CHAR_H, CHAR_W, characterSwatch, FACINGS, HAT_IDS, LOOK_FIELDS, renderCharacter, WALK_CYCLE, type CharacterSheet, type Facing, type SwatchCrop } from "./character";
+export { randomLook, SURPRISE_ODDS, VILLAGER_ODDS, type LookOdds } from "./characterRandom";
+export { secondColor } from "./characterPalette";
 
 // ─────────────── Creatures, loot, UI sprites and the bitmap font ───────────────
 export { monsterSprite, MONSTER_FRAMES, type MonsterVariant } from "./monsters";
+export { championCrownSprite, lairBadgeSprite, lairBannerSprite, mapMarkSprite, CROWN_FRAMES, LAIR_BANNER_FRAMES, type LairMarkKind } from "./monstersMarks";
 export { itemIcon, ICON_SIZE } from "./items";
 export { weaponSprite, WEAPON_IDS, projectileSprite, PROJECTILE_FRAMES, type ProjectileName } from "./weapons";
 export { petSprite, PET_FRAMES } from "./pets";

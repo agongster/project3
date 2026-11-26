@@ -122,7 +122,7 @@ describe("dungeon-clear chests", () => {
     const loot = rollChest({ source: "dungeon-clear", file: boss, owned: VETERAN_OWNED }, mulberry32(11));
     expect(loot.grade).toBeNull();
     expect(loot.headline).toContain("vault.py");
-    expect(loot.reasons).toEqual(["Squashed 2 bugs in this file", `Toughest foe: ${MONSTERS.keyThief.name}`]);
+    expect(loot.reasons).toEqual(["Dealt with 2 bugs in this file", `Toughest foe: ${MONSTERS.keyThief.name}`]);
   });
 });
 

@@ -13,7 +13,7 @@
 import { useEffect, useEffectEvent, useState, type MouseEvent } from "react";
 import { getAtlas, randomLook, renderCharacter } from "@/game/art";
 import { ArtSprite } from "@/components/hud/ArtSprite";
-import { ap, HUD_FONT_SIZE } from "@/components/hud/units";
+import { ap, HUD_FONT_SIZE, HUD_SMALL_FONT_SIZE } from "@/components/hud/units";
 import { useStore } from "@/lib/game/useStore";
 import { hashString } from "@/lib/rng";
 import type { PropKind, ThemeId } from "@/lib/types";
@@ -117,7 +117,7 @@ export default function DialogOverlay({ request, ctx }: OverlayProps<"dialog">) 
     // The whole game area is clickable, so a click anywhere advances.
     <div className="absolute inset-0 z-40 cursor-pointer bg-gradient-to-t from-[#120d24]/60 to-transparent to-50%" onClick={advance} role="dialog" aria-label={`${speaker} says`}>
       <div className="anim-slide-up absolute text-ink" style={{ left: ap(10), right: ap(10), bottom: ap(8), fontSize: HUD_FONT_SIZE }}>
-        <span className="font-title absolute bg-wood text-cream" style={{ left: ap(6), top: ap(-9), padding: `${ap(2)} ${ap(4)}`, fontSize: ap(4.5), boxShadow: TAB_SHADOW }}>
+        <span className="absolute bg-wood font-extrabold text-cream" style={{ left: ap(6), top: ap(-9), padding: `${ap(1)} ${ap(4)}`, boxShadow: TAB_SHADOW }}>
           {speaker}
         </span>
         <div className="flex bg-cream" style={{ padding: ap(5), paddingTop: ap(7), gap: ap(5), minHeight: ap(46), boxShadow: BOX_SHADOW }}>
@@ -139,7 +139,7 @@ export default function DialogOverlay({ request, ctx }: OverlayProps<"dialog">) 
           </div>
         </div>
         {edit && <EditButton label={edit.label} onClick={openEditor} />}
-        <span className="absolute font-bold text-ink-soft" style={{ right: ap(6), bottom: ap(3), fontSize: "0.8em" }}>
+        <span className="absolute font-bold text-ink-soft" style={{ right: ap(6), bottom: ap(3), fontSize: HUD_SMALL_FONT_SIZE }}>
           {lines.length > 1 && `${lineIndex + 1}/${lines.length} `}
           {lineDone && <span className="anim-bob inline-block text-grape">{isLast ? "■" : "▼"}</span>}
         </span>
@@ -156,11 +156,9 @@ function EditButton({ label, onClick }: { label: string; onClick: () => void }) 
   };
   return (
     // Inline `position`: the pixel button's own CSS would otherwise put it back in the flow.
-    <button type="button" onClick={press} className="px-btn cream small" style={{ position: "absolute", right: ap(6), top: ap(-11), fontSize: "0.85em" }}>
+    <button type="button" onClick={press} className="px-btn cream small" style={{ position: "absolute", right: ap(6), top: ap(-11), fontSize: HUD_SMALL_FONT_SIZE }}>
       {label}
-      <span className="text-ink-soft" style={{ fontSize: "0.8em" }}>
-        F
-      </span>
+      <span className="text-ink-soft">F</span>
     </button>
   );
 }

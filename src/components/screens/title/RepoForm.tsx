@@ -64,7 +64,7 @@ export function RepoForm({ audio, recent, onSubmit, onDemo }: Props) {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-2" noValidate>
-      <label htmlFor="repo-input" className="font-title text-[13px] leading-relaxed text-ink">
+      <label htmlFor="repo-input" className="font-title text-pixel-sm leading-relaxed text-ink">
         Paste a Python repo
       </label>
       <div ref={rowRef} className="flex flex-wrap items-center gap-1">
@@ -108,7 +108,7 @@ export function RepoForm({ audio, recent, onSubmit, onDemo }: Props) {
       >
         ✦ Play the Demo Kingdom ✦
       </PixelButton>
-      <p className="text-center text-[14px] text-ink-soft">A tiny bakery & potion shop full of bugs. Works offline.</p>
+      <p className="text-center text-sm text-ink-soft">A tiny bakery & potion shop full of bugs. Works offline.</p>
     </form>
   );
 }

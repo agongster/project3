@@ -2,6 +2,7 @@
  * Numbers behind the notice board (repo statistics), computed from the
  * analysis and the player's progress. Plain functions, no React.
  */
+import { fileTally } from "@/lib/game/progress";
 import type { AnalyzedFile, Grade, MonsterKind, RepoAnalysis, RepoProgress, Severity } from "@/lib/types";
 
 /** How many files the "Tidiest scrolls" and "Most cursed" lists show. */
@@ -21,24 +22,26 @@ export interface RegionRow {
   files: number;
   /** Bugs in the code now. */
   bugs: number;
-  /** Of those, squashed in the game. */
-  defeated: number;
-  /** Bugs of the original code fixed in the Workshop (no longer in `bugs`). */
+  /** Of those, subdued in a fight (still in the code, waiting for a fix). */
+  subdued: number;
+  /** Bugs of the original code gone from it (no longer in `bugs`): fixed for real, or sealed. */
   fixed: number;
+  sealed: number;
 }
 
 /** One row per top-level directory, like the regions of the overworld, biggest first. */
 export function regionRows(analysis: RepoAnalysis, progress: RepoProgress): RegionRow[] {
-  const defeated = new Set(progress.defeated);
   const rows = new Map<string, RegionRow>();
   for (const file of okFiles(analysis)) {
     const slash = file.path.indexOf("/");
     const name = slash === -1 ? ROOT_REGION : `${file.path.slice(0, slash)}/`;
-    const row = rows.get(name) ?? { name, files: 0, bugs: 0, defeated: 0, fixed: 0 };
+    const row = rows.get(name) ?? { name, files: 0, bugs: 0, subdued: 0, fixed: 0, sealed: 0 };
+    const tally = fileTally(file, progress);
     row.files++;
     row.bugs += file.findings.length;
-    row.fixed += file.realFixes ?? 0;
-    row.defeated += file.findings.filter((finding) => defeated.has(finding.id)).length;
+    row.subdued += tally.subdued;
+    row.fixed += tally.fixed;
+    row.sealed += tally.sealed;
     rows.set(name, row);
   }
   return [...rows.values()].sort((a, b) => b.files - a.files || a.name.localeCompare(b.name));

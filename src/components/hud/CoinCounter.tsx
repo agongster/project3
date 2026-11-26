@@ -18,7 +18,7 @@ export function CoinCounter({ save }: { save: Store<SaveData> }) {
   const frame = useTicker(COIN_FRAME_MS) % UI_FRAMES.coin;
 
   return (
-    <div className="flex items-center font-bold text-gold" style={{ gap: ap(2), textShadow: TEXT_OUTLINE }}>
+    <div className="flex items-center font-extrabold text-gold" style={{ gap: ap(2), textShadow: TEXT_OUTLINE }}>
       <ArtSprite sprite={uiSprite("coin", frame)} />
       <span className="tabular-nums" aria-label={`${coins} coins`}>
         {shown}

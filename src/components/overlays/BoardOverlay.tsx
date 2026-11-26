@@ -4,17 +4,20 @@
  * The town notice board: a friendly infographic of the repo analysis,
  * pinned up as paper notes on a wooden board, topped by up to three WANTED
  * posters (bounties on monsters, quoting the line of code they hide at).
- * Its numbers follow the code as it is now: a bug fixed in the Workshop is
- * no longer found, and the region bars count it as dealt with.
+ * Its numbers follow the code as it is now: a bug fixed (or sealed) in the
+ * Workshop is no longer found, and the region bars count it as dealt with;
+ * a fight alone does not fill them.
  */
 import type { ReactNode } from "react";
 import { Modal, PixelBar, PixelPanel } from "@/components/ui/kit";
 import { getProgress } from "@/lib/game";
 import { useStore } from "@/lib/game/useStore";
 import type { AnalyzedFile } from "@/lib/types";
-import { mostCursedFiles, monstersBySeverity, regionRows, tidiestFiles } from "./parts/boardData";
+import { mostCursedFiles, monstersBySeverity, regionRows, tidiestFiles, type RegionRow } from "./parts/boardData";
 import { findFinding } from "./parts/codexData";
 import { BountyNotices } from "./parts/BountyNotices";
+import { BoardLairs } from "./parts/BoardLairs";
+import { repoLairs } from "@/lib/game/champions";
 import { GradeBadge } from "./parts/GradeBadge";
 import { MonsterIcon } from "./parts/MonsterIcon";
 import { SEVERITIES, SEVERITY_INFO } from "./parts/monsterText";
@@ -52,6 +55,10 @@ export default function BoardOverlay({ ctx }: OverlayProps<"board">) {
             />
           </Note>
         )}
+
+        <Note title="Boss lairs" wide>
+          <BoardLairs lairs={repoLairs(analysis, progress)} analysis={analysis} onFix={(lair) => ctx.openWorkshop({ path: lair.path, line: lair.finding.line })} />
+        </Note>
 
         <Note title="About this repo">
           <p className="font-bold">{analysis.description ?? "No description on GitHub."}</p>
@@ -99,7 +106,7 @@ export default function BoardOverlay({ ctx }: OverlayProps<"board">) {
                 <th className="font-bold">Region</th>
                 <th className="font-bold">Files</th>
                 <th className="font-bold">Bugs</th>
-                <th className="w-1/3 font-bold">Squashed</th>
+                <th className="w-1/3 font-bold">Fixed</th>
               </tr>
             </thead>
             <tbody>
@@ -109,14 +116,10 @@ export default function BoardOverlay({ ctx }: OverlayProps<"board">) {
                   <td className="tabular-nums">{row.files}</td>
                   <td className="tabular-nums">{row.bugs}</td>
                   <td className="py-1">
-                    {row.bugs + row.fixed === 0 ? (
+                    {row.bugs + row.fixed + row.sealed === 0 ? (
                       <span className="text-xs font-bold text-leaf-deep">Spotless!</span>
                     ) : (
-                      <PixelBar
-                        value={(row.defeated + row.fixed) / (row.bugs + row.fixed)}
-                        className="h-2"
-                        label={row.fixed === 0 ? `${row.defeated} of ${row.bugs} squashed` : `${row.defeated} squashed and ${row.fixed} fixed in the code, of ${row.bugs + row.fixed}`}
-                      />
+                      <PixelBar value={(row.fixed + row.sealed) / (row.bugs + row.fixed + row.sealed)} className="h-2" label={regionLabel(row)} />
                     )}
                   </td>
                 </tr>
@@ -158,12 +161,18 @@ export default function BoardOverlay({ ctx }: OverlayProps<"board">) {
   );
 }
 
+/** "2 fixed, 1 sealed and 3 subdued, of 9": the region bar's label. */
+function regionLabel(row: RegionRow): string {
+  const sealed = row.sealed > 0 ? `, ${row.sealed} sealed` : "";
+  return `${row.fixed} fixed${sealed} and ${row.subdued} subdued, of ${row.bugs + row.fixed + row.sealed}`;
+}
+
 /** A cream paper note pinned to the board. */
 function Note({ title, wide, children }: { title: string; wide?: boolean; children: ReactNode }) {
   return (
     <PixelPanel className={wide ? "col-span-2 p-3" : "p-3"}>
       <span aria-hidden="true" className="absolute -top-2 left-1/2 h-3 w-3 -translate-x-1/2 bg-berry shadow-[0_2px_0_0_#8a2f33]" />
-      <h3 className="mb-2 font-title text-[10px] uppercase leading-normal">{title}</h3>
+      <h3 className="mb-2 font-label text-xs leading-normal">{title}</h3>
       {children}
     </PixelPanel>
   );
@@ -172,7 +181,7 @@ function Note({ title, wide, children }: { title: string; wide?: boolean; childr
 function Stat({ value, label }: { value: number; label: string }) {
   return (
     <div className="bg-cream-deep/70 py-1">
-      <p className="font-title text-sm tabular-nums">{value.toLocaleString()}</p>
+      <p className="text-lg font-extrabold leading-tight">{value.toLocaleString()}</p>
       <p className="text-xs">{label}</p>
     </div>
   );
@@ -201,7 +210,7 @@ function TidyFile({ file }: { file: AnalyzedFile }) {
       <GradeBadge grade={file.quality.grade} size="sm" />
       <div className="min-w-0">
         <p className="truncate font-bold">{file.path}</p>
-        <p className="text-xs">{file.quality.highlights.join(" · ") || "Nothing for Ruff to complain about"}</p>
+        <p className="text-sm">{file.quality.highlights.join(" · ") || "Nothing for Ruff to complain about"}</p>
       </div>
     </div>
   );

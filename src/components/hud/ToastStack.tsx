@@ -11,7 +11,7 @@ import { MONSTERS } from "@/lib/game/catalog";
 import { useStore } from "@/lib/game/useStore";
 import type { Feed, Toast, ToastIcon } from "./feed";
 import { HUD_FX } from "./fx";
-import { ap } from "./units";
+import { ap, HUD_SMALL_FONT_SIZE } from "./units";
 
 /** Leaves room for the engine's ~52 px tall minimap in the top-right corner. */
 const STACK_TOP = 60;
@@ -46,11 +46,11 @@ function ToastCard({ toast, scale }: { toast: Toast; scale: number }) {
           <IconView icon={toast.icon} scale={scale} />
         </span>
       )}
-      <span className="min-w-0 flex-1 leading-tight" style={{ fontSize: "0.85em" }}>
+      <span className="min-w-0 flex-1 leading-tight" style={{ fontSize: HUD_SMALL_FONT_SIZE }}>
         <span className="block font-bold">{toast.text}</span>
         {toast.detail && <span className="block text-ink-soft">{toast.detail}</span>}
       </span>
-      {toast.coins !== undefined && toast.coins > 0 && <span className="shrink-0 font-bold text-wood-deep">+{toast.coins}</span>}
+      {toast.coins !== undefined && toast.coins > 0 && <span className="shrink-0 font-extrabold text-wood-deep">+{toast.coins}</span>}
     </div>
   );
 }

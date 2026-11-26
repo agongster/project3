@@ -5,6 +5,7 @@
  * monster, quick-open, the revert confirmation, the diff view, or help.
  */
 import { PixelButton } from "@/components/ui/kit";
+import type { SealPlan } from "@/lib/game/seal";
 import type { FileChange, LiveFinding, QuickFix, WorkspaceEntry } from "@/lib/workspace/contract";
 import { BugCard } from "./BugCard";
 import { clip } from "./bits";
@@ -31,6 +32,8 @@ interface WorkshopPopupsProps {
   onClose: () => void;
   onOpen: (path: string) => void;
   onUseFix: (fix: QuickFix) => void;
+  sealPlan: (live: LiveFinding) => SealPlan;
+  onUseSeal: (live: LiveFinding) => void;
   onRevert: (path: string) => void;
   onDismissHelp: () => void;
 }
@@ -54,6 +57,8 @@ export function WorkshopPopups(props: WorkshopPopupsProps) {
             anchor={popup.anchor}
             fixReady={props.fixReady}
             onUseFix={props.onUseFix}
+            sealPlan={props.sealPlan}
+            onUseSeal={props.onUseSeal}
             onClose={onClose}
           />
         </div>

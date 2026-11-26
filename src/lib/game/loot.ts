@@ -133,7 +133,7 @@ function rewardPhrase(item: ItemDef | null): string {
 
 function dungeonReasons(file: AnalyzedFile): string[] {
   const count = file.findings.length;
-  const reasons = [`Squashed ${count} bug${count === 1 ? "" : "s"} in this file`];
+  const reasons = [`Dealt with ${count} bug${count === 1 ? "" : "s"} in this file`];
   const toughest = file.findings.reduce<AnalyzedFile["findings"][number] | null>(
     (best, finding) => (!best || DANGER_LEVEL[finding.severity] > DANGER_LEVEL[best.severity] ? finding : best),
     null,

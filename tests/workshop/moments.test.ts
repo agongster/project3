@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { creptInText, describeForge, gradeImproved, mergeMoments, withArticle } from "@/components/workshop/logic/forgeMoment";
+import { cardAnchor } from "@/components/workshop/ui/placement";
+import { creptInText, describeForge, gradeImproved, mergeMoments, sealedText, withArticle } from "@/components/workshop/logic/forgeMoment";
 import { badgeDescription, explorerBadge } from "@/components/workshop/logic/fileBadges";
 import { diffRows, MAX_DIFF_ROWS } from "@/components/workshop/logic/diffRows";
 import { languageForPath } from "@/components/workshop/logic/languages";
@@ -66,8 +67,20 @@ describe("describeForge", () => {
     const merged = mergeMoments([a, b]);
     expect(merged.paths).toEqual(["a.py", "b.py"]);
     expect(merged.banished).toHaveLength(1);
-    expect(merged.rewards).toEqual({ coins: 13, xp: 5, lines: ["one"] });
+    expect(merged.rewards).toEqual({ coins: 13, xp: 5, lines: ["one"], sealedIds: [] });
     expect(mergeMoments([]).quiet).toBe(true);
+  });
+
+  it("lists sealed bugs plainly, apart from the banished ones, with no coins", () => {
+    const fixed = makeFinding("a.py", 1);
+    const sealed = makeFinding("a.py", 4, "keyThief", { code: "S105" });
+    const moment = describeForge(report({ path: "a.py", fixed: [fixed, sealed] }), { coins: 0, xp: 0, lines: [], paidFixes: [], sealedIds: [sealed.id] });
+    expect(moment.banished.map((m) => m.id)).toEqual([fixed.id]);
+    expect(moment.sealed.map((m) => m.id)).toEqual([sealed.id]);
+    expect(sealedText(moment.sealed[0])).toBe("Key Thief sealed at line 4 — accepted with # noqa, no reward");
+    const onlySealed = describeForge(report({ path: "a.py", fixed: [sealed] }), { coins: 0, xp: 0, lines: [], sealedIds: [sealed.id] });
+    expect(onlySealed.quiet).toBe(false);
+    expect(onlySealed.banished).toEqual([]);
   });
 
   it("uses the right article and grade order", () => {
@@ -79,19 +92,40 @@ describe("describeForge", () => {
 });
 
 describe("explorerBadge", () => {
-  it("shows a cursed file's living bugs and its worst monster", () => {
+  it("shows a cursed file's fighting monsters and its worst one", () => {
     const findings = [makeFinding("x.py", 1, "dustBunny"), makeFinding("x.py", 2, "keyThief"), makeFinding("x.py", 3, "mimic")];
     const file = makeFile("x.py", { findings, grade: "C" });
     const save = saveWith({ repos: { [KEY]: { defeated: [findings[1].id], cleared: [], opened: [], milestones: [] } } });
     const badge = explorerBadge(save, KEY, file);
     expect(badge).toEqual({ kind: "world", status: "cursed", bugs: 2, monster: "mimic", grade: "C" });
-    expect(badgeDescription(badge)).toBe("cursed, 2 bugs, grade C");
+    expect(badgeDescription(badge)).toBe("cursed, 2 monsters to fight, grade C");
+  });
+
+  it("shows a quiet file's lines left to fix", () => {
+    const findings = [makeFinding("x.py", 1), makeFinding("x.py", 2)];
+    const save = saveWith({ repos: { [KEY]: { defeated: findings.map((f) => f.id), cleared: [], opened: [], milestones: [] } } });
+    const badge = explorerBadge(save, KEY, makeFile("x.py", { findings, grade: "B" }));
+    expect(badge).toEqual({ kind: "world", status: "quiet", bugs: 2, monster: null, grade: "B" });
+    expect(badgeDescription(badge)).toBe("quiet, 2 lines to fix, grade B");
   });
 
   it("follows the building state for clean, failed and non-Python files", () => {
     expect(explorerBadge(saveWith({}), KEY, makeFile("ok.py", { grade: "S" }))).toMatchObject({ status: "treasure", grade: "S", monster: null });
     expect(explorerBadge(saveWith({}), KEY, makeFile("bad.py", { status: "failed" }))).toEqual({ kind: "ruin" });
     expect(explorerBadge(saveWith({}), KEY, undefined)).toEqual({ kind: "plain" });
+  });
+});
+
+describe("cardAnchor", () => {
+  const area = { left: 250, right: 950, top: 75 } as DOMRect;
+
+  it("puts the bug card on the side of its line with more room, and never past the window's edge", () => {
+    const high = cardAnchor({ top: 200, bottom: 220, left: 330 }, area, 800);
+    expect(high).toEqual({ left: 330, top: 226, maxHeight: 568 });
+    const low = cardAnchor({ top: 600, bottom: 620, left: 330 }, area, 800);
+    expect(low).toEqual({ left: 330, bottom: 206, maxHeight: 588 });
+    const middle = cardAnchor({ top: 420, bottom: 440, left: 100 }, area, 800);
+    expect(middle).toEqual({ left: 256, bottom: 386, maxHeight: 408 });
   });
 });
 

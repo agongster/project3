@@ -14,7 +14,7 @@
  */
 import { RangeSet, StateEffect, StateField, type EditorState, type Range } from "@codemirror/state";
 import { Decoration, EditorView, GutterMarker, gutter, type DecorationSet } from "@codemirror/view";
-import { monsterFrame, spriteUrl, uiIcon } from "@/components/overlays/parts/sprites";
+import { lookFromId, monsterFrame, spriteUrl, uiIcon } from "@/components/overlays/parts/sprites";
 import { MONSTERS } from "@/lib/game/catalog";
 import type { MonsterKind, Severity } from "@/lib/types";
 import { rangeToOffsets } from "../logic/positions";
@@ -42,6 +42,8 @@ const SEVERITY_RANK: Readonly<Record<Severity, number>> = { boss: 0, elite: 1, m
 class MonsterMarker extends GutterMarker {
   constructor(
     readonly monster: MonsterKind,
+    /** The finding drawn: its id decides the monster's look (variant). */
+    readonly findingId: string,
     readonly count: number,
     readonly fresh: boolean,
     readonly label: string,
@@ -50,14 +52,14 @@ class MonsterMarker extends GutterMarker {
   }
 
   eq(other: GutterMarker): boolean {
-    return other instanceof MonsterMarker && other.monster === this.monster && other.count === this.count && other.fresh === this.fresh && other.label === this.label;
+    return other instanceof MonsterMarker && other.monster === this.monster && other.findingId === this.findingId && other.count === this.count && other.fresh === this.fresh && other.label === this.label;
   }
 
   toDOM(): HTMLElement {
     const marker = document.createElement("span");
     marker.className = `ws-monster ws-sev-${MONSTERS[this.monster].severity}${this.fresh ? " ws-monster-fresh" : ""}`;
     marker.title = this.label;
-    const sprite = monsterFrame(this.monster);
+    const sprite = monsterFrame(this.monster, 0, lookFromId(this.findingId, this.monster));
     if (sprite) marker.style.backgroundImage = `url(${spriteUrl(sprite)})`;
     if (this.count > 1) {
       const count = document.createElement("span");
@@ -115,7 +117,7 @@ function buildMarkers(state: EditorState, placed: readonly Placed[]): RangeSet<G
   for (const [lineStart, items] of byLine) {
     const worst = [...items].sort((a, b) => SEVERITY_RANK[a.finding.severity] - SEVERITY_RANK[b.finding.severity])[0];
     const names = items.map((item) => `${MONSTERS[item.finding.monster].name}: ${item.finding.title}`).join("\n");
-    markers.push(new MonsterMarker(worst.finding.monster, items.length, items.some((item) => item.fresh), names).range(lineStart));
+    markers.push(new MonsterMarker(worst.finding.monster, worst.finding.id, items.length, items.some((item) => item.fresh), names).range(lineStart));
   }
   return RangeSet.of(markers, true);
 }

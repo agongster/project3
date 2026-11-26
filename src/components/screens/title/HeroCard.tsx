@@ -29,7 +29,7 @@ export function HeroCard({ save, audio, onEdit }: Props) {
         <CharacterPreview look={look} hatId={hatId} scale={3} turning />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="truncate font-title text-[14px] leading-relaxed">{look.name}</p>
+        <p className="truncate font-title text-pixel-sm leading-relaxed">{look.name}</p>
         <p className="text-[15px] font-semibold text-ink-soft">
           {created ? `Lv ${level.level} · ${level.title}` : "A brand-new adventurer"}
         </p>

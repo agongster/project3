@@ -100,7 +100,7 @@ export function Workshop(props: WorkshopProps) {
       <Suspense
         fallback={
           <Curtain>
-            <p className="font-title text-sm">Opening the Workshop…</p>
+            <p className="font-title text-pixel-sm">Opening the Workshop…</p>
           </Curtain>
         }
       >

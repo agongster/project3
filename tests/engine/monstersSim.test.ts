@@ -8,23 +8,14 @@
  */
 import { describe, expect, it } from "vitest";
 import { createBrain } from "@/game/entities/monsters/brains";
-import { applyContactDamage, MAX_PURSUERS, separate, updateEngagement } from "@/game/entities/monsters/engagement";
+import { MAX_PURSUERS, updateEngagement } from "@/game/entities/monsters/engagement";
 import { Monster } from "@/game/entities/monsters/monster";
 import { createBodies } from "@/game/entities/monsters/traits";
 import { generateDungeon } from "@/lib/worldgen";
 import { MONSTER_KINDS } from "@/lib/types";
-import { fileWithEveryMonster, fileWithEveryTrait, TestWorld, traitSetup } from "./monstersWorld";
+import { CLOSE_PX, DT, fileWithEveryMonster, fileWithEveryTrait, runTour, TestWorld, traitSetup } from "./monstersWorld";
 
-const DT = 1 / 60;
-/** Steps the hero spends with each monster (≈ 7 s) before defeating it. */
-const VISIT_STEPS = 420;
 const SEEDS = [1, 2, 3];
-/** The hero swings at monsters this close… */
-const SWING_REACH_PX = 26;
-/** …this often per step (a frantic button-masher). */
-const SWING_CHANCE = 0.08;
-/** Monsters within this distance always count as woken up by the hero (see CLOSE_WAKE_PX). */
-const CLOSE_PX = 28;
 
 /** Every monster kind; with `traits`, built like the director does (runes, an echo, growth…). */
 function setup(seed: number, traits = false) {
@@ -39,35 +30,10 @@ function setup(seed: number, traits = false) {
   return { world, monsters };
 }
 
-/** A random swing: no damage (so the monster keeps being tested), random knockback. */
-function swingAt(m: Monster, world: TestWorld): void {
-  const a = world.random() * Math.PI * 2;
-  const push = 4 + world.random() * 12;
-  m.takeHit({ damage: 0, knockbackX: Math.cos(a) * push, knockbackY: Math.sin(a) * push, crit: false, source: "weapon" });
-}
-
-/** Runs the whole visit-everyone tour, calling `check` after every step. */
+/** Runs the whole visit-everyone tour (see runTour), calling `check` after every step. */
 function tour(seed: number, check: (world: TestWorld, monsters: Monster[], step: number) => void, traits = false): void {
   const { world, monsters } = setup(seed, traits);
-  const steps = monsters.length * VISIT_STEPS;
-  for (let step = 0; step < steps; step++) {
-    const visiting = monsters[Math.floor(step / VISIT_STEPS)];
-    if (step % VISIT_STEPS === 0) world.visit(visiting);
-    world.moveHero(DT, visiting);
-    updateEngagement(monsters, world, true, DT);
-    for (const m of monsters) {
-      if (!m.alive) continue;
-      m.update(DT);
-      const near = Math.hypot(m.x - world.hero.x, m.y - world.hero.y) < SWING_REACH_PX;
-      if (m.targetable && near && world.random() < SWING_CHANCE) swingAt(m, world);
-    }
-    separate(monsters);
-    applyContactDamage(monsters, world);
-    world.hazards.update(DT, world);
-    check(world, monsters, step);
-    // End of the visit: the hero wins, the next boss may take its turn.
-    if (step % VISIT_STEPS === VISIT_STEPS - 1) visiting.takeHit({ damage: visiting.hp, knockbackX: 0, knockbackY: 0, crit: false, source: "weapon" });
-  }
+  runTour(world, monsters, check);
 }
 
 describe("monster simulation", () => {

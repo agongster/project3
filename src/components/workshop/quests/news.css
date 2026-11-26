@@ -51,8 +51,8 @@
 }
 .qst-toast-head {
   display: block;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-leaf-deep);
@@ -103,7 +103,7 @@
 }
 .qst-banner-title {
   display: block;
-  font-size: 22px;
+  font-size: 24px;
   color: var(--color-ink);
 }
 .qst-banner-how { display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-ink-soft); }

@@ -7,7 +7,7 @@
  *                  the Workshop opens at that file and line
  *   onForged       every forge and revert is applied HERE, once (forgeFlow.ts):
  *                  the save is written once, the engine hears which monsters
- *                  were fixed, quest news is announced
+ *                  were fixed and which were sealed, quest news is announced
  *   close()        the game resumes exactly where it was, the door opens on
  *                  the world reacting, and a banner sums up what changed
  *
@@ -78,16 +78,16 @@ export function useWorkshop({ gameRef, workspace, services, repoKey, feed, bount
     setVisit((current) => (current?.phase === "leaving" ? null : current));
   }
 
-  function onForged(report: ForgeReport): ForgeRewards {
+  function onForged(report: ForgeReport, text: string): ForgeRewards {
     const known = settled.current.get(report);
     if (known) return known;
     const analysis = workspace.analysis.get();
-    const outcome = settleForge({ save: save.get(), repoKey, analysis, report, bounties: bounties.get() });
+    const outcome = settleForge({ save: save.get(), repoKey, analysis, report, text, bounties: bounties.get() });
     if (outcome.save !== save.get()) save.set(outcome.save);
     bounties.set(outcome.bounties);
     if (outcome.news.length > 0) news.set(outcome.news);
-    tally.current = addToTally(tally.current, report);
-    gameRef.current?.updateAnalysis(analysis, originalIds(trace.current, report));
+    tally.current = addToTally(tally.current, report, outcome);
+    gameRef.current?.updateAnalysis(analysis, originalIds(trace.current, outcome.fixed), originalIds(trace.current, outcome.sealed));
     trace.current = traceIds(trace.current, report);
     settled.current.set(report, outcome.rewards);
     return outcome.rewards;

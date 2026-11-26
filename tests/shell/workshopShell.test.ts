@@ -1,9 +1,9 @@
-/** The game screen's small Workshop decisions: the shortcut key, routing engine events, and the words that tell squashed from fixed. */
+/** The game screen's small Workshop decisions: the shortcut key, routing engine events, and the words that tell subdued, fixed and sealed apart. */
 import { describe, expect, it } from "vitest";
 import { shortcutFor } from "@/components/app/GameScreen";
 import { overlayForEvent, workshopForEvent } from "@/components/app/gameEvents";
 import { bugStatus, findFinding, groupFindings } from "@/components/overlays/parts/codexData";
-import { CLASSIC_TAKEAWAY, victoryTakeaway } from "@/components/overlays/parts/victoryText";
+import { ALL_FIXED_TAKEAWAY, howDealtWith, victoryTakeaway } from "@/components/overlays/parts/victoryText";
 import { emptyProgress } from "@/lib/game/progress";
 import { makeAnalysis, makeFile, makeFinding } from "../game/helpers";
 
@@ -33,42 +33,48 @@ describe("engine events", () => {
   });
 });
 
-describe("the codex tells squashed from fixed", () => {
+describe("the codex shows all four states", () => {
   const live = makeFinding("a.py", 3);
-  const squashed = makeFinding("a.py", 5, "phantom", { code: "F821" });
+  const subdued = makeFinding("a.py", 5, "phantom", { code: "F821" });
   const fixed = makeFinding("a.py", 8, "mimic", { code: "B006" });
+  const sealed = makeFinding("a.py", 9, "keyThief", { code: "S105" });
   const allFixed = makeFinding("b.py", 2);
+  const quietBug = makeFinding("c.py", 4);
   const analysis = makeAnalysis([
-    { ...makeFile("a.py", { findings: [live, squashed] }), realFixes: 1, fixedFindings: [fixed] },
+    { ...makeFile("a.py", { findings: [live, subdued] }), realFixes: 2, fixedFindings: [fixed, sealed] },
     { ...makeFile("b.py"), realFixes: 1, fixedFindings: [allFixed] },
+    makeFile("c.py", { findings: [quietBug] }),
     makeFile("clean.py"),
   ]);
-  const progress = { ...emptyProgress(), defeated: [squashed.id] };
+  const progress = { ...emptyProgress(), defeated: [subdued.id, quietBug.id], sealed: [sealed.id] };
 
-  it("lists files with fixed bugs too, a fully fixed one as purified", () => {
+  it("lists cursed dungeons first, then quiet ones, then purified ones", () => {
     const groups = groupFindings(analysis, progress);
-    expect(groups.map((g) => [g.file.path, g.defeated, g.fixed.length, g.purified])).toEqual([
-      ["a.py", 1, 1, false],
-      ["b.py", 0, 1, true],
+    expect(groups.map((g) => [g.file.path, g.state, g.gone.length, g.tally])).toEqual([
+      ["a.py", "cursed", 2, { alive: 1, subdued: 1, fixed: 1, sealed: 1 }],
+      ["c.py", "quiet", 0, { alive: 0, subdued: 1, fixed: 0, sealed: 0 }],
+      ["b.py", "purified", 1, { alive: 0, subdued: 0, fixed: 1, sealed: 0 }],
     ]);
   });
 
-  it("finds a fixed bug and knows where each bug stands", () => {
+  it("finds a bug gone from the code and knows where each bug stands", () => {
     expect(findFinding(analysis, fixed.id)).toBe(fixed);
-    expect(bugStatus(analysis, progress, live)).toBe("lurking");
-    expect(bugStatus(analysis, progress, squashed)).toBe("squashed");
+    expect(bugStatus(analysis, progress, live)).toBe("alive");
+    expect(bugStatus(analysis, progress, subdued)).toBe("subdued");
     expect(bugStatus(analysis, progress, fixed)).toBe("fixed");
+    expect(bugStatus(analysis, progress, sealed)).toBe("sealed");
   });
 });
 
 describe("victoryTakeaway", () => {
-  it("keeps the game's own line for a player who never fixed code", () => {
-    expect(victoryTakeaway({ defeated: 12, fixed: 0 })).toBe(CLASSIC_TAKEAWAY);
+  it("celebrates a repo where every bug was fixed for real", () => {
+    expect(victoryTakeaway({ fixed: 12, sealed: 0 })).toBe(ALL_FIXED_TAKEAWAY);
+    expect(howDealtWith({ sealed: 0 })).toBe("fixed");
   });
 
-  it("counts what is left in the code once some bugs were fixed for real", () => {
-    expect(victoryTakeaway({ defeated: 3, fixed: 2 })).toBe("You fixed 2 in the code, but 3 squashed bugs are still there. Fix them for real in the Workshop!");
-    expect(victoryTakeaway({ defeated: 1, fixed: 2 })).toContain("1 squashed bug is still there");
-    expect(victoryTakeaway({ defeated: 0, fixed: 5 })).toContain("You fixed every bug in the code itself!");
+  it("gently reminds that seals are not fixes", () => {
+    expect(victoryTakeaway({ fixed: 2, sealed: 3 })).toBe("You fixed 2 for real, and 3 bugs are only sealed with # noqa. Come back and fix them properly some day!");
+    expect(victoryTakeaway({ fixed: 2, sealed: 1 })).toContain("1 bug is only sealed");
+    expect(howDealtWith({ sealed: 1 })).toBe("fixed or sealed");
   });
 });

@@ -30,7 +30,9 @@ function sourceOf(path: string): string {
 
 /** The analysis after "forging" new text for one file: that file is linted again, like the workspace does. */
 function forged(analysis: RepoAnalysis, path: string, source: string, realFixes = 0): RepoAnalysis {
-  const file: AnalyzedFile = { ...analyzeFile({ path, size: source.length, source }, lint), realFixes };
+  // Like the workspace: `realFixes` counts the original findings gone from the code, listed in `fixedFindings`.
+  const gone = Array.from({ length: realFixes }, (_, i) => makeFinding(path, 1000 + i));
+  const file: AnalyzedFile = { ...analyzeFile({ path, size: source.length, source }, lint), realFixes, ...(realFixes > 0 && { fixedFindings: gone }) };
   return { ...analysis, files: analysis.files.map((f) => (f.path === path ? file : f)) };
 }
 

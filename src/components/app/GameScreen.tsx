@@ -29,13 +29,14 @@ import { OverlayHost } from "@/components/overlays/OverlayHost";
 import type { OverlayContext, OverlayRequest } from "@/components/overlays/types";
 import { Hud } from "@/components/hud/Hud";
 import { createFeed } from "@/components/hud/feed";
-import { createStore, getProgress, repoHealth, type QuestNewsItem } from "@/lib/game";
+import { createStore, getProgress, markTaught, repoHealth, wasTaught, type QuestNewsItem } from "@/lib/game";
 import { useStore } from "@/lib/game/useStore";
 import type { RepoAnalysis, SaveData, Store } from "@/lib/types";
 import type { Workspace } from "@/lib/workspace";
 import { useMusic } from "./audioHooks";
+import { carvedLines, type CarvedLine } from "./devLines";
 import type { LoadedWorld } from "./flow";
-import { announceEvent, overlayForEvent, workshopForEvent } from "./gameEvents";
+import { announceEvent, overlayForEvent, teachSubdued, workshopForEvent } from "./gameEvents";
 import type { AppServices } from "./services";
 import { useBountyPayouts, createBountyBoard } from "./useBountyPayouts";
 import { useGameEngine } from "./useGameEngine";
@@ -62,6 +63,8 @@ declare global {
       workspace: Workspace;
       /** Opens the Workshop (at the hero's code when no target is given). */
       openWorkshop: (target?: WorkshopTarget) => void;
+      /** Where each line of code is carved in a file's dungeon (world px), as the engine lays them out: for play-test bots. */
+      lines: (path: string) => CarvedLine[];
     };
   }
 }
@@ -113,11 +116,13 @@ export function GameScreen({ loaded, services, onExit }: Props) {
   const { gameRef, debugRef } = useGameEngine({ canvasRef, loaded, services, onEvent: handleGameEvent });
   const workshop = useWorkshop({ gameRef, workspace, services, repoKey: key, feed, bounties: bountyBoard, news: newsStore });
 
-  // ── Music follows the action (and calms down in the Workshop) ──
+  // ── Music follows the action (and calms down in the Workshop, and in a quiet dungeon) ──
   const scene = useStore(hud, (h) => h.scene);
   const bossAlive = useStore(hud, (h) => h.boss !== null);
+  const dungeonQuiet = useStore(hud, (h) => h.dungeon !== null && h.dungeon.remaining === 0);
   const inWorkshop = workshop.visit !== null && workshop.visit.phase !== "leaving";
-  const track = inWorkshop ? "title" : overlay?.kind === "victory" ? "victory" : bossAlive ? "boss" : scene === "dungeon" ? "dungeon" : "overworld";
+  const calm = inWorkshop || (scene === "dungeon" && dungeonQuiet);
+  const track = overlay?.kind === "victory" ? "victory" : calm ? "title" : bossAlive ? "boss" : scene === "dungeon" ? "dungeon" : "overworld";
   useMusic(audio, track);
 
   /** Opens an overlay from the UI side (HUD button / shortcut): pause the game first. */
@@ -139,8 +144,13 @@ export function GameScreen({ loaded, services, onExit }: Props) {
     const workshopTarget = workshopForEvent(event);
     if (workshopTarget) return openWorkshop(workshopTarget);
     const request = overlayForEvent(event);
-    if (request) setOverlay(request);
-    else announceEvent(event, feed, audio);
+    if (request) return setOverlay(request);
+    announceEvent(event, feed, audio);
+    // The first monster subdued in this save: explain the next step, once.
+    if (event.type === "squashed" && !wasTaught(save.get(), "subdued")) {
+      save.set((current) => markTaught(current, "subdued"));
+      teachSubdued(feed);
+    }
   }
 
   // ── Keyboard shortcuts (only while nothing covers the game) ──
@@ -200,11 +210,12 @@ export function GameScreen({ loaded, services, onExit }: Props) {
       },
       workspace,
       openWorkshop: (target) => openFromScript(target),
+      lines: (path) => carvedLines(workspace.analysis.get(), loaded.world.seed, path),
     };
     return () => {
       delete window.__app;
     };
-  }, [save, hud, workspace, gameRef, debugRef]);
+  }, [save, hud, workspace, gameRef, debugRef, loaded.world.seed]);
 
   const stageStyle = { width: VIEW_W * scale, height: VIEW_H * scale, "--s": scale } as CSSProperties;
 

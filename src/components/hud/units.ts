@@ -12,12 +12,28 @@ export function ap(n: number): string {
   return `calc(var(--s) * ${n}px)`;
 }
 
-/** Body text size: about 13 px at 2×, 18 px at 3×, 22 px at 4×. */
-export const HUD_FONT_SIZE = "calc(var(--s) * 4.5px + 4px)";
+// ── HUD type scale (the page-wide scale is in src/app/globals.css) ──
+// The game's zoom is 2 on small windows, 3 at 1280×800 and 4 on big screens.
 
-/** Dark rounded-off plate behind HUD text, so it reads over snow as well as night scenes. */
+/** Body text: 14 px at 2×, 18 px at 3×, 22 px at 4×. */
+export const HUD_FONT_SIZE = "calc(var(--s) * 4px + 6px)";
+
+/** Small labels (bar captions, key hints, a toast's second line): 13 px at 2×, 16 px at 3×, 19 px at 4×. */
+export const HUD_SMALL_FONT_SIZE = "calc(var(--s) * 3px + 7px)";
+
+/**
+ * The pixel display font (`font-title`) in the HUD: 8 art pixels, which is 16, 24 or
+ * 32 px — always a whole multiple of the font's 8 px grid, so its pixels stay crisp.
+ */
+export const HUD_TITLE_FONT_SIZE = ap(8);
+
+/**
+ * Dark rounded-off plate behind HUD text, so it reads over snow as well as night scenes.
+ * Nearly opaque: canvas words passing underneath (room names, floor code) must not
+ * show through the HUD's own numbers.
+ */
 export const PLATE_STYLE: CSSProperties = {
-  background: "rgb(27 22 48 / 0.78)",
+  background: "rgb(27 22 48 / 0.9)",
   boxShadow: "0 calc(var(--s) * -1px) 0 0 #0f0b1f, 0 calc(var(--s) * 1px) 0 0 #0f0b1f, calc(var(--s) * -1px) 0 0 0 #0f0b1f, calc(var(--s) * 1px) 0 0 0 #0f0b1f",
   padding: `${ap(2)} ${ap(3)}`,
 };

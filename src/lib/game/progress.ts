@@ -11,7 +11,7 @@
  */
 import { BASE_MAX_HP, LEVEL_TITLES, LEVEL_XP, STARTER_WEAPON, getItem, getWeapon } from "@/lib/game/catalog";
 import type { CharmDef, PetPerk, WeaponDef } from "@/lib/game/catalog";
-import type { AnalyzedFile, RepoAnalysis, RepoProgress, SaveData } from "@/lib/types";
+import type { AnalyzedFile, Finding, RepoAnalysis, RepoProgress, SaveData } from "@/lib/types";
 import { isTrivialInit } from "@/lib/worldgen/regions";
 
 // ───────────────────────────── Tuning ─────────────────────────────
@@ -34,7 +34,7 @@ export const HP_PER_BONUS_HEART = 2;
 export const MAX_SAVED_REPOS = 12;
 
 /**
- * Repo Health milestones: when the share of findings dealt with (defeated or fixed) reaches
+ * Repo Health milestones: when the share of findings dealt with (fixed or sealed) reaches
  * `percent`, the player is paid `coins` once (see `claimMilestones`). The last
  * one is the biggest so finishing a repo feels like a jackpot.
  */
@@ -223,85 +223,161 @@ export function withRepoProgress(save: SaveData, key: string, progress: RepoProg
   return { ...save, repos: Object.fromEntries([...kept, [key, progress]]) };
 }
 
+// ───────────────────────── Finding states ─────────────────────────
+//
+// Beating a bug takes two steps (SPEC.md F1). Each finding of the repo's
+// ORIGINAL code is in exactly one of four states:
+//
+//   alive    still in the code, and its monster still fights
+//   subdued  still in the code, but its monster was beaten in a fight: it
+//            stays bound to its glowing line (`RepoProgress.defeated`)
+//   fixed    gone from the saved code, because the player rewrote it
+//   sealed   gone from the saved code, because a `# noqa` comment marks it
+//            as accepted (`RepoProgress.sealed`, see seal.ts)
+//
+// Fixed and sealed findings are the file's `fixedFindings` (gone from the
+// text, as they were in the original). Only those two count as DEALT WITH:
+// for Repo Health, purifying a dungeon and the victory. A fight alone only
+// makes a dungeon QUIET.
+//
+// What the older lists of RepoProgress mean under this rule:
+//   defeated   the subdued finding ids (unchanged: a fight records it)
+//   cleared    dungeons that have gone quiet, recorded once so the lifetime
+//              `stats.dungeonsCleared` counts each quieting once; no state
+//              is derived from it (quiet is derived from `defeated`)
+//   opened     files whose one and only chest was opened (a clean file's
+//              treasure, or a purified dungeon's prize)
+// So an old save whose dungeons were "cleared" by fighting loads as quiet
+// dungeons with subdued monsters, and keeps every coin, chest and milestone.
+
+export type FindingState = "alive" | "subdued" | "fixed" | "sealed";
+
+/** Every state, in the order a bug goes through them. */
+export const FINDING_STATES: readonly FindingState[] = ["alive", "subdued", "fixed", "sealed"];
+
+/** Findings of `file` still in the code whose monster still fights. */
+export function aliveFindings(file: AnalyzedFile, progress: RepoProgress): Finding[] {
+  const subdued = new Set(progress.defeated);
+  return file.findings.filter((finding) => !subdued.has(finding.id));
+}
+
+/** Findings of `file` still in the code whose monster was beaten in a fight (waiting to be fixed). */
+export function subduedFindings(file: AnalyzedFile, progress: RepoProgress): Finding[] {
+  const subdued = new Set(progress.defeated);
+  return file.findings.filter((finding) => subdued.has(finding.id));
+}
+
+/** Findings of the file's original code that are gone from its saved code (fixed or sealed). */
+export function goneFindings(file: AnalyzedFile): Finding[] {
+  return file.fixedFindings ?? [];
+}
+
+/** True for a gone finding that was sealed with `# noqa` rather than fixed. */
+export function isSealed(progress: RepoProgress, finding: Pick<Finding, "id">): boolean {
+  return (progress.sealed ?? []).includes(finding.id);
+}
+
+/** The state of one finding of `file` (see the table above). */
+export function findingState(file: AnalyzedFile, finding: Finding, progress: RepoProgress): FindingState {
+  const inCode = file.findings.some((current) => current.id === finding.id);
+  if (inCode) return progress.defeated.includes(finding.id) ? "subdued" : "alive";
+  return isSealed(progress, finding) ? "sealed" : "fixed";
+}
+
+/** How many of a file's findings are in each state. */
+export type FileTally = Record<FindingState, number>;
+
+export function fileTally(file: AnalyzedFile, progress: RepoProgress): FileTally {
+  const subdued = subduedFindings(file, progress).length;
+  const gone = goneFindings(file);
+  const sealed = gone.filter((finding) => isSealed(progress, finding)).length;
+  return { alive: file.findings.length - subdued, subdued, fixed: gone.length - sealed, sealed };
+}
+
+/** True for a file that is (or was) a dungeon: it has findings, or its original code had some. */
+export function isDungeon(file: AnalyzedFile): boolean {
+  return file.status === "ok" && (file.findings.length > 0 || goneFindings(file).length > 0);
+}
+
+/**
+ * True when a dungeon is QUIET: nothing is left to fight in it, because
+ * every finding still in its code is subdued (a purified dungeon is quiet
+ * too). The end door of a dungeon opens when this is true.
+ */
+export function isDungeonQuiet(file: AnalyzedFile, progress: RepoProgress): boolean {
+  return aliveFindings(file, progress).length === 0;
+}
+
+/** True when a dungeon is PURIFIED: its code had findings and now has none (all fixed or sealed). */
+export function isDungeonPurified(file: AnalyzedFile): boolean {
+  return isDungeon(file) && file.findings.length === 0;
+}
+
+/** True when no file of the repo has a finding left in its code: the victory. */
+export function isRepoPurified(analysis: RepoAnalysis): boolean {
+  return analysis.files.every((file) => file.status !== "ok" || file.findings.length === 0);
+}
+
 // ────────────────────────── Repo health ──────────────────────────
 
 export interface RepoHealth {
-  /** (defeated + fixed) ÷ total, 0–1. A repo with no findings is perfectly healthy (1). */
+  /** Share of the findings dealt with (fixed or sealed), 0–1. A repo with no findings is perfectly healthy (1). */
   ratio: number;
-  /** Monsters defeated (among those in the world now). */
-  defeated: number;
-  /** Findings of the original code fixed for real in the Workshop (`AnalyzedFile.realFixes`). */
+  /** Share subdued in a fight but not fixed yet, 0–1: the lighter part of the bar. */
+  subduedRatio: number;
+  alive: number;
+  subdued: number;
   fixed: number;
+  sealed: number;
   /**
    * Findings to deal with: the monsters in the world now (the per-file
-   * `overflow` extras are not monsters) plus the ones fixed for real. Fixing
-   * a bug removes its monster but counts it as dealt with, so the bar moves
-   * forward and reaches 100% once everything is either beaten or fixed.
+   * `overflow` extras are not monsters) plus the ones gone from the code.
+   * The bar reaches 100% once every one of them is fixed or sealed.
    */
   total: number;
-  dungeonsCleared: number;
-  /** Files with at least one finding, plus files purified by editing (those count as cleared). */
+  /** Dungeons with nothing left to fight (purified ones included). */
+  dungeonsQuiet: number;
+  /** Dungeons whose code has no finding left. */
+  dungeonsPurified: number;
+  /** Files with findings now or in their original code. */
   dungeonsTotal: number;
   chestsOpened: number;
   /**
    * One chest per building: clean files hold one, dungeons drop one when
-   * cleared. A near-empty `__init__.py` is only a lantern, so it has none.
+   * purified. A near-empty `__init__.py` is only a lantern, so it has none.
    */
   chestsTotal: number;
 }
 
-/** The numbers behind the Repo Health bar and the notice board. */
+/** The numbers behind the Repo Health bar, the notice board and the victory screen. */
 export function repoHealth(analysis: RepoAnalysis, progress: RepoProgress): RepoHealth {
-  const defeatedIds = new Set(progress.defeated);
-  const openedPaths = new Set(progress.opened);
   // Failed downloads have no findings and no chest, so they don't count for anything.
   const files = analysis.files.filter((file) => file.status === "ok");
-
-  let monsters = 0;
-  let defeated = 0;
-  let fixed = 0;
+  const counts: FileTally = { alive: 0, subdued: 0, fixed: 0, sealed: 0 };
   let dungeonsTotal = 0;
-  let dungeonsCleared = 0;
-  let chestsOpened = 0;
+  let dungeonsQuiet = 0;
+  let dungeonsPurified = 0;
   for (const file of files) {
-    // Only count ids that exist in this analysis, so stale ids can never push health past 100%.
-    const beaten = file.findings.filter((finding) => defeatedIds.has(finding.id)).length;
-    const fixedHere = file.realFixes ?? 0;
-    monsters += file.findings.length;
-    defeated += beaten;
-    fixed += fixedHere;
-    if (file.findings.length > 0 || fixedHere > 0) {
-      dungeonsTotal++;
-      if (beaten === file.findings.length || progress.cleared.includes(file.path)) dungeonsCleared++;
-    }
-    if (openedPaths.has(file.path)) chestsOpened++;
+    // Only ids of this analysis are counted, so stale ids can never push health past 100%.
+    const tally = fileTally(file, progress);
+    for (const state of FINDING_STATES) counts[state] += tally[state];
+    if (!isDungeon(file)) continue;
+    dungeonsTotal++;
+    if (isDungeonQuiet(file, progress)) dungeonsQuiet++;
+    if (isDungeonPurified(file)) dungeonsPurified++;
   }
 
-  const total = monsters + fixed;
+  const total = counts.alive + counts.subdued + counts.fixed + counts.sealed;
+  const opened = new Set(progress.opened);
   return {
-    ratio: total === 0 ? 1 : (defeated + fixed) / total,
-    defeated,
-    fixed,
+    ratio: total === 0 ? 1 : (counts.fixed + counts.sealed) / total,
+    subduedRatio: total === 0 ? 0 : counts.subdued / total,
+    ...counts,
     total,
-    dungeonsCleared,
+    dungeonsQuiet,
+    dungeonsPurified,
     dungeonsTotal,
-    chestsOpened,
+    chestsOpened: files.filter((file) => opened.has(file.path)).length,
     chestsTotal: files.filter((file) => !isTrivialInit(file)).length,
   };
-}
-
-/** Findings in `file` whose monster is still alive. */
-export function remainingFindings(file: AnalyzedFile, progress: RepoProgress): AnalyzedFile["findings"] {
-  const defeatedIds = new Set(progress.defeated);
-  return file.findings.filter((finding) => !defeatedIds.has(finding.id));
-}
-
-/**
- * True once every monster in the file's dungeon is defeated (or the engine
- * already recorded the dungeon as cleared). Files without findings are not
- * dungeons at all, so they return false.
- */
-export function isDungeonCleared(file: AnalyzedFile, progress: RepoProgress): boolean {
-  if (file.findings.length === 0) return false;
-  return progress.cleared.includes(file.path) || remainingFindings(file, progress).length === 0;
 }

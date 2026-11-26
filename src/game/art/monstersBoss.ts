@@ -5,14 +5,19 @@
  * volumes (`litBlobs`, the same shading the trees use) for bodies, small
  * hand-drawn grids for faces, and a few lines of code for the animated bits
  * (jangling keys, flicking tongue, glitching rows). All face RIGHT.
+ *
+ * A boss's LOOK (src/lib/game/monsterLooks.ts) only picks its colour family
+ * (monstersPalettes.ts): the hood, the scales, the king's screen. Bosses
+ * have no feature variants or markings: they are rare and drawn as a set.
  */
+import type { MonsterLook } from "@/lib/game/monsterLooks";
 import { INK, withAlpha } from "./color";
 import { Pix } from "./engine";
+import { KING_FAMILIES, SERPENT_FAMILIES, THIEF_HOODS, type SerpentTones } from "./monstersPalettes";
 import { litBlobs } from "./shapes";
 import { BASE_PAL, outlined } from "./uiKit";
 
 /** Tones are listed dark → light, as `litBlobs` expects. */
-const HOOD = ["#2e2460", "#463a8c", "#6656b8", "#8a7ad8"];
 const FUR = ["#4a4260", "#77708c", "#9e97b0", "#cfc9dc"];
 const GOLD = { hi: "#fff4b0", base: "#ffd34d", lo: "#d99a2b", line: "#8a5a1e" };
 
@@ -58,7 +63,8 @@ function thiefTail(p: Pix, sway: number): void {
 }
 
 /** 4 frames: the key ring jangles (keys swing) and the tail sways. */
-export function keyThief(frame: number): Pix {
+export function keyThief(frame: number, _disguised: boolean, look: MonsterLook): Pix {
+  const hood = [...THIEF_HOODS[look.family]];
   const f = frame % 4;
   const bob = f === 1 || f === 2 ? 1 : 0;
   const p = new Pix(32, 32);
@@ -66,17 +72,17 @@ export function keyThief(frame: number): Pix {
   // feet, cloak body, hood
   p.ellipse(12, 29, 2, 1, "#3d3450");
   p.ellipse(18, 29, 2, 1, "#3d3450");
-  litBlobs(p, [{ x: 15, y: 22 + bob, rx: 7, ry: 6.5 }], HOOD, { dither: 0.4 });
+  litBlobs(p, [{ x: 15, y: 22 + bob, rx: 7, ry: 6.5 }], hood, { dither: 0.4 });
   // fur belly showing where the cloak parts at the front
   for (let y = 19; y <= 27; y++) for (let x = 19; x <= 21; x++) if (p.has(x, y + bob) && x - 19 <= (y - 19) / 3) p.set(x, y + bob, y % 3 ? FUR[3] : FUR[2]);
-  litBlobs(p, [{ x: 9, y: 6 + bob, rx: 3, ry: 3 }, { x: 15, y: 11 + bob, rx: 9, ry: 7.5 }], HOOD, { dither: 0.4 });
+  litBlobs(p, [{ x: 9, y: 6 + bob, rx: 3, ry: 3 }, { x: 15, y: 11 + bob, rx: 9, ry: 7.5 }], hood, { dither: 0.4 });
   // ears, face
   p.stamp(THIEF_EAR, { F: FUR[2], p: "#ff9ec4" }, 13, 1 + bob);
   p.stamp(THIEF_EAR, { F: FUR[2], p: "#ff9ec4" }, 19, 2 + bob);
   p.stamp(THIEF_FACE, THIEF_PAL, 13, 7 + bob);
   // arm reaching forward, paw up, holding the ring
-  p.hline(20, 23, 18 + bob, HOOD[2]);
-  p.hline(20, 23, 19 + bob, HOOD[1]);
+  p.hline(20, 23, 18 + bob, hood[2]);
+  p.hline(20, 23, 19 + bob, hood[1]);
   p.ellipse(24.5, 18.5 + bob, 1, 1, FUR[2]);
   p.outline(INK);
   // the ring hangs from the paw; two keys dangle from it and swing
@@ -93,12 +99,6 @@ export function keyThief(frame: number): Pix {
 
 // ───────────────────────────── Eval Serpent ─────────────────────────────
 
-/** Scale tones dark → light, belly, glyph markings and the glowing eye. */
-const SCALES = ["#262a6e", "#3a46a8", "#5568d8", "#8a9cf4"];
-const BELLY = ["#d9a42e", "#ffd86a", "#fff2b0"];
-const GLYPH = ["#5cf2ff", "#c8fbff"];
-const EYE = "#d6ff5c";
-
 /** The code-glyph markings: "(" ")" "{" "}" as tiny pixel patterns. */
 const GLYPHS: Record<string, [number, number][]> = {
   "(": [[1, 0], [0, 1], [0, 2], [1, 3]],
@@ -108,7 +108,7 @@ const GLYPHS: Record<string, [number, number][]> = {
 };
 
 /** One coil of the serpent's body: an ellipse shaded like a tube (lit top, dark underside) with scale texture. */
-function coil(p: Pix, cx: number, cy: number, rx: number, ry: number): void {
+function coil(p: Pix, cx: number, cy: number, rx: number, ry: number, scales: SerpentTones["scales"]): void {
   for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
     for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
       const nx = (x - cx) / (rx + 0.5);
@@ -117,7 +117,7 @@ function coil(p: Pix, cx: number, cy: number, rx: number, ry: number): void {
       const v = (y - (cy - ry)) / (2 * ry); // 0 top … 1 bottom
       let k = Math.max(0, Math.min(3, Math.floor((1 - v) * 3.6 - nx * 0.6)));
       if (k > 0 && k < 3 && (x + 2 * y) % 4 === 0) k--; // diamond scale texture
-      p.set(x, y, SCALES[k]);
+      p.set(x, y, scales[k]);
     }
   }
   // a dark crease along the bottom separates it from the coil below
@@ -134,30 +134,31 @@ function glyph(p: Pix, ch: string, x: number, y: number, color: string): void {
 }
 
 /** 4 frames: tongue flicks in and out, the head bobs, the glyphs pulse. */
-export function evalSerpent(frame: number): Pix {
+export function evalSerpent(frame: number, _disguised: boolean, look: MonsterLook): Pix {
+  const { scales, belly, glyph: glyphTones, eye } = SERPENT_FAMILIES[look.family];
   const f = frame % 4;
   const bob = f === 1 || f === 2 ? 1 : 0;
   const p = new Pix(32, 32);
   // tail tip curling out behind
-  for (let i = 0; i < 6; i++) p.ellipse(5 - i * 0.6, 28 - i * 0.7, 1.6 - i * 0.2, 1.4 - i * 0.2, SCALES[1 + (i % 2)]);
+  for (let i = 0; i < 6; i++) p.ellipse(5 - i * 0.6, 28 - i * 0.7, 1.6 - i * 0.2, 1.4 - i * 0.2, scales[1 + (i % 2)]);
   // a short S-curved neck rising from the top coil (drawn first so the coils overlap its base)
   for (let i = 0; i <= 10; i++) {
     const t = i / 10;
     const x = 18 + Math.sin(t * Math.PI) * 2.5 + t * 1.5;
     const y = 17 - t * 7 + bob * t;
-    p.ellipse(x, y, 2.8, 2.3, SCALES[2]);
-    p.set(Math.round(x - 2), Math.round(y), SCALES[3]);
-    // yellow belly scutes on the front of the neck
-    p.set(Math.round(x + 2), Math.round(y), BELLY[i % 2]);
-    p.set(Math.round(x + 2), Math.round(y + 1), BELLY[0]);
+    p.ellipse(x, y, 2.8, 2.3, scales[2]);
+    p.set(Math.round(x - 2), Math.round(y), scales[3]);
+    // belly scutes on the front of the neck
+    p.set(Math.round(x + 2), Math.round(y), belly[i % 2]);
+    p.set(Math.round(x + 2), Math.round(y + 1), belly[0]);
   }
-  coil(p, 15.5, 26.5, 12, 3.8);
-  coil(p, 14.5, 22, 10, 3.5);
-  coil(p, 14, 17.5, 7.5, 3);
+  coil(p, 15.5, 26.5, 12, 3.8, scales);
+  coil(p, 14.5, 22, 10, 3.5, scales);
+  coil(p, 14, 17.5, 7.5, 3, scales);
   // the head: a big round chibi head with a blunt snout pointing right
   const hy = 7 + bob;
-  litBlobs(p, [{ x: 21, y: hy, rx: 5, ry: 4 }, { x: 25.5, y: hy + 1, rx: 3, ry: 2.5 }], SCALES, { dither: 0.3 });
-  p.hline(20, 27, hy + 3, SCALES[1]); // jaw line
+  litBlobs(p, [{ x: 21, y: hy, rx: 5, ry: 4 }, { x: 25.5, y: hy + 1, rx: 3, ry: 2.5 }], [...scales], { dither: 0.3 });
+  p.hline(20, 27, hy + 3, scales[1]); // jaw line
   p.set(28, hy, INK); // nostril
   // forked tongue
   if (f === 0 || f === 2) {
@@ -168,14 +169,14 @@ export function evalSerpent(frame: number): Pix {
   }
   p.outline(INK);
   // glowing eye: a soft halo, a bright eye with a slit pupil and a shine
-  for (const [dx, dy] of [[-1, 0], [-1, 1], [3, 0], [3, 1], [0, -1], [1, -1], [2, -1], [0, 2], [1, 2], [2, 2]]) p.blend(22 + dx, hy - 2 + dy, withAlpha(EYE, 0.45));
-  p.rect(22, hy - 2, 3, 2, EYE);
+  for (const [dx, dy] of [[-1, 0], [-1, 1], [3, 0], [3, 1], [0, -1], [1, -1], [2, -1], [0, 2], [1, 2], [2, 2]]) p.blend(22 + dx, hy - 2 + dy, withAlpha(eye, 0.45));
+  p.rect(22, hy - 2, 3, 2, eye);
   p.set(23, hy - 2, INK);
   p.set(23, hy - 1, INK);
   p.set(22, hy - 2, "#ffffff");
   // code glyphs on the coils, pulsing between two brightnesses
-  const g = GLYPH[f % 2];
-  const g2 = GLYPH[(f + 1) % 2];
+  const g = glyphTones[f % 2];
+  const g2 = glyphTones[(f + 1) % 2];
   glyph(p, "(", 6, 24, g);
   glyph(p, ")", 10, 24, g);
   glyph(p, "{", 18, 23, g);
@@ -207,7 +208,6 @@ const KING = [
   ".sbCCccbbbbbbbbbbssss.",
   "..ssssssssssssssssss..",
 ];
-const KING_PAL = { h: "#8a7ae0", b: "#5c4bb0", s: "#3f3288", d: "#2a2060", x: "#1c1838", e: "#ffffff", z: "#5cf2ff", c: "#ff3ad8", C: "#1c1838" };
 
 /** The crown: g/G gold, j/J/q jewels in red, green and blue (the RGB of a glitch). */
 const CROWN = [
@@ -257,15 +257,15 @@ function tinted(src: Pix, color: string): Pix {
 }
 
 /** 4 frames: different rows slip sideways, the colour split jitters, stray pixels pop. */
-export function glitchKing(frame: number): Pix {
+export function glitchKing(frame: number, _disguised: boolean, look: MonsterLook): Pix {
   const f = frame % 4;
   // the king himself: body, stubby arms and legs, crown — outlined as one piece
   const king = new Pix(32, 32);
-  const pal = { ...BASE_PAL, ...KING_PAL };
-  king.rect(4, 17, 3, 4, KING_PAL.s); // arms
-  king.rect(25, 16 + (f % 2), 3, 4, KING_PAL.b);
-  king.rect(9, 27, 4, 3, KING_PAL.s); // legs
-  king.rect(19, 27, 4, 3, KING_PAL.s);
+  const pal = { ...BASE_PAL, ...KING_FAMILIES[look.family] };
+  king.rect(4, 17, 3, 4, pal.s); // arms
+  king.rect(25, 16 + (f % 2), 3, 4, pal.b);
+  king.rect(9, 27, 4, 3, pal.s); // legs
+  king.rect(19, 27, 4, 3, pal.s);
   king.stamp(KING, pal, 5, 10);
   king.stamp(CROWN, { ...pal, ...CROWN_PAL }, 10 + (f === 2 ? 1 : 0), 6);
   king.outline(INK);

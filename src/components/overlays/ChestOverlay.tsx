@@ -113,7 +113,7 @@ function ChestReveal({ loot, request, ctx }: ChestRevealProps) {
     <Modal label="Treasure chest" onClose={ctx.close} className={PANEL_MEDIUM}>
       <header className="flex items-center gap-4">
         <div className="min-w-0 flex-1">
-          <h2 className="font-title text-base leading-snug">{clean ? "You found well-kept code!" : "Dungeon purified!"}</h2>
+          <h2 className="font-title text-pixel-sm leading-snug">{clean ? "You found well-kept code!" : "Dungeon purified!"}</h2>
           {/* Once open, clean files explain the reward here ("Grade S code! An epic reward for …"). */}
           <p className="truncate font-bold opacity-75">{stage === "loot" && clean ? loot.headline : request.path}</p>
         </div>
@@ -155,7 +155,7 @@ function ChestNote({ opened, onClose }: { opened: boolean; onClose: () => void }
   });
   return (
     <Modal label="Treasure chest" onClose={onClose} className="flex max-w-md flex-col items-center gap-4 p-6 text-center">
-      <h2 className="font-title text-sm leading-relaxed">{opened ? "Already looted!" : "Hmm… nothing here."}</h2>
+      <h2 className="font-title text-pixel-sm leading-relaxed">{opened ? "Already looted!" : "Hmm… nothing here."}</h2>
       <p>
         {opened
           ? "You already opened this chest. Every file has exactly one, so go find another!"

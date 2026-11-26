@@ -15,7 +15,8 @@
  * functions at all still gets a complete village: names then come from
  * VILLAGER_NAMES and lines from the repo facts.
  */
-import { clipWords, oneLine } from "@/lib/analysis/repoText";
+import { clipPath, clipWords, oneLine } from "@/lib/analysis/repoText";
+import { lairCounts, type LairKind } from "@/lib/game/champions";
 import type { AnalyzedFile, RepoAnalysis } from "@/lib/types";
 import { shuffled, type Rng } from "@/lib/rng";
 import { writeMerchants } from "./merchants";
@@ -49,8 +50,8 @@ export const GAMEPLAY_TIPS: readonly string[] = [
   "Whack bushes — sometimes coins fall out!",
   "Fancy a new look? The wardrobe on the plaza has you covered.",
   "The notice board by the fountain keeps score for the whole land.",
-  "Cursed houses lead down into dungeons. Clean ones hide a treasure chest!",
-  "Press F to open the Workshop: fix a bug in the code itself and its monster is gone for good!",
+  "Cursed houses lead down into dungeons. Beat a monster and it waits on its glowing line: press E there to fix it!",
+  "A beaten monster is only subdued. Fix its line in the Workshop (F) and it is gone for good!",
 ];
 
 /** A village never has more villagers than this (validate.ts checks the same 3–6 range). */
@@ -247,12 +248,7 @@ export function repoFacts(analysis: RepoAnalysis, withDescription = true): strin
       const n = cursed.findings.length + cursed.overflow;
       facts.push(`Stay away from ${cursed.path}... ${n === 1 ? "a monster lurks" : `${n} monsters lurk`} inside!`);
     }
-    const bosses = files.reduce((sum, f) => sum + f.findings.filter((x) => x.severity === "boss").length, 0);
-    facts.push(
-      bosses === 0
-        ? "No bosses around here, thank goodness. Just small fry!"
-        : `Rumour has it ${bosses === 1 ? "a boss lurks" : `${bosses} bosses lurk`} in the dungeons. Brrr!`,
-    );
+    facts.push(lairRumour(lairCounts(analysis)));
     const buggy = files.filter((f) => f.findings.length > 0).length;
     const clean = okFiles.length - buggy;
     facts.push(`${clean} ${clean === 1 ? "house is" : "houses are"} spotless and ${buggy} ${buggy === 1 ? "is" : "are"} cursed. Help us out?`);
@@ -284,6 +280,52 @@ function maxBy(files: readonly AnalyzedFile[], score: (f: AnalyzedFile) => numbe
     if (!best || score(f) > score(best) || (score(f) === score(best) && compareText(f.path, best.path) < 0)) best = f;
   }
   return best;
+}
+
+// ───────────────────────── Bosses and champions ─────────────────────────
+
+/** The guide names the file of the nearest lair clipped to this length (from the left, keeping the file name). */
+const MAX_LAIR_PATH = 32;
+
+/** "a boss and 3 champions", "2 bosses", "a champion". */
+function lairPhrase(counts: Record<LairKind, number>): string {
+  const part = (n: number, one: string, many: string) => (n === 1 ? `a ${one}` : `${n} ${many}`);
+  const parts = [counts.boss > 0 ? part(counts.boss, "boss", "bosses") : null, counts.champion > 0 ? part(counts.champion, "champion", "champions") : null];
+  return parts.filter((p) => p !== null).join(" and ");
+}
+
+/** "lurks" for one monster, "lurk" for more. */
+function lurkVerb(counts: Record<LairKind, number>): string {
+  return counts.boss + counts.champion === 1 ? "lurks" : "lurk";
+}
+
+/** The village rumour about its big fights (lair counts from src/lib/game/champions.ts). */
+export function lairRumour(counts: Record<LairKind, number>): string {
+  if (counts.boss + counts.champion === 0) return "No bosses around here, thank goodness. Just small fry!";
+  return `Rumour has it ${lairPhrase(counts)} ${lurkVerb(counts)} in the dungeons. Brrr!`;
+}
+
+/** The nearest lair still to fight, as the guide describes it. */
+export interface GuideLair {
+  /** "Key Thief" or "Champion Gremlin". */
+  name: string;
+  path: string;
+  /** A compass direction from the guide ("north-east"), or null when it is right next to them. */
+  direction: string | null;
+}
+
+/**
+ * The town guide's live line about the big fights (src/game/ui/lairMarks.ts
+ * fills in the numbers each time the player talks to the guide): how many
+ * bosses and champions are still to fight, and where the nearest one is.
+ */
+export function guideLairLine(alive: Record<LairKind, number>, total: Record<LairKind, number>, nearest: GuideLair | null): string {
+  if (total.boss + total.champion === 0) return "No bosses or champions in this land, just small fry. Have fun!";
+  if (alive.boss + alive.champion === 0 || !nearest) return "Every boss and champion here has been beaten. The land owes you one, hero!";
+  const phrase = lairPhrase(alive);
+  const where = nearest.direction ? `to the ${nearest.direction}` : "right next to me";
+  const path = clipPath(nearest.path, MAX_LAIR_PATH);
+  return `${phrase[0].toUpperCase()}${phrase.slice(1)} still ${lurkVerb(alive)} here. The nearest, the ${nearest.name}, hides in ${path} ${where}. Look for the red and gold banners by the houses!`;
 }
 
 function plural(n: number, word: string): string {

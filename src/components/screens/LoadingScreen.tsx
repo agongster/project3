@@ -64,7 +64,7 @@ export function LoadingScreen({ target, services, onEnter, onError, onCancel }: 
         <PixelButton tone="cream" small onClick={cancel}>
           ◀ Cancel
         </PixelButton>
-        <h1 className="truncate text-center font-title text-[14px] leading-loose text-cream">
+        <h1 className="truncate text-center font-title text-pixel-sm leading-loose text-cream">
           Building <span className="text-gold">{targetLabel(target)}</span>
         </h1>
         <p className="flex shrink-0 items-center gap-2 font-bold text-gold" aria-live="polite">

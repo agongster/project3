@@ -61,7 +61,7 @@ export function TitleScreen({ services, error, onStart, onEditHero, onDismissErr
           </div>
         </div>
 
-        <footer className="flex flex-wrap items-center justify-center gap-3 text-[14px] text-cream/85">
+        <footer className="flex flex-wrap items-center justify-center gap-3 text-sm text-cream/85">
           <span className="bg-night/70 px-2 py-0.5">Python files only · public repos · your code is analysed in your own browser with Ruff</span>
           <span className="bg-night/70 px-2 py-0.5">In the world, the Workshop (F) lets you fix the code itself too.</span>
           <SoundToggle save={save} audio={audio} />

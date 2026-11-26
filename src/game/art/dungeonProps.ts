@@ -233,3 +233,156 @@ export function plaqueArt(): PropArt {
   src.outline(INK);
   return place(src, 16, 15, 6);
 }
+
+// ───────────────────────────── the end door ─────────────────────────────
+
+/**
+ * The END DOOR in the east wall of a dungeon's last room: a stone arch a
+ * little wider than its tile (so it sits in the wall around it) and taller
+ * than the hero, drawn front-on like the entrance's glowing archway.
+ */
+const END_DOOR_W = 20;
+const END_DOOR_H = 36;
+/** The doorway inside the arch: its columns, the row where its round top meets the straight sides, its last row. */
+const DOORWAY = { left: 4, right: 15, archRow: 10, bottom: 33 };
+const DOORWAY_CX = (DOORWAY.left + DOORWAY.right + 1) / 2;
+const DOORWAY_R = (DOORWAY.right - DOORWAY.left + 1) / 2;
+/** Thickness of the stone arch around the doorway, and the rows of mortar across its sides. */
+const ARCH_STONE = 3;
+const MORTAR_EVERY = 6;
+/** The stone step under the doorway. */
+const STEP_TOP = DOORWAY.bottom + 1;
+/** The two leaves meet between these columns. */
+const SEAM_X = 9;
+/** Plank edges on the shut leaves. */
+const PLANK_EDGES = [6, 13];
+/** Iron bands across the shut leaves, and the heavy bar across the whole arch (two rows). */
+const BAND_ROWS = [13, 29];
+const BAR_TOP = 20;
+/** The cursed seal on the bar: a purple diamond of this half-height, centred on the bar. */
+const SEAL_HALF = 4;
+const SEAL_COLORS = { rim: "#5a2f96", glow: ["#a77cf5", "#d8c2ff"], core: "#ffffff" };
+const IRON = { hi: "#8c84a2", base: "#5f5680", lo: "#3a3352" };
+/** Steps of light leading up and out of the open doorway. */
+const STEP_ROWS = [24, 28, 32];
+/** Where the light motes of the open doorway start; each frame they rise 2 px. */
+const END_DOOR_MOTES = [
+  [7, 26],
+  [12, 20],
+  [9, 14],
+];
+/** Width of each leaf in frames 0 (shut: half the doorway) to 3 (wide open, seen edge-on). */
+const LEAF_WIDTH = [6, 4, 2, 1];
+/** Frames of the end door: 0 shut and barred, 1–2 swinging open, 3 open. */
+export const END_DOOR_OPEN_FRAME = LEAF_WIDTH.length - 1;
+/** Animation frames of the seal's pulse (shut) and of the light motes (open). */
+export const END_DOOR_FRAMES = 4;
+
+/** Squared distance from a pixel's centre to the centre of the doorway's round top. */
+const archDist2 = (x: number, y: number) => (x + 0.5 - DOORWAY_CX) ** 2 + (y + 0.5 - DOORWAY.archRow) ** 2;
+
+/** True for a pixel of the doorway: the straight part, or under its round top. */
+function inDoorway(x: number, y: number): boolean {
+  if (x < DOORWAY.left || x > DOORWAY.right || y > DOORWAY.bottom) return false;
+  return y >= DOORWAY.archRow || archDist2(x, y) <= DOORWAY_R ** 2;
+}
+
+/** True for a pixel of the stone arch around the doorway (the doorway itself included). */
+function inArch(x: number, y: number): boolean {
+  if (x < DOORWAY.left - ARCH_STONE || x > DOORWAY.right + ARCH_STONE || y > DOORWAY.bottom) return false;
+  return y >= DOORWAY.archRow || archDist2(x, y) <= (DOORWAY_R + ARCH_STONE) ** 2;
+}
+
+/**
+ * The END DOOR. `openness` 0 = shut: dim wooden leaves with iron bands, a
+ * heavy bar and a pulsing purple seal (the dungeon is not quiet yet);
+ * 1–2 = the leaves swinging open; 3 = open: the leaves seen edge-on and a
+ * warm glowing stair with motes drifting up (`frame` animates both the
+ * seal and the motes). `openness` must be 0..END_DOOR_OPEN_FRAME (the
+ * atlas reduces it). Anchored at the bottom-centre of the door tile.
+ */
+export function endDoorArt(openness: number, frame: number): PropArt {
+  const p = new Pix(END_DOOR_W, END_DOOR_H);
+  paintArch(p);
+  paintWayOut(p);
+  if (openness === 0) paintShutLeaves(p, frame);
+  else paintOpenLeaves(p, LEAF_WIDTH[openness], frame, openness === END_DOOR_OPEN_FRAME);
+  p.outline(INK);
+  return { pix: p, ax: END_DOOR_W / 2, ay: END_DOOR_H };
+}
+
+/** The stone arch, lit from the room on the left, with mortar lines, a keystone and a step. */
+function paintArch(p: Pix): void {
+  const st = ramp(DUNGEON.stone);
+  for (let y = 0; y <= DOORWAY.bottom; y++) {
+    for (let x = 0; x < END_DOOR_W; x++) {
+      if (!inArch(x, y) || inDoorway(x, y)) continue;
+      const leftSide = x + 0.5 < DOORWAY_CX;
+      const innerEdge = inDoorway(x + 1, y) || inDoorway(x - 1, y) || inDoorway(x, y + 1);
+      const mortar = y > DOORWAY.archRow && (y - DOORWAY.archRow) % MORTAR_EVERY === 0;
+      const color = mortar ? st.lo2 : innerEdge ? (leftSide ? st.lo : st.lo2) : leftSide ? st.hi : st.base;
+      p.set(x, y, color);
+    }
+  }
+  // the keystone at the top of the arch
+  for (let y = 1; y < DOORWAY.archRow - DOORWAY_R; y++) for (const x of [SEAM_X, SEAM_X + 1]) p.set(x, y, light(st.hi, 0.15));
+  p.hline(1, END_DOOR_W - 2, STEP_TOP, st.hi);
+  p.hline(1, END_DOOR_W - 2, STEP_TOP + 1, st.lo);
+}
+
+/** The way out behind the leaves: warm light, brightest at the top, with steps leading up. */
+function paintWayOut(p: Pix): void {
+  const [glowHi, glow, glowLo] = DUNGEON.exit;
+  const top = DOORWAY.archRow - DOORWAY_R;
+  for (let y = top; y <= DOORWAY.bottom; y++) {
+    const k = (y - top) / (DOORWAY.bottom - top);
+    const color = STEP_ROWS.includes(y) ? shade(glowLo, 0.12) : k < 0.35 ? glowHi : k < 0.7 ? glow : glowLo;
+    for (let x = DOORWAY.left; x <= DOORWAY.right; x++) if (inDoorway(x, y)) p.set(x, y, color);
+  }
+}
+
+/** Dim barred leaves: planks, iron bands, a heavy bar across the arch and a pulsing purple seal. */
+function paintShutLeaves(p: Pix, frame: number): void {
+  const wood = ramp(shade(DUNGEON.wood, 0.2));
+  for (let y = 0; y <= DOORWAY.bottom; y++) {
+    for (let x = DOORWAY.left; x <= DOORWAY.right; x++) {
+      if (!inDoorway(x, y)) continue;
+      const color = x === SEAM_X ? wood.lo2 : x === SEAM_X + 1 ? wood.hi : PLANK_EDGES.includes(x) ? wood.lo : wood.base;
+      p.set(x, y, color);
+    }
+  }
+  for (const y of BAND_ROWS) {
+    p.hline(DOORWAY.left, DOORWAY.right, y, IRON.base);
+    for (const x of [DOORWAY.left + 1, SEAM_X - 1, SEAM_X + 2, DOORWAY.right - 1]) p.set(x, y, IRON.hi);
+  }
+  p.hline(0, END_DOOR_W - 1, BAR_TOP, IRON.hi);
+  p.hline(0, END_DOOR_W - 1, BAR_TOP + 1, IRON.base);
+  p.hline(0, END_DOOR_W - 1, BAR_TOP + 2, IRON.lo);
+  const bright = frame % 2 === 0;
+  const centreY = BAR_TOP + 1;
+  for (let dy = -SEAL_HALF; dy <= SEAL_HALF; dy++) {
+    const half = SEAL_HALF - Math.abs(dy);
+    const x0 = SEAM_X - half;
+    const x1 = SEAM_X + 1 + half;
+    p.hline(x0, x1, centreY + dy, SEAL_COLORS.rim);
+    if (x1 - x0 > 1) p.hline(x0 + 1, x1 - 1, centreY + dy, SEAL_COLORS.glow[bright ? 1 : 0]);
+  }
+  if (bright) p.set(SEAM_X, centreY - 1, SEAL_COLORS.core);
+}
+
+/** The leaves swung inward to `leaf` px each, with light motes drifting up once wide open. */
+function paintOpenLeaves(p: Pix, leaf: number, frame: number, motes: boolean): void {
+  const wood = ramp(DUNGEON.wood);
+  for (let y = 0; y <= DOORWAY.bottom; y++) {
+    for (let i = 0; i < leaf; i++) {
+      const edge = i === leaf - 1;
+      if (inDoorway(DOORWAY.left + i, y)) p.set(DOORWAY.left + i, y, edge ? wood.hi : wood.lo);
+      if (inDoorway(DOORWAY.right - i, y)) p.set(DOORWAY.right - i, y, edge ? wood.base : wood.lo2);
+    }
+  }
+  if (!motes) return;
+  END_DOOR_MOTES.forEach(([x, y], i) => {
+    const yy = y - ((frame + i) % END_DOOR_FRAMES) * 2;
+    if (inDoorway(x, yy)) p.set(x, yy, "#ffffff");
+  });
+}

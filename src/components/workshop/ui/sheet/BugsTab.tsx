@@ -6,6 +6,7 @@
  */
 import { SEVERITY_INFO } from "@/components/overlays/parts/monsterText";
 import { MONSTERS } from "@/lib/game/catalog";
+import { lookOf } from "@/lib/game/monsterLooks";
 import type { LiveFinding } from "@/lib/workspace/contract";
 import type { CheckStatus } from "../../hooks/useLiveCheck";
 import { ShortcutKeys, clip } from "../bits";
@@ -50,7 +51,7 @@ export function BugsTab({ python, findings, status, dirty, onJump }: BugsTabProp
           return (
             <li key={finding.id}>
               <button type="button" className="ws-bug-row" onClick={() => onJump(live)}>
-                <MonsterThumb kind={finding.monster} size={MONSTER_BOX} />
+                <MonsterThumb kind={finding.monster} size={MONSTER_BOX} look={lookOf(finding)} />
                 <span className="min-w-0 flex-1">
                   <span className="ws-bug-row-title">
                     {finding.title} <span style={{ color: SEVERITY_INFO[finding.severity].color }}>{MONSTERS[finding.monster].name}</span>

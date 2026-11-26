@@ -50,11 +50,11 @@ export function HeroPanel({ save }: { save: SaveData }) {
           Level {level.level} · {level.title}
         </p>
         <PixelBar value={level.ratio} color="var(--color-sky)" className="mt-2 h-3" label="Experience" />
-        <p className="mt-1 text-xs opacity-75">{level.isMax ? "Max level!" : `${level.intoLevel} / ${level.forNext} XP to the next level`}</p>
+        <p className="mt-1 text-sm opacity-75">{level.isMax ? "Max level!" : `${level.intoLevel} / ${level.forNext} XP to the next level`}</p>
       </div>
 
       <div>
-        <h3 className="mb-2 font-title text-[10px] uppercase">Wearing</h3>
+        <h3 className="mb-2 font-label text-xs">Wearing</h3>
         <ul className="flex flex-wrap gap-3 p-1">
           {loadout.map((slot, index) => {
             const item = slot.id ? getItem(slot.id) : undefined;
@@ -72,7 +72,7 @@ export function HeroPanel({ save }: { save: SaveData }) {
       </div>
 
       <div>
-        <h3 className="mb-1 font-title text-[10px] uppercase">Stats</h3>
+        <h3 className="mb-1 font-label text-xs">Stats</h3>
         <StatList lines={playerStatLines(playerStats(save))} />
       </div>
     </div>

@@ -9,23 +9,27 @@ export const CARD_WIDTH = 420;
 /** Space kept between the card and the line or the edges (px). */
 const CARD_GAP = 6;
 
-/** Where the card goes, in window pixels: under the line, or above it when the line is low on screen. */
+/** Where the card goes, in window pixels: under the line, or above it when there is more room above. */
 export interface CardAnchor {
   left: number;
   top?: number;
   bottom?: number;
+  /** The room between the line and the window's edge: a taller card scrolls inside, never off screen. */
+  maxHeight: number;
 }
 
 /**
  * Places the card next to `line` inside the editor area `area`. When the line
  * is scrolled out of view the card sits at the top of the area.
  */
-export function cardAnchor(line: ScreenBox | null, area: DOMRect): CardAnchor {
+export function cardAnchor(line: ScreenBox | null, area: DOMRect, windowHeight = window.innerHeight): CardAnchor {
   const maxLeft = Math.max(area.left + CARD_GAP, area.right - CARD_WIDTH - CARD_GAP);
-  if (!line) return { left: maxLeft, top: area.top + CARD_GAP };
+  if (!line) return { left: maxLeft, top: area.top + CARD_GAP, maxHeight: windowHeight - area.top - 2 * CARD_GAP };
   const left = Math.min(Math.max(line.left, area.left + CARD_GAP), maxLeft);
-  const lowerHalf = line.top > area.top + area.height / 2;
-  return lowerHalf ? { left, bottom: window.innerHeight - line.top + CARD_GAP } : { left, top: line.bottom + CARD_GAP };
+  const roomAbove = line.top - 2 * CARD_GAP;
+  const roomBelow = windowHeight - line.bottom - 2 * CARD_GAP;
+  if (roomAbove > roomBelow) return { left, bottom: windowHeight - line.top + CARD_GAP, maxHeight: roomAbove };
+  return { left, top: line.bottom + CARD_GAP, maxHeight: roomBelow };
 }
 
 /** Lets the player save `data` as a file called `name` (built in the browser, nothing is uploaded). */

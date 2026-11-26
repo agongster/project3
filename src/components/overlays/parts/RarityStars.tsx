@@ -20,7 +20,7 @@ export function RarityStars({ rarity, scale = 2, starsOnly, className }: RarityS
   const info = RARITY_INFO[rarity];
   return (
     <span data-rarity={rarity} className={cx("inline-flex items-center gap-1", className)} aria-label={`${info.label}, ${info.stars} stars`}>
-      {!starsOnly && <span className="rarity-text font-bold uppercase tracking-wide [text-shadow:0_2px_0_var(--color-ink)]">{info.label}</span>}
+      {!starsOnly && <span className="rarity-text bg-ink px-1 font-extrabold uppercase tracking-wide">{info.label}</span>}
       <span className="inline-flex gap-px" aria-hidden="true">
         {Array.from({ length: info.stars }, (_, index) => (
           <PixelSprite key={index} sprite={uiIcon("star")} scale={scale} />

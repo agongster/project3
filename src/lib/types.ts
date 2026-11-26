@@ -392,6 +392,12 @@ export interface Dungeon extends TileMap {
   entrance: Point;
   /** Tile (Ground.DungeonExit) that leaves the dungeon. */
   exit: Point;
+  /**
+   * The END DOOR: a second way out (also a Ground.DungeonExit tile), cut into
+   * the east wall of the last room. It opens once the dungeon is quiet; the
+   * hero uses it from the floor tile west of it (see worldgen/dungeonDoorSpot.ts).
+   */
+  endDoor: Point;
   monsters: MonsterSpawn[];
   props: Prop[];
   /** Where the reward chest appears once every monster is defeated. */
@@ -433,8 +439,16 @@ export interface CharacterLook {
   hairColor: number;
   outfit: number;
   outfitColor: number;
+  /** 0 = the outfit's classic second colour, n = OUTFIT_COLORS[n - 1]. */
+  outfitColor2: number;
   eyes: number;
-  accessory: number;
+  eyeColor: number;
+  mouth: number;
+  /** Replaces the old `accessory` field (src/lib/game/store.ts converts old saves). */
+  faceDetail: number;
+  eyewear: number;
+  facialHair: number;
+  backItem: number;
 }
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
@@ -451,11 +465,11 @@ export interface EquippedItems {
 
 /** Progress inside one repo (keyed by `owner/repo@sha`). */
 export interface RepoProgress {
-  /** Finding ids of defeated monsters. */
+  /** Finding ids of SUBDUED monsters (beaten in a fight; fully defeated only once fixed, see progress.ts). */
   defeated: string[];
-  /** Paths of dungeons that are fully cleared. */
+  /** Paths of dungeons that have gone quiet (every monster subdued), each counted once in the stats. */
   cleared: string[];
-  /** Paths whose treasure chest has been opened. */
+  /** Paths whose one chest has been opened (a clean file's treasure or a purified dungeon's prize). */
   opened: string[];
   /** Health milestones (25/50/75/100) already rewarded. */
   milestones: number[];
@@ -465,6 +479,8 @@ export interface RepoProgress {
   quests?: RepoQuests;
   /** Original finding ids whose real fix (in the Workshop) has been paid, so each pays once (src/lib/game/forge.ts). Missing in older saves. */
   fixes?: string[];
+  /** Original finding ids gone from the code because they are sealed with `# noqa` (src/lib/game/seal.ts). Missing in older saves. */
+  sealed?: string[];
 }
 
 /** Where a chest item was found: the function (or class) and the file it came from. */
@@ -493,6 +509,8 @@ export interface SaveData {
   engravings?: Record<string, Engraving>;
   /** The Workshop's forge streak, lifetime editing counts and achievements (src/lib/game/questsStreak.ts). Missing in older saves. */
   workshop?: WorkshopProgress;
+  /** One-time lessons the game has already taught in this save (src/lib/game/lessons.ts). Missing in older saves. */
+  taught?: string[];
   stats: {
     bugsSquashed: number;
     chestsOpened: number;

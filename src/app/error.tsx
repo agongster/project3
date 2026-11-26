@@ -17,7 +17,7 @@ export default function ErrorScreen({ error, retry }: { error: unknown; retry: (
   return (
     <main className="flex h-full items-center justify-center p-6">
       <PixelPanel className="flex max-w-md flex-col items-center gap-4 p-6 text-center">
-        <h1 className="font-title text-sm leading-relaxed text-berry">A wild bug appeared!</h1>
+        <h1 className="font-title text-pixel-sm leading-relaxed text-berry">A wild bug appeared!</h1>
         <p>Something went wrong while drawing this screen. Your hero, coins and treasure are safe.</p>
         <div className="flex flex-wrap justify-center gap-2">
           <PixelButton tone="gold" onClick={retry}>

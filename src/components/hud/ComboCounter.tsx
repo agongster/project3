@@ -9,7 +9,7 @@ import type { HudState } from "@/game/bridge";
 import { useStore } from "@/lib/game/useStore";
 import type { Store } from "@/lib/types";
 import { HUD_FX } from "./fx";
-import { ap, BOLD_OUTLINE } from "./units";
+import { ap, BOLD_OUTLINE, HUD_FONT_SIZE, HUD_TITLE_FONT_SIZE } from "./units";
 
 /** A single hit is not a combo yet. */
 const MIN_COMBO = 2;
@@ -35,10 +35,12 @@ export function ComboCounter({ hud }: { hud: Store<HudState> }) {
       // A new key per number replays the punch; the "fading" key plays the fade-out once.
       key={active ? shown : "fading"}
       className={`font-title ${active ? HUD_FX.comboPop : HUD_FX.fadeOutSlow}`}
-      style={{ color: comboColor(shown), fontSize: ap(7), textShadow: BOLD_OUTLINE, transform: "rotate(-3deg)", transformOrigin: "left bottom" }}
+      style={{ color: comboColor(shown), fontSize: HUD_TITLE_FONT_SIZE, textShadow: BOLD_OUTLINE, transform: "rotate(-3deg)", transformOrigin: "left bottom" }}
     >
       x{shown}
-      <span style={{ fontSize: ap(4), marginLeft: ap(2) }}>COMBO</span>
+      <span className="font-label" style={{ fontSize: HUD_FONT_SIZE, marginLeft: ap(2) }}>
+        COMBO
+      </span>
     </div>
   );
 }

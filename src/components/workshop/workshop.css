@@ -63,8 +63,8 @@
 
 .ws-faint { color: var(--ws-text-faint); }
 .ws-faint-ink { color: var(--color-ink-soft); }
-.ws-good { color: var(--color-leaf-deep); font-weight: 500; }
-.ws-keys { display: inline-flex; align-items: center; font-size: 0.8em; }
+.ws-good { color: var(--color-leaf-deep); font-weight: 700; }
+.ws-keys { display: inline-flex; align-items: center; font-size: 13px; }
 .ws-keys .px-key { margin: 0 2px; min-width: 1.4em; }
 
 /* ───────────── Top bar ───────────── */
@@ -80,13 +80,13 @@
   min-width: 0;
 }
 .ws-top-title { display: flex; align-items: baseline; gap: 14px; min-width: 0; flex: 1 1 260px; }
-.ws-logo { color: var(--color-gold); font-size: 13px; white-space: nowrap; text-shadow: 2px 2px 0 var(--ws-edge); }
+.ws-logo { color: var(--color-gold); font-size: 16px; white-space: nowrap; text-shadow: 2px 2px 0 var(--ws-edge); }
 .ws-crumbs { display: flex; min-width: 0; overflow: hidden; white-space: nowrap; color: var(--ws-text-soft); }
 .ws-crumbs li { overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 2ch; }
 .ws-crumbs li + li::before { content: "›"; margin: 0 6px; color: var(--ws-text-faint); }
 .ws-crumb-repo { color: var(--color-sky); flex-shrink: 0; }
-.ws-crumb-file { color: var(--ws-text); font-weight: 500; flex-shrink: 0 !important; }
-.ws-purse { display: flex; align-items: center; gap: 12px; font-weight: 500; }
+.ws-crumb-file { color: var(--ws-text); font-weight: 700; flex-shrink: 0 !important; }
+.ws-purse { display: flex; align-items: center; gap: 12px; font-weight: 700; }
 .ws-purse-coins { display: inline-flex; align-items: center; gap: 6px; color: var(--color-gold); text-shadow: 2px 2px 0 var(--ws-edge); }
 .ws-purse-level { padding: 0 8px; background: var(--color-grape); color: var(--color-cream); box-shadow: 0 0 0 2px var(--ws-edge); }
 .ws-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
@@ -119,7 +119,7 @@
   box-shadow: inset -3px 0 0 0 var(--ws-edge);
 }
 .ws-panel-title { display: flex; align-items: baseline; justify-content: space-between; padding: 10px 12px 4px; }
-.ws-panel-title .font-title { font-size: 11px; color: var(--color-leaf); }
+.ws-panel-title .font-title { font-size: 16px; color: var(--color-leaf); }
 .ws-filter {
   margin: 4px 10px 8px;
   padding: 3px 8px;
@@ -159,16 +159,18 @@
 .ws-dirty-dot { display: inline-block; width: 8px; height: 8px; flex-shrink: 0; background: var(--color-cream); box-shadow: 0 0 0 2px var(--ws-edge); }
 .ws-thumb { display: inline-block; flex-shrink: 0; background-size: contain; background-repeat: no-repeat; background-position: center bottom; image-rendering: pixelated; }
 .ws-badge { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; }
-.ws-bug-count { min-width: 16px; padding: 0 3px; background: var(--color-berry); color: var(--color-cream); font-size: 12px; line-height: 15px; text-align: center; }
+.ws-bug-count { min-width: 16px; padding: 0 3px; background: var(--color-berry); color: var(--color-cream); font-size: 13px; font-weight: 700; line-height: 16px; text-align: center; }
+/* A quiet file: its monsters are subdued, its lines still wait for a fix (the cyan of a glowing line). */
+.ws-fix-count { background: #2a6f8a; }
 .ws-grade-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
   color: var(--color-ink);
-  font-family: var(--font-title), monospace;
-  font-size: 9px;
+  font-size: 13px;
+  font-weight: 900;
   box-shadow: 0 0 0 2px var(--ws-edge), inset 0 -2px 0 0 rgb(0 0 0 / 0.2);
 }
 
@@ -217,11 +219,11 @@
 .ws-sheet-tab:hover { color: var(--ws-text); }
 .ws-sheet-tab:focus-visible { box-shadow: inset 0 0 0 2px var(--color-gold); }
 .ws-sheet-tab-active { background: var(--ws-panel-raised); color: var(--color-gold); box-shadow: inset 0 3px 0 0 var(--color-gold); }
-.ws-tab-count { padding: 0 4px; background: var(--color-berry); color: var(--color-cream); font-size: 11px; line-height: 14px; }
+.ws-tab-count { padding: 0 4px; background: var(--color-berry); color: var(--color-cream); font-size: 13px; font-weight: 700; line-height: 16px; }
 .ws-sheet-body { flex: 1; min-height: 0; padding: 10px 12px 16px 15px; }
 .ws-sheet-note { color: var(--ws-text-soft); font-size: 0.92em; margin-bottom: 8px; }
-.ws-sheet-heading { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-leaf); }
-.ws-all-clear .font-title { color: var(--color-leaf); font-size: 12px; margin-bottom: 6px; }
+.ws-sheet-heading { margin: 14px 0 6px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-leaf); }
+.ws-all-clear .font-title { color: var(--color-leaf); font-size: 16px; margin-bottom: 6px; }
 
 .ws-bug-list { display: flex; flex-direction: column; gap: 2px; }
 .ws-bug-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 6px; text-align: left; font: inherit; color: inherit; outline: none; }
@@ -236,13 +238,13 @@
 .ws-score-bar { margin: 6px 4px; }
 .ws-tips { display: flex; flex-direction: column; gap: 6px; font-size: 0.92em; }
 .ws-tips li { display: flex; gap: 8px; align-items: baseline; }
-.ws-tip-points { flex-shrink: 0; min-width: 34px; color: var(--color-gold); font-weight: 500; }
+.ws-tip-points { flex-shrink: 0; min-width: 34px; color: var(--color-gold); font-weight: 700; }
 .ws-outline { display: flex; flex-direction: column; }
 .ws-outline-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 3px 6px; text-align: left; font: inherit; font-size: 0.9em; color: inherit; outline: none; }
 .ws-outline-row:hover { background: var(--ws-panel-raised); }
 .ws-outline-row:focus-visible { box-shadow: inset 0 0 0 2px var(--color-gold); }
 .ws-outline-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ws-code-font); font-size: 0.82em; }
-.ws-branches { flex-shrink: 0; font-size: 0.8em; color: var(--ws-text-faint); }
+.ws-branches { flex-shrink: 0; font-size: 0.82em; color: var(--ws-text-faint); }
 /* A tiny pixel lantern: dark when the function has no docstring, glowing when it does. */
 .ws-lantern {
   flex-shrink: 0;

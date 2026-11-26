@@ -1,11 +1,12 @@
 /**
- * A dungeon's PRIZE CHEST: it drops in once every monster is gone (or the
- * code was purified by editing), lands with a thud, glows and bobs under a
+ * A dungeon's PRIZE CHEST: it drops in once the dungeon is PURIFIED (its
+ * code has no bug left: every one fixed or sealed in the Workshop; a fight
+ * alone only makes it quiet), lands with a thud, glows and bobs under a
  * "look here" arrow until it is opened, and sparkles when it comes back
- * opened from the chest overlay.
+ * opened from the chest overlay. One chest per file, ever.
  *
  * The dungeon scene owns one and decides WHEN it appears (`drop`, or `place`
- * for a dungeon that was already cleared on entry); this class handles how
+ * for a dungeon that was already purified on entry); this class handles how
  * it looks, the landing and the "Press E" spot.
  */
 import { drawSprite } from "@/game/art";

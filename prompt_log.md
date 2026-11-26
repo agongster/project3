@@ -55,7 +55,7 @@ can you create specs for these ideas? and put them into project3_2 folder
 **Prompt 5 (17:02)**
 
 ```
-build a cute 2d pixel art world with github repo code. the user inputs their repo and we generate a world with the code, where bad code and bugs are in like dungeons or something. look into static bug catching analyzers and linters. limit to only python files. use as many subagents as you need (make them opus 5.5). make the character customizable and indie game style art. have different scenery options the user can choose. make sure the game is not hard, make it very very fun. add mechanics that you think would be fun. have some sort of loading game while the dungeon generates. good code should be rewards for the user, new weapons or powerups. add some randomization/gacha. 
+build a cute 2d pixel art world with github repo code. the user inputs their repo and we generate a world with the code, where bad code and bugs are in like dungeons or something. look into static bug catching analyzers and linters. limit to only python files. use as many subagents as you need (make them opus 5.5). make the character customizable and indie game style art. have different scenery options the user can choose. make sure the game is not hard, make it very very fun. add mechanics that you think would be fun. have some sort of loading game while the dungeon generates. good code should be rewards for the user, new weapons or powerups. add some randomization/gatcha. 
 please reference https://www.cs.cmu.edu/~113/project3.html for what files to create and update, and outline which parts i should write.
 
 commit to https://github.com/agongster/project3
@@ -129,7 +129,15 @@ a few things:
 use opus 5.5 subagents for all of these.
 ```
 
-<!-- PROMPT-12-OUTCOME -->
+*Outcome: the orchestrating model first wrote the rules as SPEC.md section F (the words subdued / fixed / sealed / quiet / purified, and its own addition of a "seal scroll" so that nobody gets stuck), then five Opus 5.5 subagents built the seven points in parallel:*
+
+- *Points 4 and 5, fight then fix (`src/lib/game/progress.ts`, `seal.ts`, `src/game/scenes/floorCode*.ts`, the Workshop bug card): winning a fight only subdues a monster; it dozes as a wisp over its glowing line; E on the line opens the Workshop there; Repo Health and the victory count fixed or sealed bugs only. A seal (`# noqa`) pays nothing. A syntax error cannot be sealed and has to be repaired by hand.*
+- *Point 1, end door (`src/lib/worldgen/dungeonDoorSpot.ts`, `src/game/scenes/dungeonEndDoor.ts`): a door in the east wall of the last room that opens when nothing is left to fight.*
+- *Points 6 and 7, bosses and variety (`src/lib/game/champions.ts`, `monsterLooks.ts`, `monsterModifiers.ts`, `src/game/ui/lairMarks.ts`): the subagent measured that bosses were present but unmarked (demo 4 of 22 monsters, `karpathy/nanoGPT` 6 of 27, `psf/requests` 0 of 70; the orchestrator's earlier "about 2%" was wrong). Boss buildings now carry a badge and a pennant and are listed on the maps and the notice board; a dungeon without a boss crowns a champion; more lint rules produce bosses; monsters get colour families, seeded looks and six modifiers.*
+- *Point 2, fonts (`src/app/layout.tsx`, `globals.css`, `src/components/hud/units.ts`, `src/game/art/fontGlyphs.ts`): Pixelify Sans replaced by Nunito for all text and numbers; Press Start 2P kept only for large titles; a type scale with minimum sizes.*
+- *Point 3, hero options (`src/game/art/character*.ts`, `src/components/character/`): more hair, outfits, eyes, skin tones and colours; new groups for a second outfit colour, eye colour, mouth, skin details, eyewear, facial hair and a back item; a tabbed creator with presets and undo. Body build was left out. Old saves draw exactly as before.*
+
+*Integration by the orchestrator: three leftovers between subagents (a label colour for quiet buildings, one float text, one import), and one addition of its own: pressing E on a glowing line opens that line's bug card at once (`Workshop.tsx`). Checked with `tsc`, ESLint, 1,211 unit tests, a bot that plays the demo and `karpathy/nanoGPT` to the victory screen by fighting and then fixing or sealing every line, a second bot that never opens the Workshop (every dungeon quiet, none purified, no victory), and the static export. Not reviewed by a second agent. Consequence the owner was told about: the game can no longer be finished without the Workshop.*
 
 ## How the build was split up
 

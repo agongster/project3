@@ -16,11 +16,16 @@
  * real" or "Raise the grade" quest about such a file waits until the syntax
  * error is mended (breaking the code never counts as fixing it).
  *
+ * A bug SEALED with `# noqa` is gone from the code but not fixed: a "Fix it
+ * for real" quest about it, or a "Purify by hand" quest whose file was
+ * finished with a seal, is quietly replaced ("gone") instead of paying.
+ *
  * `describeQuest` turns a saved spec plus its check into what the board shows.
  */
 import { MAX_OUTLINE_COMMENTS } from "@/lib/analysis/outline";
 import { SYNTAX_CODE } from "@/lib/analysis/rules";
 import { clipPath } from "@/lib/analysis/repoText";
+import { fileTally, goneFindings, isSealed } from "@/lib/game/progress";
 import type { AnalyzedFile, Definition, RepoAnalysis, RepoProgress } from "@/lib/types";
 import { QUEST_REWARDS, isSameBug } from "./quests";
 import type { Quest, QuestTarget } from "./quests";
@@ -73,7 +78,7 @@ export function tidyMeasure(task: TidyTask, path: string, analysis: RepoAnalysis
   const files = questableFiles(analysis);
   switch (task) {
     case "fixAny":
-      return files.reduce((sum, file) => sum + (file.realFixes ?? 0), 0);
+      return files.reduce((sum, file) => sum + fileTally(file, progress).fixed, 0);
     case "documentAny":
       return files.reduce((sum, file) => sum + documentable(file).filter((d) => d.docstring !== null).length, 0);
     case "squash": {
@@ -147,7 +152,10 @@ export function checkQuest(spec: QuestSpec, analysis: RepoAnalysis, progress: Re
     case "fix": {
       const bug = file.findings.find((finding) => isSameBug(spec, finding));
       const hidden = spec.code !== SYNTAX_CODE && hasSyntaxError(file);
-      return { state: bug || hidden ? "open" : "done", target: { path: spec.path, line: bug?.line ?? spec.line } };
+      const target = { path: spec.path, line: bug?.line ?? spec.line };
+      if (bug || hidden) return { state: "open", target };
+      const sealed = goneFindings(file).some((finding) => isSealed(progress, finding) && isSameBug(spec, finding));
+      return { state: sealed ? "gone" : "done", target };
     }
     case "document": {
       const matches = file.outline.definitions.filter((definition) => definition.name === spec.name);
@@ -164,7 +172,8 @@ export function checkQuest(spec: QuestSpec, analysis: RepoAnalysis, progress: Re
     case "purify": {
       const left = bugCount(file);
       const current = Math.max(0, spec.bugs - left);
-      return { state: left === 0 ? "done" : "open", target: { path: spec.path, line: file.findings[0]?.line }, current, goal: spec.bugs };
+      const state = left > 0 ? "open" : fileTally(file, progress).sealed > 0 ? "gone" : "done";
+      return { state, target: { path: spec.path, line: file.findings[0]?.line }, current, goal: spec.bugs };
     }
   }
 }
@@ -196,7 +205,7 @@ function titleOf(spec: QuestSpec, check: QuestCheck): string {
         case "documentAny":
           return counted(spec.goal, "Give any function a docstring", "Give any # functions a docstring");
         case "squash":
-          return counted(spec.goal, "Squash a monster", "Squash # monsters");
+          return counted(spec.goal, "Subdue a monster", "Subdue # monsters");
         case "comment":
           return `Leave a note in ${where}`;
       }
@@ -216,7 +225,7 @@ function descriptionOf(spec: QuestSpec, check: QuestCheck): string {
         : `Reach a score of ${goal} (now ${check.score}): docstrings, type hints and fewer bugs all help.`;
     }
     case "purify":
-      return spec.bugs === 1 ? "Fix its last bug in the editor: no sword needed." : `Fix all ${spec.bugs} of its bugs in the editor: no sword needed.`;
+      return spec.bugs === 1 ? "Fix its last bug in the editor (a seal won't do)." : `Fix all ${spec.bugs} of its bugs in the editor (seals won't do).`;
     case "tidy":
       switch (spec.task) {
         case "fixAny":
@@ -224,7 +233,7 @@ function descriptionOf(spec: QuestSpec, check: QuestCheck): string {
         case "documentAny":
           return "Anywhere in the repo. Every docstring lights a lantern.";
         case "squash":
-          return "Fighting counts too! Any dungeon will do.";
+          return "Fights count here! Any dungeon will do.";
         case "comment":
           return "Add a helpful # comment on a line of its own, then forge.";
       }

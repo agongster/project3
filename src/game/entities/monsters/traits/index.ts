@@ -7,7 +7,10 @@
  *
  * Usually one body. An Echo Bat whose code says something twice gets a
  * second body (its echo) on free floor next to it, sharing the finding's
- * HP; when no free tile is near, it is simply a plain bat.
+ * HP; when no free tile is near, it is simply a plain bat. Every body also
+ * gets its finding's BODY PLAN (../variety.ts): its look, a modifier, or the
+ * champion's crown when it is the dungeon's champion (a champion is always
+ * one big body, never an echo pair).
  */
 import { MONSTERS } from "@/lib/game/catalog";
 import { definitionAt, type FileOutline } from "@/lib/analysis/outline";
@@ -17,6 +20,7 @@ import type { Finding, MonsterSpawn } from "@/lib/types";
 import type { MonsterWorld } from "../brain";
 import { createBrain } from "../brains";
 import { Monster } from "../monster";
+import { bodyPlan, type BodyPlan } from "../variety";
 import { DisguiseNameTrait } from "./disguiseName";
 import { EchoPair, EchoTrait } from "./echo";
 import type { FloorSpots, SpotRange } from "./floorSpots";
@@ -36,32 +40,35 @@ export const ECHO_RANGE: SpotRange = { min: 1, max: 2.5 };
 const DUST_PAPER = "#efe6d2";
 const SECRET_PAPER = "#ffe08a";
 
-/** What trait building needs from the dungeon. */
+/** What building a dungeon's monsters needs from the dungeon. */
 export interface TraitSetup {
   spots: FloorSpots;
   outline: FileOutline;
+  /** The finding id of the dungeon's champion (championOf in src/lib/game/champions.ts), or null. */
+  championId: string | null;
 }
 
 /** The monster bodies one finding gets (see the file comment). */
 export function createBodies(spawn: MonsterSpawn, finding: Finding, world: MonsterWorld, setup: TraitSetup): Monster[] {
+  const plan = bodyPlan(finding, finding.id === setup.championId);
   const behaviour = traitBehaviour(finding);
-  const twins = behaviour === "echoTwin" ? echoBodies(spawn, finding, world, setup) : null;
+  const twins = behaviour === "echoTwin" && !plan.champion ? echoBodies(spawn, finding, world, setup, plan) : null;
   if (twins) return twins;
-  return [new Monster(spawn, finding, createBrain(spawn.kind), world, { trait: createTrait(behaviour, finding, spawn, setup) })];
+  return [new Monster(spawn, finding, createBrain(spawn.kind, plan.champion), world, { trait: createTrait(behaviour, finding, spawn, setup), plan })];
 }
 
 /** A bat and its echo, splitting the finding's HP; the echo never hurts. Null when it can't have one. */
-function echoBodies(spawn: MonsterSpawn, finding: Finding, world: MonsterWorld, setup: TraitSetup): Monster[] | null {
+function echoBodies(spawn: MonsterSpawn, finding: Finding, world: MonsterWorld, setup: TraitSetup, plan: BodyPlan): Monster[] | null {
   const def = MONSTERS[spawn.kind];
   // Only minions: they are never dazed, so "the last body pays" is the whole story.
-  if (def.hp < 2 || def.severity !== "minion") return null;
+  if (plan.hp < 2 || def.severity !== "minion") return null;
   const spot = setup.spots.claimNear(spawn.x, spawn.y, ECHO_RANGE);
   if (!spot) return null;
   const pair = new EchoPair();
-  const voiceHp = Math.ceil(def.hp / 2);
-  const voice = new Monster(spawn, finding, createBrain(spawn.kind), world, { trait: new EchoTrait(pair, "voice"), hp: voiceHp });
+  const voiceHp = Math.ceil(plan.hp / 2);
+  const voice = new Monster(spawn, finding, createBrain(spawn.kind), world, { trait: new EchoTrait(pair, "voice"), plan, hp: voiceHp });
   const echoSpawn = { ...spawn, x: spot.x, y: spot.y };
-  const echo = new Monster(echoSpawn, finding, createBrain(spawn.kind), world, { trait: new EchoTrait(pair, "echo"), hp: def.hp - voiceHp, touchDamage: 0 });
+  const echo = new Monster(echoSpawn, finding, createBrain(spawn.kind), world, { trait: new EchoTrait(pair, "echo"), plan, hp: plan.hp - voiceHp, touchDamage: 0 });
   return [voice, echo];
 }
 

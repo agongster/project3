@@ -6,7 +6,7 @@
  *   ground    .  grass        ,  meadow      =  path        :  plaza
  *             ~  water        -  sand        H  bridge
  *             .  dungeon floor ,  alt floor   #  wall top    =  wall face
- *             (space) void    <  dungeon exit
+ *             (space) void    <  dungeon exit  >  end door (last room)
  *   buildings #  clean footprint   X  corrupted footprint   D  door
  *   props     T Y trees  b bush  o rock  * flower  m mushroom  u stump
  *             i lamp  f fence  n bench  ! lantern  S sign  W well
@@ -94,6 +94,7 @@ export function renderAscii(map: AsciiSource, overlays: readonly AsciiMark[] = [
   if (map.chest) put(map.chest.x, map.chest.y, "C");
   if (map.spawn) put(map.spawn.x, map.spawn.y, "@");
   if (map.entrance) put(map.entrance.x, map.entrance.y, "@");
+  if (map.endDoor) put(map.endDoor.x, map.endDoor.y, ">");
   for (const mark of overlays) put(mark.x, mark.y, mark.ch);
 
   return rows.map((row) => row.join("")).join("\n");

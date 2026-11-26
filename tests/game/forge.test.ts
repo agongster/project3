@@ -5,9 +5,9 @@
 import { describe, expect, it } from "vitest";
 import { MONSTERS } from "@/lib/game/catalog";
 import { applyForge, FIX_COIN_MULTIPLIER, fixCoins, fixXp } from "@/lib/game/forge";
-import { getProgress, isDungeonCleared, repoHealth } from "@/lib/game/progress";
+import { getProgress, isDungeonQuiet, repoHealth } from "@/lib/game/progress";
 import { MAX_PAID_FIXES, sanitizeSave } from "@/lib/game/store";
-import { allDungeonsCleared, buildingStatus } from "@/game/scenes/progressView";
+import { allDungeonsPurified, buildingStatus } from "@/game/scenes/progressView";
 import { MONSTER_KINDS, type AnalyzedFile, type Finding, type RepoProgress } from "@/lib/types";
 import type { ForgeReport } from "@/lib/workspace";
 import { deepFreeze, expectValidSave, KEY, makeAnalysis, makeFile, makeFinding, saveWith } from "./helpers";
@@ -121,7 +121,7 @@ describe("applyForge: progress follows the code", () => {
     expect(getProgress(applyForge(save, KEY, report).save, KEY).defeated).toEqual([second.id]);
   });
 
-  it("makes a cleared dungeon live again when new bugs appear, without refilling its chest", () => {
+  it("wakes a quiet dungeon when new bugs appear, without refilling its chest", () => {
     const fresh = makeFinding(PATH, 12, "phantom", { code: "F821" });
     const save = withProgress({ defeated: [a.id], cleared: [PATH], opened: [PATH] });
     const report = makeReport({ kept: [[a, a]], introduced: [fresh], shown: [a, fresh] });
@@ -132,23 +132,55 @@ describe("applyForge: progress follows the code", () => {
     expect(buildingStatus(next, KEY, report.file!)).toBe("cursed");
   });
 
-  it("keeps a dungeon cleared while every monster in it is still defeated", () => {
+  it("keeps a dungeon quiet while every monster in it is still subdued", () => {
     const save = withProgress({ defeated: [a.id], cleared: [PATH] });
     const report = makeReport({ kept: [[a, moved(a, 1)]], shown: [moved(a, 1)] });
     const next = applyForge(save, KEY, report).save;
     expect(getProgress(next, KEY).cleared).toEqual([PATH]);
-    expect(isDungeonCleared(report.file!, getProgress(next, KEY))).toBe(true);
+    expect(isDungeonQuiet(report.file!, getProgress(next, KEY))).toBe(true);
+    expect(buildingStatus(next, KEY, report.file!)).toBe("quiet");
   });
 
-  it("turns a file purified by editing into a treasure house (its chest still closed) or leaves it done", () => {
+  it("turns a dungeon purified by editing into a prize to claim (dungeon chest), or leaves it done", () => {
     const purified = makeReport({ fixed: [a], realFixed: [a], shown: [] });
-    expect(buildingStatus(applyForge(withProgress({}), KEY, purified).save, KEY, purified.file!)).toBe("treasure");
+    expect(buildingStatus(applyForge(withProgress({}), KEY, purified).save, KEY, purified.file!)).toBe("claimable");
     expect(buildingStatus(applyForge(withProgress({ opened: [PATH] }), KEY, purified).save, KEY, purified.file!)).toBe("done");
   });
 
   it("never changes the input save and returns the same save when nothing changes", () => {
     const save = withProgress({ defeated: [a.id] });
     expect(applyForge(save, KEY, makeReport({ kept: [[a, a]], shown: [a] })).save).toBe(save);
+  });
+});
+
+describe("applyForge: seals pay nothing", () => {
+  const bug = makeFinding(PATH, 5, "gremlin", { code: "F821" });
+  const other = makeFinding(PATH, 9, "keyThief", { code: "S105" });
+
+  it("pays only the real fixes and remembers the seals", () => {
+    const { save, paid } = applyForge(withProgress({}, 10), KEY, makeReport({ fixed: [bug, other], realFixed: [bug, other] }), [other.id]);
+    expect(paid.fixes).toEqual([bug]);
+    expect(save.coins).toBe(10 + fixCoins(bug));
+    expect(save.stats.realFixes).toBe(1);
+    expect(getProgress(save, KEY).sealed).toEqual([other.id]);
+    expect(getProgress(save, KEY).fixes).toEqual([bug.id]);
+  });
+
+  it("never pays for a seal later turned into a real fix twice, and pays it once when it is", () => {
+    const sealed = applyForge(withProgress({}), KEY, makeReport({ fixed: [bug], realFixed: [bug] }), [bug.id]).save;
+    expect(sealed.coins).toBe(0);
+    const fixedNow = applyForge(sealed, KEY, makeReport({ realFixed: [bug] }));
+    expect(fixedNow.paid.fixes).toEqual([bug]);
+    expect(getProgress(fixedNow.save, KEY).sealed).toBeUndefined();
+    const again = applyForge(fixedNow.save, KEY, makeReport({ realFixed: [bug] }));
+    expect(again.paid.coins).toBe(0);
+  });
+
+  it("forgets a file's old seals when its seal is removed, and keeps other files' seals", () => {
+    const elsewhere = "other.py:3:1:S105";
+    const save = withProgress({ sealed: [bug.id, elsewhere] });
+    const unsealed = applyForge(save, KEY, makeReport({ introduced: [bug], shown: [bug] }));
+    expect(getProgress(unsealed.save, KEY).sealed).toEqual([elsewhere]);
   });
 });
 
@@ -163,27 +195,27 @@ describe("repoHealth with real fixes", () => {
     expect(repoHealth(original, progress()).ratio).toBe(0);
     const edited = makeAnalysis([{ ...makeFile("a.py", { findings: [bug2] }), realFixes: 1, fixedFindings: [bug1] }, makeFile("b.py", { findings: [boss] })]);
     const health = repoHealth(edited, progress());
-    expect(health).toMatchObject({ defeated: 0, fixed: 1, total: 3 });
+    expect(health).toMatchObject({ subdued: 0, fixed: 1, total: 3 });
     expect(health.ratio).toBeCloseTo(1 / 3);
   });
 
-  it("reaches 100% once everything is beaten or fixed, agreeing with the victory check", () => {
+  it("reaches 100% only once everything is fixed or sealed, agreeing with the victory check", () => {
     const edited = makeAnalysis([{ ...makeFile("a.py"), realFixes: 2, fixedFindings: [bug1, bug2] }, makeFile("b.py", { findings: [boss] })]);
-    const notYet = progress();
-    expect(repoHealth(edited, notYet).ratio).toBeLessThan(1);
-    expect(allDungeonsCleared(saveWith({ repos: { [KEY]: notYet } }), KEY, edited)).toBe(false);
+    const subduedBoss = progress([boss.id]);
+    expect(repoHealth(edited, subduedBoss).ratio).toBeLessThan(1);
+    expect(allDungeonsPurified(edited)).toBe(false);
 
-    const done = progress([boss.id]);
-    const health = repoHealth(edited, done);
+    const allGone = makeAnalysis([{ ...makeFile("a.py"), realFixes: 2, fixedFindings: [bug1, bug2] }, { ...makeFile("b.py"), realFixes: 1, fixedFindings: [boss] }]);
+    const health = repoHealth(allGone, { ...progress(), sealed: [boss.id] });
     expect(health.ratio).toBe(1);
-    expect(health).toMatchObject({ dungeonsCleared: 2, dungeonsTotal: 2 });
-    expect(allDungeonsCleared(saveWith({ repos: { [KEY]: done } }), KEY, edited)).toBe(true);
+    expect(health).toMatchObject({ fixed: 2, sealed: 1, dungeonsPurified: 2, dungeonsTotal: 2 });
+    expect(allDungeonsPurified(allGone)).toBe(true);
   });
 
-  it("does not count a defeated monster twice when its code is then fixed", () => {
+  it("does not count a subdued monster twice when its code is then fixed", () => {
     const edited = makeAnalysis([{ ...makeFile("a.py", { findings: [bug2] }), realFixes: 1, fixedFindings: [bug1] }]);
     const health = repoHealth(edited, progress([bug1.id]));
-    expect(health).toMatchObject({ defeated: 0, fixed: 1, total: 2 });
+    expect(health).toMatchObject({ subdued: 0, fixed: 1, total: 2 });
   });
 });
 

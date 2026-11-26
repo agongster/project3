@@ -32,16 +32,25 @@ export {
   HP_PER_BONUS_HEART,
   MAX_LEVEL,
   MAX_SAVED_REPOS,
+  FINDING_STATES,
+  aliveFindings,
   emptyProgress,
+  fileTally,
+  findingState,
   getProgress,
-  isDungeonCleared,
+  goneFindings,
+  isDungeon,
+  isDungeonPurified,
+  isDungeonQuiet,
+  isRepoPurified,
+  isSealed,
   levelForXp,
   playerStats,
-  remainingFindings,
   repoHealth,
+  subduedFindings,
   withRepoProgress,
 } from "@/lib/game/progress";
-export type { LevelInfo, PlayerStats, RepoHealth } from "@/lib/game/progress";
+export type { FileTally, FindingState, LevelInfo, PlayerStats, RepoHealth } from "@/lib/game/progress";
 
 export {
   addCoins,
@@ -53,7 +62,7 @@ export {
   isEquipped,
   markCreated,
   recordDefeat,
-  recordDungeonCleared,
+  recordDungeonQuiet,
   resetAll,
   resetRepo,
   setLook,
@@ -97,6 +106,14 @@ export {
 export type { ChestInput, ChestLoot, ChestSource, ChestTier } from "@/lib/game/loot";
 
 export { buildChecklist } from "@/lib/game/checklist";
+
+// Seal scrolls: accepting a finding with `# noqa` (dealt with, but no fix reward).
+export { ALREADY_SEALED, CANT_SEAL_SYNTAX, forgeSeals, planSeal, realFixesOnly, sealComment, splitSealed } from "@/lib/game/seal";
+export type { ForgeSeals, SealPlan } from "@/lib/game/seal";
+
+// One-time teaching moments (the first monster subdued in a save).
+export { markTaught, wasTaught } from "@/lib/game/lessons";
+export type { LessonId } from "@/lib/game/lessons";
 
 // What saving code in the Workshop pays and how it moves progress (src/lib/workspace forges, this pays).
 export { FIX_COIN_MULTIPLIER, FIX_XP_MULTIPLIER, applyForge, fixCoins, fixXp } from "@/lib/game/forge";

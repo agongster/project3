@@ -6,14 +6,16 @@
  * The terrain is painted ONCE into a small canvas with one pixel per tile
  * (grass, paths, water... in the theme's colours, regions as soft tints)
  * and cached per theme. Every frame we only copy part of it and add the
- * live dots: buildings (red = cursed, gold = unopened treasure, green =
- * done), landmarks, and the blinking hero.
+ * live dots: buildings (red = cursed, cyan = quiet, gold = unopened
+ * treasure, green = done), landmarks, and the blinking hero. Boss and
+ * champion lairs get their mark on every map (lairMarks.ts).
  */
 import { PALETTES } from "@/game/art";
 import { drawText, measureText } from "@/game/art/font";
 import { Ground, type AnalyzedFile, type Overworld, type PropKind, type ThemeId } from "@/lib/types";
 import type { BuildingEntity } from "../entities/buildings";
 import type { BuildingStatus } from "../scenes/progressView";
+import { drawLairLegend, drawMapMarks, drawTreemapMarks } from "./lairMarks";
 import { fitLabel, layoutRepoTreemap, ROOT_FOLDER_NAME, type Box, type FolderBox } from "./treemap";
 
 const MINI_W = 70;
@@ -21,7 +23,8 @@ const MINI_H = 52;
 const MINI_MARGIN = 4;
 /** Region tints, cycled (soft, so the terrain still shows through). */
 const REGION_TINTS = ["#ffd36b", "#8fd3ff", "#ff9ebb", "#b9f18c", "#c9a2ff", "#ffb07a"];
-const STATUS_COLORS: Record<BuildingStatus, string> = { cursed: "#ff4d6d", treasure: "#ffd23f", claimable: "#ffd23f", done: "#5ee38a" };
+/** Quiet dungeons are cyan: the colour of a subdued monster's glowing line, still waiting for a fix. */
+const STATUS_COLORS: Record<BuildingStatus, string> = { cursed: "#ff4d6d", quiet: "#6fe3ff", treasure: "#ffd23f", claimable: "#ffd23f", done: "#5ee38a" };
 const LANDMARKS: ReadonlySet<PropKind> = new Set<PropKind>(["well", "wardrobe", "board", "fountain"]);
 /** Region names on the big map float this many px above the region. */
 const REGION_LABEL_RAISE = 10;
@@ -49,6 +52,7 @@ const LEGEND_SWATCH_W = 11;
 const LEGEND_GAP = 8;
 const LEGEND: readonly [string, BuildingStatus][] = [
   ["cursed", "cursed"],
+  ["quiet", "quiet"],
   ["treasure", "treasure"],
   ["clear", "done"],
 ];
@@ -127,6 +131,7 @@ export class MapView {
     if (Math.floor(time * 3) % 2 === 0) dot(g, ox + (hero.x / 16) * scale, oy + (hero.y / 16) * scale, Math.max(3, scale + 1), "#ffffff");
     const hint = "Village map  ·  E: repo treemap  ·  M: close";
     drawText(g, hint, Math.round(viewW / 2), oy - 14, { color: "#fff1b8", outline: INK, align: "center" });
+    drawLairLegend(g, ox + w, oy + h + 5, buildings);
   }
 
   /**
@@ -143,6 +148,7 @@ export class MapView {
     g.fillRect(0, 0, viewW, viewH);
     panel(g, area.x - 3, area.y - 3, area.w + 6, area.h + 6);
     for (const folder of folders) drawFolder(g, folder, status);
+    drawTreemapMarks(g, folders, buildings);
     const mine = folders.flatMap((f) => f.files).find((f) => f.id === here);
     if (mine && Math.floor(time * 3) % 2 === 0) outlineBox(g, snap(mine), NEAR_COLOR);
 
@@ -150,6 +156,7 @@ export class MapView {
     drawText(g, "Repo treemap  ·  box size = lines of code", center, TITLE_Y, { color: "#ffffff", outline: INK, align: "center" });
     drawText(g, "E: village map  ·  M: close", center, KEYS_Y, { color: "#fff1b8", outline: INK, align: "center" });
     drawLegend(g, center, LEGEND_Y);
+    drawLairLegend(g, area.x + area.w, KEYS_Y, buildings);
   }
 
   private treemapLayout(area: Box): FolderBox[] {
@@ -173,6 +180,7 @@ export class MapView {
       g.fillStyle = STATUS_COLORS[b.status];
       g.fillRect(x, y, bd.w * scale, bd.h * scale);
     }
+    drawMapMarks(g, buildings, ox, oy, scale);
   }
 
   private terrainFor(theme: ThemeId): HTMLCanvasElement {

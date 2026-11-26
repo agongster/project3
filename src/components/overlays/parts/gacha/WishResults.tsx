@@ -66,7 +66,7 @@ function FaceDown() {
         backgroundSize: "16px 16px",
       }}
     >
-      <span className="font-title text-xl">?</span>
+      <span className="font-title text-pixel-md">?</span>
     </div>
   );
 }

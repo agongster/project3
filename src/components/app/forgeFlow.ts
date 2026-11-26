@@ -4,9 +4,10 @@
  * Workshop's `onForged` (after every forge AND every revert) and writes the
  * result in one go.
  *
- *   report ─► wanted bugs fixed for real   pay their bounty, once each
- *          ─► applyForge                    real fixes pay; progress follows the code   (src/lib/game/forge.ts)
- *          ─► settleQuests                  streak, quests, achievements                (src/lib/game/questsSettle.ts)
+ *   report + text ─► forgeSeals       which bugs gone from the code were only sealed   (src/lib/game/seal.ts)
+ *          ─► wanted bugs fixed for real   pay their bounty, once each (a sealed one closes unpaid)
+ *          ─► applyForge                    real fixes pay; seals pay nothing; progress follows the code (forge.ts)
+ *          ─► settleQuests                  streak, quests, achievements, real fixes only (questsSettle.ts)
  *          ─► ForgeRewards                  what the Workshop's forge summary shows
  *
  * Also here, because they follow each forge too: the notice board's
@@ -15,10 +16,10 @@
  * monsters were fixed), and the banner shown when the Workshop closes.
  */
 import type { ForgeRewards } from "@/components/workshop";
-import { addCoins, applyForge, getProgress, newsLine, settleQuests, withRepoProgress, type QuestNewsItem } from "@/lib/game";
+import { addCoins, applyForge, forgeSeals, getProgress, newsLine, realFixesOnly, settleQuests, withRepoProgress, type QuestNewsItem } from "@/lib/game";
 import { isBountyClaimed, type Bounty } from "@/lib/game/bounties";
 import { MAX_SETTLED_BOUNTIES } from "@/lib/game/store";
-import type { RepoAnalysis, SaveData } from "@/lib/types";
+import type { Finding, RepoAnalysis, SaveData } from "@/lib/types";
 import type { ForgeReport } from "@/lib/workspace";
 
 export interface ForgeInput {
@@ -27,6 +28,8 @@ export interface ForgeInput {
   /** The analysis AFTER the forge (`workspace.analysis.get()`). */
   analysis: RepoAnalysis;
   report: ForgeReport;
+  /** The text that was forged (the original text after a revert): tells seals from real fixes. */
+  text: string;
   /** The notice board's bounties, as they were before this forge. */
   bounties: readonly Bounty[];
 }
@@ -38,15 +41,18 @@ export interface ForgeOutcome {
   bounties: Bounty[];
   /** Bounties paid because their bug was fixed for real. */
   bountiesPaid: Bounty[];
+  /** The findings this forge took out of the code (`report.fixed`), split into real fixes and seals. */
+  fixed: Finding[];
+  sealed: Finding[];
   /** Quests, streak, achievements and level-ups to announce. */
   news: QuestNewsItem[];
   /** For the Workshop's forge summary. */
   rewards: ForgeRewards;
 }
 
-/** "Bounty claimed: line 12 in bakery/ · +40" */
+/** "Wanted bug fixed: line 12 in bakery/ · +40 coins" */
 export function bountyLine(bounty: Bounty): string {
-  return `Bounty claimed: line ${bounty.line} in ${bounty.folder || "Town Square"} · +${bounty.reward} coins`;
+  return `Wanted bug fixed: line ${bounty.line} in ${bounty.folder || "Town Square"} · +${bounty.reward} coins`;
 }
 
 /**
@@ -88,33 +94,40 @@ function rememberSettled(save: SaveData, repoKey: string, ids: readonly string[]
 }
 
 /** Applies one forge (or revert) report to the save. See the file comment for the order. */
-export function settleForge({ save, repoKey, analysis, report, bounties }: ForgeInput): ForgeOutcome {
+export function settleForge({ save, repoKey, analysis, report, text, bounties }: ForgeInput): ForgeOutcome {
   const before = getProgress(save, repoKey);
-  const fixedIds = new Set(report.linted ? report.fixed.map((finding) => finding.id) : []);
-  const wantedFixed = bounties.filter((bounty) => fixedIds.has(bounty.findingId));
-  const bountiesPaid = wantedFixed.filter((bounty) => !isBountyClaimed(before, bounty));
+  const seals = forgeSeals(report, text);
+  const idsOf = (findings: readonly Finding[]) => new Set(findings.map((finding) => finding.id));
+  const fixedIds = idsOf(seals.fixed);
+  const sealedIds = idsOf(seals.sealed);
+  // A wanted bug fixed for real is captured (paid once); one sealed first closes its notice unpaid.
+  const wantedGone = bounties.filter((bounty) => fixedIds.has(bounty.findingId) || sealedIds.has(bounty.findingId));
+  const bountiesPaid = wantedGone.filter((bounty) => fixedIds.has(bounty.findingId) && !isBountyClaimed(before, bounty));
 
-  const forged = applyForge(save, repoKey, report);
+  const forged = applyForge(save, repoKey, report, seals.sealedOriginalIds);
   const bountyCoins = bountiesPaid.reduce((sum, bounty) => sum + bounty.reward, 0);
   const remembered = rememberSettled(
     forged.save,
     repoKey,
-    wantedFixed.map((bounty) => bounty.findingId),
+    wantedGone.map((bounty) => bounty.findingId),
   );
   const withBounties = addCoins(remembered, bountyCoins);
-  const settled = settleQuests(withBounties, repoKey, analysis, report, before.defeated);
+  const settled = settleQuests(withBounties, repoKey, analysis, realFixesOnly(report, seals), before.defeated);
 
   const { paid } = forged;
   return {
     save: settled.save,
     bounties: followBounties(bounties, report),
     bountiesPaid,
+    fixed: seals.fixed,
+    sealed: seals.sealed,
     news: settled.news,
     rewards: {
       coins: paid.coins + bountyCoins + settled.coins,
       xp: paid.xp + settled.xp,
       lines: summaryLines(bountiesPaid, paid.leveledUp, settled.news),
       paidFixes: paid.fixes,
+      sealedIds: seals.sealed.map((finding) => finding.id),
     },
   };
 }
@@ -135,31 +148,40 @@ export function traceIds(trace: ReadonlyMap<string, string>, report: ForgeReport
   return next;
 }
 
-export function originalIds(trace: ReadonlyMap<string, string>, report: ForgeReport): string[] {
-  return report.fixed.map((finding) => trace.get(finding.id) ?? finding.id);
+export function originalIds(trace: ReadonlyMap<string, string>, findings: readonly Finding[]): string[] {
+  return findings.map((finding) => trace.get(finding.id) ?? finding.id);
 }
 
 // ───────────────────────── The banner after a visit ─────────────────────────
 
 /** What the forges of one Workshop visit did to the world. */
 export interface VisitTally {
-  /** Findings that were fixed (gone from the code). */
+  /** Findings fixed for real (gone from the code). */
   fixed: number;
+  /** Findings sealed with `# noqa` (gone from the code too, but not fixed). */
+  sealed: number;
   /** New findings (bugs that crept in). */
   introduced: number;
   /** Files whose last bug was fixed. */
   purified: string[];
 }
 
-export const EMPTY_TALLY: VisitTally = { fixed: 0, introduced: 0, purified: [] };
+export const EMPTY_TALLY: VisitTally = { fixed: 0, sealed: 0, introduced: 0, purified: [] };
 
-export function addToTally(tally: VisitTally, report: ForgeReport): VisitTally {
+export function addToTally(tally: VisitTally, report: ForgeReport, outcome: Pick<ForgeOutcome, "fixed" | "sealed">): VisitTally {
   if (!report.linted) return tally;
   return {
-    fixed: tally.fixed + report.fixed.length,
+    fixed: tally.fixed + outcome.fixed.length,
+    sealed: tally.sealed + outcome.sealed.length,
     introduced: tally.introduced + report.introduced.length,
     purified: report.purified && !tally.purified.includes(report.path) ? [...tally.purified, report.path] : tally.purified,
   };
+}
+
+/** A real fix is the headline; a visit that only sealed says so plainly. */
+function titleFor(tally: VisitTally): string {
+  if (tally.introduced > 0) return tally.fixed + tally.sealed === 0 ? "NEW MONSTERS!" : "THE CODE CHANGED!";
+  return tally.fixed > 0 ? "FIXED FOR REAL!" : "SEALED";
 }
 
 function plural(count: number, one: string, many: string): string {
@@ -170,9 +192,10 @@ function plural(count: number, one: string, many: string): string {
 export function returnBanner(tally: VisitTally): { title: string; subtitle: string } | null {
   const parts: string[] = [];
   if (tally.fixed > 0) parts.push(`${plural(tally.fixed, "bug", "bugs")} fixed for real`);
+  if (tally.sealed > 0) parts.push(`${plural(tally.sealed, "bug", "bugs")} sealed`);
   if (tally.introduced > 0) parts.push(`${plural(tally.introduced, "new monster", "new monsters")}`);
   if (tally.purified.length > 0) parts.push(`${plural(tally.purified.length, "dungeon", "dungeons")} purified`);
   if (parts.length === 0) return null;
-  const title = tally.fixed === 0 ? "NEW MONSTERS!" : tally.introduced === 0 ? "FIXED FOR REAL!" : "THE CODE CHANGED!";
+  const title = titleFor(tally);
   return { title, subtitle: parts.join(" · ") };
 }

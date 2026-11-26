@@ -34,7 +34,7 @@ export function ItemDetail({ item, found, worn, wornCharms, engraving, onToggle 
       <div className="flex flex-col items-center gap-3 text-center">
         <ItemIcon item={item} scale={DETAIL_ICON_SCALE} found={false} />
         <RarityStars rarity={item.rarity} />
-        <h3 className="font-title text-sm">???</h3>
+        <h3 className="font-title text-pixel-sm">???</h3>
         <p className="text-sm">Not found yet. Open treasure chests or make a wish at the Wishing Well to find it!</p>
       </div>
     );
@@ -49,7 +49,7 @@ export function ItemDetail({ item, found, worn, wornCharms, engraving, onToggle 
       <div className="flex flex-col items-center gap-1 text-center">
         <ItemIcon item={item} scale={DETAIL_ICON_SCALE} equipped={worn} />
         <RarityStars rarity={item.rarity} />
-        <h3 className="font-title text-sm leading-snug">{item.name}</h3>
+        <h3 className="text-lg font-extrabold leading-snug">{item.name}</h3>
         <p className="text-sm font-bold opacity-75">{SLOT_LABEL[item.slot]}</p>
         <p className="text-sm italic">{item.blurb}</p>
         {engraving && <EngravingTag engraving={engraving} tone="light" className="mt-1 w-full border-t-2 border-dashed border-ink/20 pt-1" />}

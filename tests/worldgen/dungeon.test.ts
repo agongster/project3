@@ -3,6 +3,7 @@ import { definitionAt } from "@/lib/analysis/outline";
 import { Ground, type AnalyzedFile, type Dungeon, type MonsterKind, type Rect } from "@/lib/types";
 import { MONSTERS } from "@/lib/game/catalog";
 import { generateDungeon, dungeonProblems, reachableFrom, solidPropTiles } from "@/lib/worldgen";
+import { endDoorLanding } from "@/lib/worldgen/dungeonDoorSpot";
 import { MAX_LABEL_CHARS, MAX_ROOMS } from "@/lib/worldgen/roomPlan";
 import { makeFileWithMonsters } from "./helpers";
 import { fileWithCode, fn } from "./fakeCode";
@@ -40,7 +41,7 @@ function expectPlayable(d: Dungeon, file: AnalyzedFile): void {
   expect(dungeonProblems(d, file)).toEqual([]);
   expect(d.monsters.map((m) => m.findingId).sort()).toEqual(file.findings.map((f) => f.id).sort());
   const reach = reachableFrom(d, d.entrance, solidPropTiles(d.props));
-  for (const p of [d.exit, d.chest, ...d.monsters]) expect(reach[p.y * d.width + p.x]).toBe(1);
+  for (const p of [d.exit, d.endDoor, d.chest, ...d.monsters]) expect(reach[p.y * d.width + p.x]).toBe(1);
 }
 
 describe("generateDungeon", () => {
@@ -228,5 +229,57 @@ describe("the file shapes the dungeon", () => {
       expectPlayable(d, file);
       expect(generateDungeon(file, 9)).toEqual(d);
     }
+  });
+});
+
+describe("the end door", () => {
+  /** The door's tile, its landing, and the room it belongs to. */
+  const doorOf = (d: Dungeon) => ({ door: d.endDoor, last: d.rooms[d.rooms.length - 1], landing: endDoorLanding(d.endDoor) });
+
+  it("is a way-out tile on the east wall of the last room, with free floor in front", () => {
+    const file = makeFileWithMonsters("potions/brew.py", monsterMix(9, 1));
+    const d = generateDungeon(file, 1234);
+    const { door, last, landing } = doorOf(d);
+    expect(door.x).toBe(last.x + last.w);
+    expect(door.y).toBeGreaterThan(last.y);
+    expect(door.y).toBeLessThan(last.y + last.h - 1);
+    expect(d.ground[door.y * d.width + door.x]).toBe(Ground.DungeonExit);
+    expect(d.solid[door.y * d.width + door.x]).toBe(0);
+    for (const t of landing) {
+      expect(isFloor(d, t.x, t.y)).toBe(true);
+      expect(d.props.some((p) => p.x === t.x && p.y === t.y)).toBe(false);
+    }
+  });
+
+  it("gives a one-room dungeon its door on the wall opposite the entrance", () => {
+    const file = fileWithCode("script.py", [], [[2, "gremlin"], [5, "dustBunny"], [9, "mimic"]], { moduleDocstring: null });
+    const d = generateDungeon(file, 9);
+    expectPlayable(d, file);
+    expect(d.rooms).toHaveLength(1);
+    expect(d.entrance.x).toBe(d.rooms[0].x);
+    expect(d.endDoor.x).toBe(d.rooms[0].x + d.rooms[0].w);
+  });
+
+  it("sits two rows above the chest when nothing is in the way", () => {
+    const file = fileWithCode("quiet_end.py", [fn("start", 3, 10), fn("finish", 12, 20)], [[4, "dustBunny"]]);
+    const d = generateDungeon(file, 4);
+    expect(d.endDoor.y).toBe(d.chest.y - 2);
+  });
+
+  it("is the same for the same seed, and is the only thing the map gained", () => {
+    const file = makeFileWithMonsters("same.py", monsterMix(6, 0));
+    const d = generateDungeon(file, 31);
+    expect(generateDungeon(file, 31).endDoor).toEqual(d.endDoor);
+    const ways = Array.from(d.ground).filter((g) => g === Ground.DungeonExit).length;
+    expect(ways).toBe(2);
+  });
+
+  it("is checked by dungeonProblems", () => {
+    const file = makeFileWithMonsters("broken.py", monsterMix(3, 0));
+    const d = generateDungeon(file, 2);
+    const { last, landing } = doorOf(d);
+    expect(dungeonProblems({ ...d, endDoor: { x: last.x + 2, y: last.y + 2 } }, file).some((p) => p.includes("east wall"))).toBe(true);
+    const crate = { kind: "crate" as const, x: landing[0].x, y: landing[0].y, variant: 0, solid: true };
+    expect(dungeonProblems({ ...d, props: [...d.props, crate] }, file).some((p) => p.includes("in front of the end door"))).toBe(true);
   });
 });

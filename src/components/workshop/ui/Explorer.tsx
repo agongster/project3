@@ -55,6 +55,15 @@ function BadgeView({ badge }: { badge: ExplorerBadge }) {
       </span>
     );
   }
+  if (badge.status === "quiet") {
+    return (
+      <span className="ws-badge">
+        <PixelSprite sprite={uiIcon("zzz")} scale={1} />
+        <span className="ws-bug-count ws-fix-count">{badge.bugs}</span>
+        {grade}
+      </span>
+    );
+  }
   const icon = badge.status === "done" ? uiIcon("checkmark") : uiIcon("chestClosed");
   return (
     <span className={`ws-badge ws-badge-${badge.status}`}>

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * "How this works": the three ideas of the Workshop in a few lines. Shown in
+ * "How this works": the four ideas of the Workshop in a few lines. Shown in
  * the editor area the first time the Workshop opens with no file, and from
  * the "?" button any time.
  */
@@ -10,8 +10,9 @@ import { ShortcutKeys } from "./bits";
 
 const STEPS = [
   { title: "Type freely", text: "Edit any file. Monsters appear in the gutter as you type, but nothing in the world changes yet." },
-  { title: "Forge to make it real", text: "Forge saves the file and re-checks it. Bugs you fixed are banished for good; new ones just join the dungeon." },
-  { title: "Real fixes pay more", text: "Fixing a bug in the code is worth more than beating its monster. Ruff's fix scrolls can even do it for you." },
+  { title: "Forge to make it real", text: "Forge saves the file and re-checks it. Bugs you fixed are defeated for good; new ones just join the dungeon." },
+  { title: "Fix to finish them", text: "A monster beaten in a fight is only subdued: fixing its line finishes it and pays a reward. Ruff's fix scrolls can even do it for you." },
+  { title: "Stuck? Seal it", text: "Every bug card also has a seal scroll: it marks the line as accepted with # noqa. The monster goes, but a seal pays nothing." },
 ];
 
 export function HelpPanel({ onDismiss, dismissLabel }: { onDismiss: () => void; dismissLabel: string }) {

@@ -8,10 +8,12 @@
  */
 import { monsterFrame, spriteUrl } from "@/components/overlays/parts/sprites";
 import { MONSTERS } from "@/lib/game/catalog";
+import type { MonsterLook } from "@/lib/game/monsterLooks";
 import type { MonsterKind } from "@/lib/types";
 
-export function MonsterThumb({ kind, size }: { kind: MonsterKind; size: number }) {
-  const sprite = monsterFrame(kind);
+/** `look` is the finding's variant (lookOf); the species' classic look when missing. */
+export function MonsterThumb({ kind, size, look }: { kind: MonsterKind; size: number; look?: MonsterLook }) {
+  const sprite = monsterFrame(kind, 0, look);
   return (
     <span
       role="img"

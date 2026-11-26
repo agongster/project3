@@ -3,8 +3,9 @@
 /**
  * The moment after a forge, drawn over the corner of the editor without
  * taking the keyboard: banished monsters pop away one after another with
- * their coins, new bugs are announced gently, a changed grade flips its
- * letter, and a purified file gets a big banner across the editor.
+ * their coins, sealed ones are listed plainly (no sparkle, no coins: a real
+ * fix is the celebrated path), new bugs are announced gently, a changed
+ * grade flips its letter, and a purified file gets a big banner across the editor.
  *
  * It never blocks typing and leaves on its own after MOMENT_MS (or at once
  * with the × button).
@@ -12,11 +13,11 @@
 import type { CSSProperties } from "react";
 import { GRADE_INFO } from "@/components/overlays/parts/GradeBadge";
 import { PixelSprite } from "@/components/overlays/parts/PixelSprite";
-import { uiIcon } from "@/components/overlays/parts/sprites";
+import { lookFromId, uiIcon } from "@/components/overlays/parts/sprites";
 import { useTimeout } from "@/components/overlays/parts/hooks";
 import type { Grade } from "@/lib/types";
 import type { ShownMoment } from "../hooks/useForging";
-import { creptInText, gradeImproved } from "../logic/forgeMoment";
+import { creptInText, gradeImproved, sealedText } from "../logic/forgeMoment";
 import { clip } from "./bits";
 import { MonsterThumb } from "./MonsterThumb";
 
@@ -69,7 +70,7 @@ export function ForgeMomentCard({ shown, onDone }: { shown: ShownMoment; onDone:
           {listed.map((monster, i) => (
             <li key={monster.id} className="ws-banish-row" style={{ "--delay": `${i * STAGGER_MS}ms` } as CSSProperties}>
               <span className="ws-banish-sprite">
-                <MonsterThumb kind={monster.monster} size={MONSTER_BOX} />
+                <MonsterThumb kind={monster.monster} size={MONSTER_BOX} look={lookFromId(monster.id, monster.monster)} />
                 <span className="ws-banish-sparkle" aria-hidden="true">
                   <PixelSprite sprite={uiIcon("sparkle", i)} scale={2} />
                 </span>
@@ -92,9 +93,19 @@ export function ForgeMomentCard({ shown, onDone }: { shown: ShownMoment; onDone:
         </ul>
       )}
 
+      {moment.sealed.slice(0, MAX_LISTED).map((monster) => (
+        <p key={monster.id} className="ws-sealed">
+          <span className="ws-sealed-thumb">
+            <MonsterThumb kind={monster.monster} size={20} look={lookFromId(monster.id, monster.monster)} />
+          </span>{" "}
+          {sealedText(monster)}
+        </p>
+      ))}
+      {moment.sealed.length > MAX_LISTED && <p className="ws-sealed">…and {moment.sealed.length - MAX_LISTED} more sealed</p>}
+
       {moment.creptIn.slice(0, MAX_LISTED).map((monster) => (
         <p key={monster.id} className="ws-crept">
-          <MonsterThumb kind={monster.monster} size={20} /> {creptInText(monster, shown.reverted)}
+          <MonsterThumb kind={monster.monster} size={20} look={lookFromId(monster.id, monster.monster)} /> {creptInText(monster, shown.reverted)}
         </p>
       ))}
       {moment.creptIn.length > MAX_LISTED && <p className="ws-crept">…and {moment.creptIn.length - MAX_LISTED} more new bugs (no harm done)</p>}
@@ -133,7 +144,7 @@ export function PurifiedBanner({ shown, onDone }: { shown: ShownMoment; onDone: 
     <div className="ws-purified" role="status">
       <div className="ws-purified-inner">
         <span className="font-title ws-purified-title">{paths.length > 1 ? `${paths.length} FILES PURIFIED!` : "FILE PURIFIED!"}</span>
-        <span className="ws-purified-ribbon">{clip(paths.join(", "), MAX_LINE_LENGTH)} is a treasure house now</span>
+        <span className="ws-purified-ribbon">{clip(paths.join(", "), MAX_LINE_LENGTH)} is purified: its prize chest waits</span>
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <span key={i} className={`ws-sparkle ws-sparkle-${i}`} aria-hidden="true">
             <PixelSprite sprite={uiIcon("sparkle", i)} scale={3} />

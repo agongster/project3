@@ -12,12 +12,17 @@
  */
 import { MONSTERS, type MonsterArchetype, type MonsterDef } from "@/lib/game/catalog";
 import { hasFinisher } from "@/lib/game/finisher";
+import type { MonsterLook } from "@/lib/game/monsterLooks";
+import type { ModifierDef } from "@/lib/game/monsterModifiers";
 import type { Finding, MonsterKind, MonsterSpawn } from "@/lib/types";
 import type { HitInfo, HitSource, Hittable } from "../../combat/hittable";
 import { boxHitsSolid, moveBox, TILE_PX, type Box } from "../../engine/collision";
 import type { Brain, MonsterWorld } from "./brain";
+import { Breakaway, BREAKAWAY_PX, BREAKAWAY_STRETCH } from "./breakaway";
+import { ShyFlight } from "./flight";
 import { directionTo, distance } from "./steering";
 import type { IncomingShot, Trait } from "./traits/trait";
+import { plainPlan, type BodyPlan } from "./variety";
 
 type Size = MonsterDef["size"];
 
@@ -42,16 +47,6 @@ const KNOCKBACK_TAKEN: Partial<Record<MonsterArchetype, number>> = { tank: 0.3, 
 const STRETCH_RECOVERY = 9;
 /** A little squish when hit. */
 const HIT_SQUISH = -0.25;
-/**
- * BREAKAWAY: an elite that takes BREAKAWAY_HITS hits within BREAKAWAY_WINDOW_SEC
- * springs BREAKAWAY_PX away from the hero. It stops fights from being a
- * stand-still slugfest: the monster gets room to show its attack again,
- * and the hero gets to read the telegraph and dodge. (Tanks shrug it off.)
- */
-const BREAKAWAY_HITS = 3;
-const BREAKAWAY_WINDOW_SEC = 1.2;
-const BREAKAWAY_PX = 30;
-const BREAKAWAY_STRETCH = 0.35;
 /** After bumping into the hero, a monster bounces back at this speed (so it never "sticks"). */
 const RECOIL_SPEED = 90;
 /**
@@ -78,15 +73,25 @@ const FACING_DEADZONE_PX = 3;
 export interface MonsterOptions {
   /** How it behaves like its bug (traits/), or null for the plain fight. */
   trait?: Trait | null;
+  /** Its look, modifier and champion crown (variety.ts); the species' plain body when missing. */
+  plan?: BodyPlan;
+  /** Overrides the plan's health (an echo bat's two bodies split it). */
   hp?: number;
   touchDamage?: number;
 }
 
 export class Monster implements Hittable {
   readonly species: MonsterKind;
+  /** Its catalog entry (with a modifier's walking speed, see variety.ts). */
   readonly def: MonsterDef;
   readonly trait: Trait | null;
-  /** Hit radius at normal size; contact damage always uses this one, so a grown monster never hurts from further away. */
+  readonly look: MonsterLook;
+  readonly modifier: ModifierDef | null;
+  /** Its dungeon's toughest monster, made a mini-boss (champion.ts). */
+  readonly champion: boolean;
+  /** Drawn and hit at this size (look, Tiny / Giant, champion); a trait's `scale` multiplies on top. */
+  readonly sizeScale: number;
+  /** Contact reach; contact damage always uses this one, so a grown monster never hurts from further away. */
   readonly bodyRadius: number;
   /** Half-hearts lost when the hero bumps into it. */
   readonly touchDamage: number;
@@ -146,8 +151,13 @@ export class Monster implements Hittable {
 
   private knockX = 0;
   private knockY = 0;
-  /** `anim` times of recent hits (for the breakaway). */
-  private recentHits: number[] = [];
+  /** The species' hit radius at this body's size, before a trait's growth. */
+  private readonly hitRadius: number;
+  /** How far it notices the hero, as a share of its brain's radius (Shy / Bold). */
+  private readonly noticeScale: number;
+  /** A Shy monster runs off once when badly hurt (flight.ts). */
+  private readonly flight: ShyFlight | null;
+  private readonly breakaway = new Breakaway();
 
   constructor(
     spawn: MonsterSpawn,
@@ -156,16 +166,24 @@ export class Monster implements Hittable {
     private readonly world: MonsterWorld,
     options: MonsterOptions = {},
   ) {
+    const plan = options.plan ?? plainPlan(MONSTERS[spawn.kind]);
     this.species = spawn.kind;
-    this.def = MONSTERS[spawn.kind];
+    this.def = plan.def;
     this.trait = options.trait ?? null;
-    this.bodyRadius = HIT_RADIUS[this.def.size];
+    this.look = plan.look;
+    this.modifier = plan.modifier;
+    this.champion = plan.champion;
+    this.sizeScale = plan.sizeScale;
+    this.noticeScale = plan.noticeScale;
+    this.flight = plan.modifier?.fleesWhenHurt ? new ShyFlight() : null;
+    this.hitRadius = HIT_RADIUS[this.def.size] * plan.sizeScale;
+    this.bodyRadius = HIT_RADIUS[this.def.size] * plan.reachScale;
     this.touchDamage = options.touchDamage ?? this.def.touchDamage;
     this.flying = FLYERS.has(spawn.kind);
     this.isBoss = this.def.archetype === "boss";
     this.homeX = this.x = spawn.x * TILE_PX + TILE_PX / 2;
     this.homeY = this.y = spawn.y * TILE_PX + SPAWN_FEET_DY;
-    this.hp = this.maxHp = options.hp ?? this.def.hp;
+    this.hp = this.maxHp = options.hp ?? plan.hp;
     this.anim = world.random() * 10;
   }
 
@@ -176,7 +194,17 @@ export class Monster implements Hittable {
 
   /** Hit radius used by the hero's attacks (grows with `scale`). */
   get radius(): number {
-    return this.bodyRadius * this.scale;
+    return this.hitRadius * this.scale;
+  }
+
+  /** The hero must come this close (with a clear line of sight) before it notices. */
+  get noticeRadius(): number {
+    return this.brain.noticeRadius * this.noticeScale;
+  }
+
+  /** True while a Shy monster runs off (it hurts no one meanwhile). */
+  get fleeing(): boolean {
+    return this.flight?.fleeing ?? false;
   }
 
   // ───────────── position & collision ─────────────
@@ -256,6 +284,7 @@ export class Monster implements Hittable {
       this.checkBreakaway();
       this.brain.onHit?.(this, this.world);
       this.trait?.onHit?.(this, this.world);
+      this.flight?.onHurt(this);
       return;
     }
     if (!this.dazed && hasFinisher(this.def.severity)) this.daze();
@@ -315,13 +344,9 @@ export class Monster implements Hittable {
     this.hp = Math.max(1, Math.min(this.maxHp, hp));
   }
 
-  /** Elites spring away from the hero after a quick flurry of hits (see BREAKAWAY_HITS). */
+  /** Elites spring away from the hero after a quick flurry of hits (breakaway.ts). */
   private checkBreakaway(): void {
-    if (this.def.severity !== "elite" || this.def.archetype === "tank") return;
-    this.recentHits = this.recentHits.filter((t) => this.anim - t < BREAKAWAY_WINDOW_SEC);
-    this.recentHits.push(this.anim);
-    if (this.recentHits.length < BREAKAWAY_HITS) return;
-    this.recentHits = [];
+    if (this.def.severity !== "elite" || this.def.archetype === "tank" || !this.breakaway.onHit(this.anim)) return;
     const away = directionTo(this.world.hero.x, this.world.hero.y, this.x, this.y);
     this.knockX = away.x * BREAKAWAY_PX * KNOCKBACK_DECAY;
     this.knockY = away.y * BREAKAWAY_PX * KNOCKBACK_DECAY;
@@ -346,11 +371,16 @@ export class Monster implements Hittable {
     this.stun = Math.max(0, this.stun - dt);
     if (this.dazed) this.updateDazed(dt);
     else if (this.trait?.holdsBrain?.(this)) this.stop();
-    else if (this.stun > 0 && !this.brain.committed?.(this)) this.stop();
-    else this.brain.update(this, this.world, dt);
+    else if (!this.flight?.update(this, this.world, dt)) this.think(dt);
     if (this.alive && !this.dazed) this.trait?.update?.(this, this.world, dt);
     this.applyMotion(dt);
     this.updateFacing();
+  }
+
+  /** One brain step, unless a hit-stun pauses it (an attack it is committed to always plays out). */
+  private think(dt: number): void {
+    if (this.stun > 0 && !this.brain.committed?.(this)) this.stop();
+    else this.brain.update(this, this.world, dt);
   }
 
   /** The brain is switched off while dazed; the moment ends by itself after DAZE_SEC. */
@@ -400,6 +430,7 @@ export class Monster implements Hittable {
     this.targetable = true;
     this.brain.reset(this);
     this.trait?.reset?.(this);
+    this.flight?.reset();
   }
 
   /** Animation frame to draw (the brain may override it, e.g. the toad puffing its cheeks). */

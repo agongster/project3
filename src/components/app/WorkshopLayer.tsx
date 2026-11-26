@@ -29,7 +29,7 @@ interface Props {
   target: WorkshopTarget;
   /** The quest news of the latest forge (a new array each time). */
   news: Store<readonly QuestNewsItem[]>;
-  onForged: (report: ForgeReport) => ForgeRewards;
+  onForged: (report: ForgeReport, savedText: string) => ForgeRewards;
   onClose: () => void;
 }
 

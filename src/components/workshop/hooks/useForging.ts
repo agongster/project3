@@ -1,7 +1,7 @@
 /**
  * Forging (saving) and reverting, and the moment that follows.
  *
- *   forge(paths) ─► workspace.forge(path, text) ─► onForged(report) ─► the moment
+ *   forge(paths) ─► workspace.forge(path, text) ─► onForged(report, text) ─► the moment
  *                   (the world updates)             (the game pays)     (banished monsters,
  *                                                                        purified banner, …)
  *
@@ -37,7 +37,7 @@ interface ForgingOptions {
   session: WorkshopSession;
   editor: EditorHandle | null;
   audio: AudioApi;
-  onForged?: (report: ForgeReport) => ForgeRewards | void;
+  onForged?: (report: ForgeReport, savedText: string) => ForgeRewards | void;
   /** A line for the status bar when the Workshop opens ("Welcome back…"), or null. */
   initialTick: string | null;
 }
@@ -90,7 +90,7 @@ export function useForging({ workspace, session, editor, audio, onForged, initia
         const text = editor?.textOf(path) ?? buffer.text;
         const report = await workspace.forge(path, text);
         session.store.set((state) => markForged(editBuffer(state, path, text), path, text));
-        moments.push(describeForge(report, onForged?.(report)));
+        moments.push(describeForge(report, onForged?.(report, text)));
       }
       const label = paths.length === 1 ? fileName(paths[0]) : `${paths.length} files`;
       present(false, mergeMoments(moments), `Forged ${label} ✓`);
@@ -112,7 +112,7 @@ export function useForging({ workspace, session, editor, audio, onForged, initia
       const original = session.store.get().buffers.get(path)?.original ?? (await workspace.read(path)).original;
       session.store.set((state) => resetBuffer(state, path, original));
       editor?.resetFile(path, original);
-      present(true, describeForge(report, onForged?.(report)), `Reverted ${fileName(path)}`);
+      present(true, describeForge(report, onForged?.(report, original)), `Reverted ${fileName(path)}`);
     } catch (error) {
       audio.sfx("error");
       say(error instanceof Error ? error.message : "The revert failed, so nothing changed.", "warn");

@@ -2,28 +2,36 @@
  * The layered character generator (the hero and every villager).
  *
  *   renderCharacter(look, hatId) → a sheet of 4 directions × 3 frames
+ *   characterSwatch(look, hatId, facing, crop) → one small still picture (creator swatches)
  *
  * A character is assembled like paper dolls, back to front:
  *
- *   hair (back) → legs → outfit → head → eyes, mouth, accessory → hair (front) → hat
+ *   back item (behind) → hair (back) → legs → outfit → head
+ *   → eyes, mouth, skin detail, facial hair, eyewear → hair (front) → back item (over) → hat
  *
- * Each layer is a string grid from characterParts.ts; colours come from the
- * player's choices in `CharacterLook` (indices into the option lists in
- * catalog.ts). Shades and highlights are DERIVED from those base colours
- * (color.ts), so any skin / hair / outfit colour gets proper shading. When
- * the picture is complete, a coloured outline is traced around it: each
+ * (From the side the back item's behind-layer goes after the back hair, so
+ * long hair never hides a cape or wings; from the front hair falls in front.)
+ *
+ * Each layer is a string grid from the characterParts/Face/Hair/Outfits/
+ * Back/Hats files; colours come from the player's choices (characterPalette.ts).
+ * When the picture is complete, a coloured outline is traced around it: each
  * outline pixel is a dark version of the colour it touches ("selective
  * outlining"), so blonde hair gets a brown outline instead of a black one.
  *
  * Frame size: 20 × 32 px, anchor (10, 32) = between the feet. The figure
  * itself is ~16 × 20; the empty space above the head is room for hats.
  */
-import { ACCESSORIES, EYE_STYLES, HAIR_COLORS, HAIR_STYLES, HATS, OUTFIT_COLORS, OUTFITS, SKIN_TONES } from "@/lib/game/catalog";
-import { mulberry32 } from "@/lib/rng";
+import { BACK_ITEMS, EYE_STYLES, EYEWEAR, FACE_DETAILS, FACIAL_HAIR, HAIR_STYLES, HATS, MOUTHS } from "@/lib/game/catalog";
 import type { CharacterLook } from "@/lib/types";
-import { INK, light, luminance, mix, shade } from "./color";
+import { INK, mix, shade } from "./color";
 import { cached, mod, Pix, type Palette, type Sprite } from "./engine";
-import { ACCESSORY, BOB, FACE, HAIR, HAT_ART, HEAD, LEGS, MOUTH, OUTFIT_LEGS, OUTFIT_PARTS, type Part, type View } from "./characterParts";
+import { BACK_ART } from "./characterBack";
+import { EYE_ART, EYEWEAR_ART, FACE_DETAIL_ART, FACIAL_HAIR_ART, MOUTH_ART } from "./characterFace";
+import { HAIR, HAIR_VOLUME } from "./characterHair";
+import { HAT_ART, type HatArt } from "./characterHats";
+import { OUTFIT_PARTS } from "./characterOutfits";
+import { lookPalette, outfitName, pick, wornPalette } from "./characterPalette";
+import { BOB, HEAD, LEGS, type Part, type View } from "./characterParts";
 
 export type Facing = "down" | "up" | "left" | "right";
 export const FACINGS: Facing[] = ["down", "up", "left", "right"];
@@ -41,6 +49,14 @@ const OY = 12;
  */
 export const WALK_CYCLE = [1, 0, 2, 0];
 
+/** Free rows a lifted hat keeps above it inside the frame (the walking bounce and the outline). */
+const HAT_HEADROOM = 2;
+
+/** At most this many sheets stay cached (the oldest unused one is dropped first). */
+export const MAX_CACHED_SHEETS = 96;
+/** At most this many creator swatches stay cached. */
+export const MAX_CACHED_SWATCHES = 480;
+
 export interface CharacterSheet {
   look: CharacterLook;
   hat: string | null;
@@ -48,8 +64,30 @@ export interface CharacterSheet {
   frame(dir: Facing, step: number): Sprite;
 }
 
-/** Clamp-safe option lookup (old saves may hold out-of-range indices). */
-const pick = <T,>(list: readonly T[], i: number): T => list[mod(i, list.length)];
+type LookField = Exclude<keyof CharacterLook, "name">;
+
+/** Every look field that changes the picture. A Record, so forgetting a new field is a type error. */
+const PICTURE_FIELDS: Record<LookField, true> = {
+  skin: true,
+  hairStyle: true,
+  hairColor: true,
+  outfit: true,
+  outfitColor: true,
+  outfitColor2: true,
+  eyes: true,
+  eyeColor: true,
+  mouth: true,
+  faceDetail: true,
+  eyewear: true,
+  facialHair: true,
+  backItem: true,
+};
+export const LOOK_FIELDS = Object.keys(PICTURE_FIELDS) as LookField[];
+
+/** Cache key of a look + hat: every picture field (never the name: it is not drawn into the sprite). */
+export function lookKey(look: CharacterLook, hatId: string | null): string {
+  return `${LOOK_FIELDS.map((field) => look[field]).join(",")}|${hatId ?? "-"}`;
+}
 
 const outlineCache = new Map<string, string>();
 /** Outline colour for a pixel of colour `c`: a deep, slightly purple version of it. */
@@ -57,81 +95,24 @@ function selout(c: string): string {
   return cached(outlineCache, c, () => mix(shade(c, 0.4), INK, 0.55));
 }
 
-/** All the colours for one look, keyed by the grid characters. */
-function lookPalette(look: CharacterLook): Palette {
-  const skin = pick(SKIN_TONES, look.skin);
-  const hair = pick(HAIR_COLORS, look.hairColor);
-  const outfitName = pick(OUTFITS, look.outfit);
-  const cloth = pick(OUTFIT_COLORS, look.outfitColor);
-  const lightCloth = luminance(cloth) > 0.8;
-  const legs = OUTFIT_LEGS[outfitName];
-  const pants = legs === "outfit" ? cloth : legs === "skin" ? skin : legs === "robe" ? shade(cloth, 0.12) : outfitName === "Hoodie" ? "#3f4560" : "#4b5a8c";
-  const shoe = outfitName === "Dress" ? "#c0405a" : outfitName === "Robe" ? "#4a3a5a" : "#6b4a3a";
-  return {
-    s: skin,
-    S: shade(skin, 0.08),
-    t: light(skin, 0.05),
-    o: mix(shade(skin, 0.5), INK, 0.72),
-    e: "#2b1d34",
-    E: "#ffffff",
-    m: mix(skin, "#b8304f", 0.5),
-    n: mix(skin, "#ff5f86", 0.45),
-    f: shade(skin, 0.17),
-    k: "#3a3048",
-    c: cloth,
-    C: shade(cloth, lightCloth ? 0.09 : 0.12),
-    h: light(cloth, lightCloth ? 0.02 : 0.1),
-    w: lightCloth ? "#9cc4ee" : "#f7f1e6",
-    W: lightCloth ? "#7aa4d4" : "#d8cdd4",
-    p: pants,
-    P: shade(pants, 0.1),
-    b: shoe,
-    B: shade(shoe, 0.12),
-    g: outfitName === "Dress" ? (lightCloth ? "#ff8fab" : "#fff4f7") : "#ffd34d",
-    r: hair,
-    R: shade(hair, 0.12),
-    y: light(hair, luminance(hair) > 0.75 ? 0.06 : 0.12),
-  };
+/** The face, seen from the front or the side. */
+function drawFace(put: (part: Part | undefined, palette?: Palette) => void, look: CharacterLook, view: "down" | "side"): void {
+  put(EYE_ART[view][pick(EYE_STYLES, look.eyes)]);
+  put(MOUTH_ART[view][pick(MOUTHS, look.mouth)]);
+  put(FACE_DETAIL_ART[view][pick(FACE_DETAILS, look.faceDetail)]);
+  put(FACIAL_HAIR_ART[view][pick(FACIAL_HAIR, look.facialHair)]);
+  const eyewear = EYEWEAR_ART[pick(EYEWEAR, look.eyewear)];
+  if (eyewear) put(eyewear[view], eyewear.pal);
 }
 
-function hatPalette(hatId: string, pal: Palette): Palette {
-  const art = HAT_ART[hatId];
-  const out: Palette = {};
-  for (const [k, v] of Object.entries(art.pal)) out[k] = v === "@hair" ? pal.r : v === "@hairShade" ? pal.R : v;
-  return out;
+/** How far a hat that perches on the hair rises on a voluminous style, as far as the frame has room. */
+function hatLift(hat: HatArt, part: Part, hairStyle: string): number {
+  if (!hat.perch) return 0;
+  return Math.max(0, Math.min(HAIR_VOLUME[hairStyle] ?? 0, OY + part.y - HAT_HEADROOM));
 }
 
-/** Draws one frame facing down, up or left (right = mirrored left). */
-function composeFrame(look: CharacterLook, hatId: string | null, view: View, step: number): Pix {
-  const p = new Pix(CHAR_W, CHAR_H);
-  const pal = lookPalette(look);
-  const bob = BOB[step];
-  const put = (target: Pix, part: Part | null | undefined, palette: Palette = pal, dy = bob) => {
-    if (part) target.stamp(part.rows, palette, OX + (part.x ?? 0), OY + part.y + dy);
-  };
-  const outfitName = pick(OUTFITS, look.outfit);
-  const hair = HAIR[pick(HAIR_STYLES, look.hairStyle)] ?? HAIR.Short;
-  const hat = hatId ? HAT_ART[hatId] : undefined;
-
-  put(p, hair[view].back);
-  put(p, LEGS[view][step], pal, 0);
-  put(p, OUTFIT_PARTS[outfitName]?.[view] ?? OUTFIT_PARTS.Tee[view]);
-  put(p, HEAD);
-  if (view !== "up") {
-    put(p, FACE[view][pick(EYE_STYLES, look.eyes)]);
-    put(p, MOUTH[view]);
-    put(p, ACCESSORY[view][pick(ACCESSORIES, look.accessory)]);
-  }
-  // hair goes on its own layer so a hat can trim whatever would poke through it
-  const hairLayer = new Pix(CHAR_W, CHAR_H);
-  put(hairLayer, hair[view].front);
-  if (hat?.clip !== undefined) {
-    for (let y = 0; y < OY + hat.clip + bob; y++) for (let x = 0; x < CHAR_W; x++) hairLayer.erase(x, y);
-  }
-  p.paste(hairLayer, 0, 0);
-  if (hat) put(p, hat[view] ?? hat.down, hatPalette(hatId!, pal));
-
-  // coloured outline around the whole silhouette
+/** Traces the coloured outline around everything painted. */
+function addOutline(p: Pix): void {
   const edge: [number, number, string][] = [];
   for (let y = 0; y < CHAR_H; y++) {
     for (let x = 0; x < CHAR_W; x++) {
@@ -142,59 +123,126 @@ function composeFrame(look: CharacterLook, hatId: string | null, view: View, ste
     }
   }
   for (const [x, y, c] of edge) p.set(x, y, c);
+}
+
+/**
+ * Draws one frame facing down, up or left (right = mirrored left) into a
+ * pixel buffer. Pure: no canvas, so tests and scripts can call it too.
+ */
+export function composeCharacter(look: CharacterLook, hatId: string | null, view: View, step: number): Pix {
+  const p = new Pix(CHAR_W, CHAR_H);
+  const pal = lookPalette(look);
+  const bob = BOB[mod(step, 3)];
+  const stamp = (target: Pix, part: Part | null | undefined, palette: Palette = pal, dy = bob) => {
+    if (part) target.stamp(part.rows, palette, OX + (part.x ?? 0), OY + part.y + dy);
+  };
+  const put = (part: Part | null | undefined, palette: Palette = pal) => stamp(p, part, palette);
+  const hairStyle = pick(HAIR_STYLES, look.hairStyle);
+  const hair = HAIR[hairStyle] ?? HAIR.Short;
+  const back = BACK_ART[pick(BACK_ITEMS, look.backItem)];
+  const backPal = back ? wornPalette(back.pal, pal) : pal;
+  const hat = hatId ? HAT_ART[hatId] : undefined;
+
+  // Seen from the front, long hair falls in front of a cape or wings; from the side it
+  // would hide them, so there the item goes over the back hair instead.
+  const itemOverHair = view !== "down";
+  if (!itemOverHair) put(back?.[view].back, backPal);
+  put(hair[view].back);
+  if (itemOverHair) put(back?.[view].back, backPal);
+  stamp(p, LEGS[view][mod(step, 3)], pal, 0);
+  put(OUTFIT_PARTS[outfitName(look)]?.[view] ?? OUTFIT_PARTS.Tee[view]);
+  put(HEAD);
+  if (view !== "up") drawFace(put, look, view);
+  // hair goes on its own layer so a hat can trim whatever would poke through it
+  const hairLayer = new Pix(CHAR_W, CHAR_H);
+  stamp(hairLayer, hair[view].front);
+  if (hat?.clip !== undefined) {
+    for (let y = 0; y < OY + hat.clip + bob; y++) for (let x = 0; x < CHAR_W; x++) hairLayer.erase(x, y);
+  }
+  p.paste(hairLayer, 0, 0);
+  // straps across the chest, or the whole item seen from behind: over long hair, so a cape never vanishes under it
+  put(back?.[view].front, backPal);
+  if (hat) {
+    const part = hat[view] ?? hat.down;
+    stamp(p, part, wornPalette(hat.pal, pal), bob - hatLift(hat, part, hairStyle));
+  }
+  addOutline(p);
   return p;
+}
+
+/** The frame for a facing: "right" is the mirrored side view. */
+function composeFacing(look: CharacterLook, hatId: string | null, dir: Facing, step: number): Pix {
+  const view: View = dir === "down" ? "down" : dir === "up" ? "up" : "side";
+  const pix = composeCharacter(look, hatId, view, step);
+  return dir === "right" ? pix.flippedX() : pix;
+}
+
+/**
+ * `cached` with a size limit: a hit moves the entry to the back of the Map's
+ * insertion order, and when the Map grows past `max` the front (the least
+ * recently used entry) is dropped.
+ */
+export function cachedBounded<T>(store: Map<string, T>, key: string, max: number, make: () => T): T {
+  const hit = store.get(key);
+  if (hit !== undefined) {
+    store.delete(key);
+    store.set(key, hit);
+    return hit;
+  }
+  const made = make();
+  store.set(key, made);
+  while (store.size > max) store.delete(store.keys().next().value!);
+  return made;
 }
 
 const sheets = new Map<string, CharacterSheet>();
 
-/** Builds (or returns the cached) sprite sheet for a look + hat. */
+/** Builds (or returns the cached) sprite sheet for a look + hat. Frames are drawn on first use. */
 export function renderCharacter(look: CharacterLook, hatId: string | null): CharacterSheet {
   const hat = hatId && HAT_ART[hatId] ? hatId : null;
-  const key = [look.skin, look.hairStyle, look.hairColor, look.outfit, look.outfitColor, look.eyes, look.accessory, hat ?? "-"].join(",");
-  return cached(sheets, key, () => {
+  return cachedBounded(sheets, lookKey(look, hat), MAX_CACHED_SHEETS, () => {
     const frames = new Map<string, Sprite>();
     return {
       look,
       hat,
       frame(dir, step) {
         const s = mod(step, 3);
-        const k = `${dir}${s}`;
-        let sp = frames.get(k);
-        if (!sp) {
-          const view: View = dir === "down" ? "down" : dir === "up" ? "up" : "side";
-          let pix = composeFrame(look, hat, view, s);
-          if (dir === "right") pix = pix.flippedX();
-          sp = pix.toSprite(CHAR_W / 2, CHAR_H);
-          frames.set(k, sp);
-        }
-        return sp;
+        return cached(frames, `${dir}${s}`, () => composeFacing(look, hat, dir, s).toSprite(CHAR_W / 2, CHAR_H));
       },
     };
   });
 }
 
-const NAME_START = ["Pip", "Mo", "Lu", "Bix", "Tam", "Wren", "Juno", "Kip", "Nell", "Odo", "Rue", "Sol", "Fen", "Ivy", "Bo", "Mika", "Ash", "Pru", "Zed", "Lark"];
-const NAME_END = ["", "", "", "py", "ble", "lo", "na", "kin", "sy", "ra"];
+/** Swatches leave out the frame's outermost columns, which only the widest wings ever touch. */
+const SWATCH_SIDE_MARGIN = 1;
+
+/** Parts of the frame a creator swatch can show, as frame rows [top, bottom). */
+export const SWATCH_CROPS = {
+  /** Eyes, mouth, skin details, eyewear. */
+  face: [OY + 2, OY + 13],
+  /** Hair and hats. */
+  head: [OY - 6, OY + 14],
+  /** Outfits and back items: the whole figure, without the room for tall hats. */
+  body: [OY - 4, CHAR_H],
+} as const;
+export type SwatchCrop = keyof typeof SWATCH_CROPS;
+
+const swatches = new Map<string, Sprite>();
 
 /**
- * A random (but repeatable) look for villagers: the same seed always gives
- * the same person. Hats are not part of a look; pick one separately if you
- * want villagers to wear them.
+ * One still, standing picture of a look, cropped to the part a creator
+ * swatch is about. Cached apart from the sheets, so a grid of swatches
+ * never renders whole sheets and costs nothing after the first paint.
  */
-export function randomLook(seed: number): CharacterLook {
-  const rng = mulberry32(seed * 7919 + 17);
-  const int = (n: number) => Math.floor(rng() * n);
-  const name = NAME_START[int(NAME_START.length)] + NAME_END[int(NAME_END.length)];
-  return {
-    name,
-    skin: int(SKIN_TONES.length),
-    hairStyle: int(HAIR_STYLES.length),
-    hairColor: rng() < 0.7 ? int(6) : int(HAIR_COLORS.length), // mostly natural colours
-    outfit: int(OUTFITS.length),
-    outfitColor: int(OUTFIT_COLORS.length),
-    eyes: int(EYE_STYLES.length),
-    accessory: rng() < 0.5 ? 0 : int(ACCESSORIES.length),
-  };
+export function characterSwatch(look: CharacterLook, hatId: string | null, facing: Facing, crop: SwatchCrop): Sprite {
+  const hat = hatId && HAT_ART[hatId] ? hatId : null;
+  return cachedBounded(swatches, `${lookKey(look, hat)}|${facing}|${crop}`, MAX_CACHED_SWATCHES, () => {
+    const full = composeFacing(look, hat, facing, 0);
+    const [top, bottom] = SWATCH_CROPS[crop];
+    const part = new Pix(CHAR_W - 2 * SWATCH_SIDE_MARGIN, bottom - top);
+    part.paste(full, -SWATCH_SIDE_MARGIN, -top);
+    return part.toSprite(CHAR_W / 2, part.h);
+  });
 }
 
 /** Hat ids the generator can draw (every hat in the catalog). */

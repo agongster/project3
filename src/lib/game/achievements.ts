@@ -1,7 +1,8 @@
 /**
  * Achievements: one-time badges for milestones of editing (first real fix,
  * a file purified by hand, a boss mended instead of fought…) and of the
- * game as a whole (first squash, a dungeon cleared, wishes made…).
+ * game as a whole (first monster subdued, a dungeon made quiet, wishes…).
+ * Badges about fixing need a real fix: a seal (`# noqa`) never earns one.
  *
  * The list is plain data; `ACHIEVEMENT_RULES` says, for each badge, what a
  * save must show to deserve it. Earned badges are stored per player in
@@ -31,7 +32,7 @@ export const ACHIEVEMENT_GOALS = {
   boardQuests: QUEST_BOARD_SIZE,
   /** "Light the lantern" quests for "Lamplighter". */
   lanterns: 3,
-  /** Monsters defeated for "Monster Hunter". */
+  /** Monsters subdued in fights for "Monster Hunter". */
   monsters: 100,
   /** Right fixes picked in the finisher for "Sharp Eye". */
   fixesPicked: 5,
@@ -76,17 +77,17 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   { id: "first-fix", title: "First Real Fix", how: "Fix a bug by editing its code.", icon: { type: "item", id: "greenCheck" } },
   { id: "many-fixes", title: "Bug Whisperer", how: `Fix ${ACHIEVEMENT_GOALS.manyFixes} bugs for real.`, icon: { type: "item", id: "rubberDuck" } },
   { id: "hand-purified", title: "Purified by Hand", how: "Fix a file's last bug in the Workshop.", icon: { type: "item", id: "halo" } },
-  { id: "boss-mended", title: "Boss Mender", how: "Fix a boss's code before fighting it.", icon: { type: "monster", kind: "glitchKing" } },
+  { id: "boss-mended", title: "Boss Mender", how: "Fix a boss's code before fighting it (a seal won't do).", icon: { type: "monster", kind: "glitchKing" } },
   { id: "top-marks", title: "Top Marks", how: "Raise a file to grade S by editing it.", icon: { type: "item", id: "crown" } },
   { id: "short-streak", title: "On a Roll", how: `Forge ${ACHIEVEMENT_GOALS.shortStreak} clean fixes in a row.`, icon: { type: "item", id: "refactorHammer" } },
   { id: "long-streak", title: "Steady Hands", how: `Forge ${ACHIEVEMENT_GOALS.longStreak} clean fixes in a row.`, icon: { type: "item", id: "goldenDuck" } },
   { id: "first-quest", title: "Quest Taker", how: "Complete your first quest.", icon: { type: "ui", name: "star" } },
   { id: "board-cleared", title: "Board Cleared", how: `Complete ${ACHIEVEMENT_GOALS.boardQuests} quests in one repo.`, icon: { type: "ui", name: "chestOpen" } },
   { id: "lamplighter", title: "Lamplighter", how: `Complete ${ACHIEVEMENT_GOALS.lanterns} "Light the lantern" quests.`, icon: { type: "item", id: "docScarf" } },
-  { id: "restored", title: "Kingdom Restored", how: "Bring a repo to 100% health, at least half of it fixed by hand.", icon: { type: "item", id: "rainbowTrail" } },
-  { id: "first-squash", title: "First Squash", how: "Defeat your first monster.", icon: { type: "monster", kind: "dustBunny" } },
-  { id: "monster-hunter", title: "Monster Hunter", how: `Defeat ${ACHIEVEMENT_GOALS.monsters} monsters.`, icon: { type: "item", id: "bugNet" } },
-  { id: "first-dungeon", title: "Dungeon Delver", how: "Purify a dungeon by defeating every monster in it.", icon: { type: "ui", name: "chestClosed" } },
+  { id: "restored", title: "Kingdom Restored", how: "Bring a repo to 100% health, at least half of it fixed by hand (not sealed).", icon: { type: "item", id: "rainbowTrail" } },
+  { id: "first-squash", title: "First Squash", how: "Subdue your first monster in a fight.", icon: { type: "monster", kind: "dustBunny" } },
+  { id: "monster-hunter", title: "Monster Hunter", how: `Subdue ${ACHIEVEMENT_GOALS.monsters} monsters in fights.`, icon: { type: "item", id: "bugNet" } },
+  { id: "first-dungeon", title: "Dungeon Delver", how: "Quiet a dungeon: subdue every monster in it.", icon: { type: "ui", name: "chestClosed" } },
   { id: "sharp-eye", title: "Sharp Eye", how: `Pick the right fix ${ACHIEVEMENT_GOALS.fixesPicked} times.`, icon: { type: "item", id: "typeBow" } },
   { id: "well-wisher", title: "Well Wisher", how: `Make ${ACHIEVEMENT_GOALS.wishes} wishes at the Wishing Well.`, icon: { type: "ui", name: "coinBig" } },
 ];
@@ -125,13 +126,12 @@ export const ACHIEVEMENT_RULES: Readonly<Record<AchievementId, (facts: Achieveme
 export const ACHIEVEMENT_IDS: ReadonlySet<string> = new Set(ACHIEVEMENTS.map((achievement) => achievement.id));
 
 /**
- * True when Repo Health is 100% (every bug either defeated or fixed) and at
- * least half of those bugs were fixed in the code rather than fought.
+ * True when Repo Health is 100% (every bug fixed or sealed) and at least
+ * half of all the bugs were really fixed in the code, not sealed.
  */
 export function isRestoredByHand(analysis: RepoAnalysis, progress: RepoProgress): boolean {
   const health = repoHealth(analysis, progress);
-  const fixed = health.fixed ?? 0;
-  return fixed > 0 && health.defeated + fixed === health.total && fixed * 2 >= health.total;
+  return health.fixed > 0 && health.fixed + health.sealed === health.total && health.fixed * 2 >= health.total;
 }
 
 /** Gathers the facts for the achievement rules. */

@@ -5,12 +5,13 @@
  *   0 ─ startDeath: squash sound, the body starts to flatten (monsterDraw.ts)
  *   │   bosses: the whole game drops into slow motion and the boss shudders
  *   │   critical fixes (the right pick in the finisher, dazed.ts): slow motion
- *   │   too, a golden flash and "CRITICAL FIX!"
+ *   │   too, a golden flash and "CRITICAL SUBDUE!"
  *   deathDuration ─ finishDeath: smoke poof, burst, coins (and maybe a heart),
  *   │   the defeat is recorded (XP, "squashed" toast, level-ups, milestones)
  *   │   — only when this body's death defeats the finding (an echo bat's
  *   │   first body just pops, see traits/oneDefeat.ts)
  *   │   bosses: big burst, `bossDown`, white flash, back to dungeon music
+ *   │   champions: the same grand death, and their better drops (CHAMPION_STATS)
  *   │   critical fixes: a star burst and double coins (and double XP, defeat.ts)
  *   + BUG_CARD_DELAY_SEC ─ bosses only: the game pauses on the bug card
  *   │   (skipped when the finisher overlay already showed this bug)
@@ -18,6 +19,7 @@
  *              before the dungeon purifies)
  */
 import { uiSprite } from "@/game/art/ui";
+import { CHAMPION_STATS } from "@/lib/game/champions";
 import { CRITICAL_FIX_COIN_MULTIPLIER } from "@/lib/game/finisher";
 import type { SceneContext } from "../../scenes/context";
 import { recordFindingDefeated } from "../../scenes/defeat";
@@ -44,16 +46,21 @@ const CRITICAL_SHAKE = 0.45;
 const CRITICAL_STARS = 14;
 const CRITICAL_BITS = 16;
 const CRITICAL_BURST_COLORS = ["#ffe066", "#ffd36b", "#8dffa8", "#ffffff"];
-/** "CRITICAL FIX!" floats this far above the monster's head. */
+/** "CRITICAL SUBDUE!" floats this far above the monster's head. */
 const CRITICAL_TEXT_LIFT_PX = 10;
 
+/** Bosses and champions go down the grand way: slow motion, shudders, a big burst. */
+export function hasGrandDeath(m: Monster): boolean {
+  return m.isBoss || m.champion;
+}
+
 export function deathDuration(m: Monster): number {
-  return m.isBoss ? BOSS_DEATH_SEC : DEATH_SQUASH_SEC;
+  return hasGrandDeath(m) ? BOSS_DEATH_SEC : DEATH_SQUASH_SEC;
 }
 
 /** Seconds after `deathDuration` before the monster stops counting as remaining. */
 export function lingerDuration(m: Monster): number {
-  return m.isBoss ? BOSS_LINGER_SEC : LINGER_SEC;
+  return hasGrandDeath(m) ? BOSS_LINGER_SEC : LINGER_SEC;
 }
 
 /** True while the body is still on screen (squashing or shuddering). */
@@ -62,8 +69,8 @@ export function isDeathAnimating(m: Monster): boolean {
 }
 
 export function startDeath(ctx: SceneContext, m: Monster): void {
-  ctx.audio.sfx("squash", { pitch: m.isBoss ? 0.7 : 0.9 + Math.random() * 0.2 });
-  if (m.isBoss) {
+  ctx.audio.sfx("squash", { pitch: hasGrandDeath(m) ? 0.7 : 0.9 + Math.random() * 0.2 });
+  if (hasGrandDeath(m)) {
     ctx.shake(0.5);
     ctx.juice.flash("#ffffff", 0.35, 0.3);
   }
@@ -71,13 +78,13 @@ export function startDeath(ctx: SceneContext, m: Monster): void {
     ctx.audio.sfx("crit", { pitch: 0.8 });
     ctx.shake(CRITICAL_SHAKE);
     ctx.juice.flash(CRITICAL_FLASH.color, CRITICAL_FLASH.alpha, CRITICAL_FLASH.sec);
-    ctx.floatText(m.x, m.y - m.def.size - CRITICAL_TEXT_LIFT_PX, "CRITICAL FIX!", "crit");
+    ctx.floatText(m.x, m.y - m.def.size - CRITICAL_TEXT_LIFT_PX, "CRITICAL SUBDUE!", "crit");
   }
 }
 
-/** Bosses shudder and spit glitter while they go down. */
+/** Bosses and champions shudder and spit glitter while they go down. */
 export function updateDeathFx(ctx: SceneContext, m: Monster, before: number): void {
-  if (!m.isBoss || !isDeathAnimating(m)) return;
+  if (!hasGrandDeath(m) || !isDeathAnimating(m)) return;
   if (Math.floor(before / BOSS_SHUDDER_EVERY_SEC) === Math.floor(m.dyingFor / BOSS_SHUDDER_EVERY_SEC)) return;
   const x = m.x + (Math.random() - 0.5) * 24;
   const y = m.y - Math.random() * 24;
@@ -88,18 +95,21 @@ export function updateDeathFx(ctx: SceneContext, m: Monster, before: number): vo
 /** The pop: effects, and — when this death defeats the finding — coins, maybe a heart, and the save bookkeeping. */
 export function finishDeath(ctx: SceneContext, m: Monster, reward: DeathReward): void {
   const midY = m.y - m.def.size / 2;
+  const grand = hasGrandDeath(m);
   playPoof(ctx, m.x, midY);
   emitBits(ctx, m.x, midY, 8, POP_COLORS);
-  ctx.particles.burst(m.isBoss ? 24 : 6, m.x, midY, m.isBoss ? 90 : 45, { life: m.isBoss ? 1.2 : 0.6, sprite: uiSprite("sparkle", 0), drag: 2.5 });
-  if (m.isBoss) bossBurst(ctx, m);
+  ctx.particles.burst(grand ? 24 : 6, m.x, midY, grand ? 90 : 45, { life: grand ? 1.2 : 0.6, sprite: uiSprite("sparkle", 0), drag: 2.5 });
+  if (grand) bossBurst(ctx, m);
   if (m.criticalFix) criticalBurst(ctx, m);
   if (!reward.pays) return;
 
-  const multiplier = (m.criticalFix ? CRITICAL_FIX_COIN_MULTIPLIER : 1) * reward.coinMultiplier;
+  const championBonus = m.champion ? CHAMPION_STATS.coinMultiplier : 1;
+  const multiplier = (m.criticalFix ? CRITICAL_FIX_COIN_MULTIPLIER : 1) * reward.coinMultiplier * championBonus;
   const coins = coinsForDefeat(m.def, ctx.petPerk, Math.random) * multiplier;
   ctx.spawnCoins(m.x, m.y, coins);
   const player = ctx.game.player;
-  if (Math.random() < heartDropChance(player.hp)) ctx.spawnHeart(m.x, m.y);
+  // A champion always drops a heart: part of its better loot.
+  if (m.champion || Math.random() < heartDropChance(player.hp)) ctx.spawnHeart(m.x, m.y);
   recordFindingDefeated(ctx, m.finding, Math.floor(coins * ctx.game.combo.coinMultiplier()), m.criticalFix);
 }
 

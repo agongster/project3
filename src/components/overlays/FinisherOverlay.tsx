@@ -6,9 +6,11 @@
  * finding's own fix tip and two tips of other rules (src/lib/game/finisher.ts).
  * Keys 1 / 2 / 3 or the mouse pick.
  *
- *   right → "CRITICAL FIX!" and confetti; the engine pays double coins and XP
- *   wrong → no penalty: the real fix lights up and the bug goes down anyway
- *   closed without a pick (Esc) → an ordinary defeat
+ *   right → a CRITICAL SUBDUE and confetti; the engine pays double coins and
+ *           XP, and the text nudges the player to apply that fix for real
+ *           (the monster is only subdued until its line is fixed)
+ *   wrong → no penalty: the real fix lights up and the bug is subdued anyway
+ *   closed without a pick (Esc) → an ordinary subdue
  *   "Fix it for real" → declines the finisher: the monster gets back up
  *         (`ctx.spareFinisher`) and the Workshop opens on its line, so the
  *         bug can be fixed in the code instead
@@ -21,6 +23,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { KeyCap, Modal, PixelButton, cx } from "@/components/ui/kit";
 import { MONSTERS } from "@/lib/game/catalog";
 import { CRITICAL_FIX_COIN_MULTIPLIER, criticalFixBonusXp, finisherOptions } from "@/lib/game/finisher";
+import { lookOf } from "@/lib/game/monsterLooks";
 import { CodeSnippet } from "./parts/CodeSnippet";
 import { TraitLine } from "./parts/codex/TraitLine";
 import { Confetti } from "./parts/Confetti";
@@ -53,8 +56,8 @@ type Phase = "asking" | "right" | "wrong";
 
 const HEADER: Record<Phase, { title: string; className: string }> = {
   asking: { title: "FINISH IT WITH A FIX!", className: "bg-berry text-cream" },
-  right: { title: "CRITICAL FIX!", className: "bg-gold text-ink" },
-  wrong: { title: "IT GOES DOWN ANYWAY!", className: "bg-sky text-ink" },
+  right: { title: "CRITICAL SUBDUE!", className: "bg-gold text-ink" },
+  wrong: { title: "SUBDUED ANYWAY!", className: "bg-sky text-ink" },
 };
 
 export default function FinisherOverlay({ request, ctx }: OverlayProps<"finisher">) {
@@ -112,8 +115,8 @@ export default function FinisherOverlay({ request, ctx }: OverlayProps<"finisher
 
   const verdict: Record<Phase, string> = {
     asking: `Pick the real fix for a critical hit: ${bonus}!`,
-    right: `That's exactly how you'd fix it in the real code. Bonus: ${bonus}!`,
-    wrong: `No harm done! The green one is the real fix. The ${monster.name} is beaten all the same.`,
+    right: `That's exactly how you'd fix it in the real code. Bonus: ${bonus}! Now do it for real: stand on its glowing line and press E.`,
+    wrong: `No harm done! The green one is the real fix. The ${monster.name} is subdued all the same: fix its line to finish it.`,
   };
 
   return (
@@ -122,14 +125,14 @@ export default function FinisherOverlay({ request, ctx }: OverlayProps<"finisher
       <header className={cx("flex items-center gap-3 px-4 py-2", HEADER[phase].className)}>
         <div className="relative flex shrink-0 items-center justify-center" style={{ width: MONSTER_BOX, height: MONSTER_BOX }}>
           {phase === "right" && <span aria-hidden="true" className={FX.rays} style={GOLD_RAYS} />}
-          <MonsterIcon kind={finding.monster} box={MONSTER_BOX} frame={frame} className={cx("relative", phase === "asking" && FX.wobble)} />
+          <MonsterIcon kind={finding.monster} box={MONSTER_BOX} frame={frame} look={lookOf(finding)} className={cx("relative", phase === "asking" && FX.wobble)} />
           {phase === "asking" &&
             STARS.map(([left, top, delay]) => (
               <PixelSprite key={left} sprite={uiIcon("star")} scale={2} className={FX.twinkle} style={{ left, top, "--delay": delay } as CSSProperties} />
             ))}
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="font-title text-xl tracking-wider">{HEADER[phase].title}</h2>
+          <h2 className="font-title text-pixel-md">{HEADER[phase].title}</h2>
           <p className="truncate text-sm font-bold">
             {monster.name} = {finding.title} <code className="font-mono">{finding.code}</code> · {finding.path}:{finding.line}
           </p>
@@ -163,12 +166,12 @@ export default function FinisherOverlay({ request, ctx }: OverlayProps<"finisher
           <>
             <WorkshopLink className="text-sm" onClick={fixForReal} title="Spare it, and fix its bug in the Workshop instead" />
             <PixelButton tone="cream" small onClick={finish}>
-              Just squash it <KeyCap>Esc</KeyCap>
+              Just subdue it <KeyCap>Esc</KeyCap>
             </PixelButton>
           </>
         ) : (
           <PixelButton tone="gold" onClick={finish}>
-            Squash it! <KeyCap>Space</KeyCap>
+            Subdue it! <KeyCap>Space</KeyCap>
           </PixelButton>
         )}
       </footer>

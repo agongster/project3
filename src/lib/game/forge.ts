@@ -1,32 +1,36 @@
 /**
  * What a forge (saving code in the Workshop) does to the player's save.
  *
- *   const { save: next, paid } = applyForge(save, repoKey, report);
+ *   const { save: next, paid } = applyForge(save, repoKey, report, sealedIds);
  *
- * `report` comes from `Workspace.forge` / `revert` (src/lib/workspace). Four
- * rules, all pure:
+ * `report` comes from `Workspace.forge` / `revert` (src/lib/workspace);
+ * `sealedIds` says which of the file's original findings gone from the
+ * code are only SEALED with `# noqa` (seal.ts, `splitSealed`). Five rules,
+ * all pure:
  *
  * 1. **Real fixes pay, once.** Every finding of the repo's ORIGINAL code that
- *    is gone from the saved text (`report.file.fixedFindings`) pays
- *    FIX_COIN_MULTIPLIER × the most coins and FIX_XP_MULTIPLIER × the XP its
- *    monster gives in a fight, the first time it is fixed. It is remembered
- *    by its id in the original text, which never changes, so a fix that is
- *    reverted and redone does not pay again, and a bug the player wrote
- *    themselves pays nothing when they remove it (no farming).
- * 2. **Progress follows the code.** Monster ids contain line numbers, so after
- *    a forge every defeated (or bounty-settled) id of a finding that merely
- *    moved is renamed to its new id; ids of fixed findings are dropped, so
- *    an unrelated bug that later lands on the same spot is not "already
- *    defeated".
- * 3. **New bugs reopen the dungeon.** If the file now has monsters that are
- *    not defeated, it is no longer recorded as cleared: it is a live dungeon
- *    again. Its chest is not refilled (`opened` is kept): one chest per
- *    building, ever. A file purified by editing becomes a treasure house
- *    whose chest can be opened if it never was.
- * 4. **No penalty.** New bugs cost nothing; coins already paid stay paid.
+ *    is gone from the saved text (`report.file.fixedFindings`) and NOT
+ *    sealed pays FIX_COIN_MULTIPLIER × the most coins and FIX_XP_MULTIPLIER
+ *    × the XP its monster gives in a fight, the first time it is fixed. It
+ *    is remembered by its id in the original text, which never changes, so
+ *    a fix that is reverted and redone does not pay again, and a bug the
+ *    player wrote themselves pays nothing when they remove it (no farming).
+ * 2. **Seals pay nothing** and are remembered in `RepoProgress.sealed`, so
+ *    the game can show them as sealed. That list is rebuilt for the forged
+ *    file at every forge: removing a seal (or turning it into a real fix)
+ *    takes the file's old entries away.
+ * 3. **Progress follows the code.** Monster ids contain line numbers, so after
+ *    a forge every subdued (or bounty-settled) id of a finding that merely
+ *    moved is renamed to its new id; ids of findings gone from the code are
+ *    dropped, so an unrelated bug that later lands on the same spot is not
+ *    "already subdued".
+ * 4. **New bugs wake the dungeon.** If the file now has monsters that are not
+ *    subdued, it is no longer recorded as quiet (`cleared`). Its chest is not
+ *    refilled (`opened` is kept): one chest per building, ever.
+ * 5. **No penalty.** New bugs cost nothing; coins already paid stay paid.
  */
 import { MONSTERS } from "@/lib/game/catalog";
-import { getProgress, levelForXp, remainingFindings, withRepoProgress } from "@/lib/game/progress";
+import { aliveFindings, getProgress, levelForXp, withRepoProgress } from "@/lib/game/progress";
 import { MAX_COINS, MAX_PAID_FIXES, MAX_XP } from "@/lib/game/store";
 import type { Finding, RepoProgress, SaveData } from "@/lib/types";
 import type { ForgeReport } from "@/lib/workspace/contract";
@@ -65,23 +69,41 @@ export function fixXp(finding: Pick<Finding, "monster">): number {
 }
 
 /** Applies a forge report to the save (see the rules at the top of this file). Pure. */
-export function applyForge(save: SaveData, repoKey: string, report: ForgeReport): ForgeResult {
+export function applyForge(save: SaveData, repoKey: string, report: ForgeReport, sealedIds: readonly string[] = []): ForgeResult {
   if (!report.linted || report.file === null) return { save, paid: NOTHING_PAID };
   const before = getProgress(save, repoKey);
+  const sealedNow = new Set(sealedIds);
+  const gone = report.file.fixedFindings ?? [];
 
   const rename = renamer(report);
   const defeated = rename(before.defeated);
   const bounties = before.bounties && rename(before.bounties);
-  const stillLive = remainingFindings(report.file, { ...before, defeated }).length > 0;
-  const cleared = stillLive ? before.cleared.filter((path) => path !== report.path) : before.cleared;
+  const awake = aliveFindings(report.file, { ...before, defeated }).length > 0;
+  const cleared = awake ? before.cleared.filter((path) => path !== report.path) : before.cleared;
+  const sealed = sealedList(before.sealed, report.path, gone.filter((finding) => sealedNow.has(finding.id)));
 
   const paidIds = new Set(before.fixes ?? []);
-  const newFixes = (report.file.fixedFindings ?? []).filter((finding) => !paidIds.has(finding.id));
+  const newFixes = gone.filter((finding) => !paidIds.has(finding.id) && !sealedNow.has(finding.id));
   const fixes = newFixes.length > 0 ? [...(before.fixes ?? []), ...newFixes.map((finding) => finding.id)].slice(-MAX_PAID_FIXES) : before.fixes;
 
   const progress: RepoProgress = { ...before, defeated, cleared, ...(bounties && { bounties }), ...(fixes && { fixes }) };
+  // A repo with nothing sealed keeps no `sealed` list at all (like a save from before seals existed).
+  if (sealed) progress.sealed = sealed;
+  else delete progress.sealed;
   if (sameProgress(before, progress)) return { save, paid: NOTHING_PAID };
   return pay(withRepoProgress(save, repoKey, progress), newFixes);
+}
+
+/**
+ * The repo's sealed ids after a forge of `path`: the file's earlier entries
+ * are replaced by its findings sealed now. Ids are `path:line:col:code`, so
+ * a file's entries are the ones that start with its path and a colon.
+ * Undefined when nothing in the repo is sealed.
+ */
+function sealedList(before: readonly string[] | undefined, path: string, sealedHere: readonly Finding[]): string[] | undefined {
+  const others = (before ?? []).filter((id) => !id.startsWith(`${path}:`));
+  const list = [...others, ...sealedHere.map((finding) => finding.id)].slice(-MAX_PAID_FIXES);
+  return list.length === 0 ? undefined : list;
 }
 
 /**
@@ -103,7 +125,13 @@ function sameList<T>(a: readonly T[] | undefined, b: readonly T[] | undefined): 
 }
 
 function sameProgress(a: RepoProgress, b: RepoProgress): boolean {
-  return sameList(a.defeated, b.defeated) && sameList(a.cleared, b.cleared) && sameList(a.bounties, b.bounties) && sameList(a.fixes, b.fixes);
+  return (
+    sameList(a.defeated, b.defeated) &&
+    sameList(a.cleared, b.cleared) &&
+    sameList(a.bounties, b.bounties) &&
+    sameList(a.fixes, b.fixes) &&
+    sameList(a.sealed, b.sealed)
+  );
 }
 
 /** Pays coins and XP for `fixes` and counts them in the lifetime stats. */

@@ -26,21 +26,23 @@ describe("buildChecklist", () => {
   const markdown = buildChecklist(analysis, { ...emptyProgress(), defeated: [unused.id] });
   const lines = markdown.split("\n");
 
-  it("starts with a header naming the repo, the short SHA and the totals", () => {
+  it("starts with a header naming the repo, the short SHA and the totals (a fight alone deals with nothing)", () => {
     expect(lines[0]).toBe("# Bug checklist: octocat/potions");
-    expect(markdown).toContain("Commit `abc123d` on `main` · **1 of 3** bugs squashed in Lintlands (33%) · 2 files");
+    expect(markdown).toContain(
+      "Commit `abc123d` on `main` · **0 of 3** bugs dealt with in Lintlands (0%): 0 fixed in the code · 1 subdued in the game, waiting for a fix · 2 files",
+    );
     expect(markdown).toContain("Plus 2 smaller findings not listed below.");
   });
 
-  it("lists each finding as a task, ticked when defeated", () => {
-    expect(lines).toContain("- [x] `potions/brew.py:3` — **F401** Unused import — `os` imported but unused");
+  it("lists each finding as a task, still open when its monster is only subdued", () => {
+    expect(lines).toContain("- [ ] `potions/brew.py:3` — **F401** Unused import — `os` imported but unused — _subdued in the game: now fix it in the code_");
     expect(lines).toContain("- [ ] `potions/brew.py:42` — **F821** Undefined name — Undefined name `cauldron`");
   });
 
   it("groups by file (alphabetically), with a per-file count and an overflow line", () => {
     const headings = lines.filter((line) => line.startsWith("## "));
-    expect(headings).toEqual(["## `pkg/__init__.py` (0/1)", "## `potions/brew.py` (1/2)"]);
-    const brewStart = lines.indexOf("## `potions/brew.py` (1/2)");
+    expect(headings).toEqual(["## `pkg/__init__.py` (0/1)", "## `potions/brew.py` (0/2)"]);
+    const brewStart = lines.indexOf("## `potions/brew.py` (0/2)");
     expect(lines.slice(brewStart + 2, brewStart + 5)).toEqual([
       expect.stringContaining(":3`"),
       expect.stringContaining(":42`"),
@@ -75,7 +77,7 @@ describe("buildChecklist", () => {
   });
 });
 
-describe("buildChecklist with bugs fixed in the code", () => {
+describe("buildChecklist with bugs fixed or sealed in the code", () => {
   const bareExcept = makeFinding("potions/brew.py", 7, "swallowToad", { code: "E722", title: "Bare except", message: "Do not use bare `except`" });
   const edited = makeAnalysis([
     { ...makeFile("potions/brew.py", { findings: [unused, undefinedName] }), realFixes: 1, fixedFindings: [bareExcept] },
@@ -84,19 +86,24 @@ describe("buildChecklist with bugs fixed in the code", () => {
   const markdown = buildChecklist(edited, { ...emptyProgress(), defeated: [unused.id] });
   const lines = markdown.split("\n");
 
-  it("counts squashed and fixed bugs apart in the header", () => {
-    expect(markdown).toContain("**3 of 4** bugs dealt with in Lintlands (75%): 1 squashed in the game, 2 fixed in the code · 2 files");
+  it("counts fixed and subdued bugs apart in the header", () => {
+    expect(markdown).toContain("**2 of 4** bugs dealt with in Lintlands (50%): 2 fixed in the code · 1 subdued in the game, waiting for a fix · 2 files");
   });
 
   it("lists a fixed bug as done and says it was fixed in the code", () => {
     expect(lines).toContain("- [x] `potions/brew.py:7` — **E722** Bare except — Do not use bare `except` — _fixed in the code_");
-    expect(lines).toContain("- [x] `potions/brew.py:3` — **F401** Unused import — `os` imported but unused");
     expect(lines.filter((line) => line.includes("fixed in the code_"))).toHaveLength(2);
   });
 
   it("keeps a file whose every bug was fixed, and counts it per file", () => {
     expect(lines).toContain("## `pkg/fixed.py` (1/1)");
-    expect(lines).toContain("## `potions/brew.py` (2/3)");
+    expect(lines).toContain("## `potions/brew.py` (1/3)");
+  });
+
+  it("ticks a sealed bug but says it was only sealed", () => {
+    const sealedList = buildChecklist(edited, { ...emptyProgress(), defeated: [unused.id], sealed: [bareExcept.id] });
+    expect(sealedList).toContain("- [x] `potions/brew.py:7` — **E722** Bare except — Do not use bare `except` — _sealed with `# noqa`_");
+    expect(sealedList).toContain("**2 of 4** bugs dealt with in Lintlands (50%): 1 fixed in the code, 1 sealed");
   });
 
   it("points at the Workshop's patch", () => {

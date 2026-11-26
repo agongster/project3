@@ -67,7 +67,7 @@ function FallbackText({ text }: { text: string }) {
   return (
     <label className="mt-2 flex flex-col gap-1 text-xs">
       <span>Couldn&apos;t reach the clipboard. Press Ctrl/Cmd + C to copy:</span>
-      <textarea ref={ref} readOnly value={text} rows={5} className="px-input font-mono text-[11px] leading-4" />
+      <textarea ref={ref} readOnly value={text} rows={5} className="px-input font-mono text-xs leading-4" />
     </label>
   );
 }

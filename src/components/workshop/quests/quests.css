@@ -30,7 +30,7 @@
   flex-wrap: wrap;
 }
 .qst-head h2 {
-  font-size: 20px;
+  font-size: 16px;
   color: var(--color-cream);
   text-shadow: 2px 2px 0 var(--color-ink);
 }
@@ -43,8 +43,8 @@
 .qst-label {
   align-self: flex-start;
   padding: 1px 8px 2px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-cream);
@@ -77,7 +77,7 @@
 }
 .qst-streak-count {
   min-width: 2.6em;
-  font-size: 22px;
+  font-size: 24px;
   color: var(--color-gold);
   text-shadow: 2px 2px 0 var(--color-ink);
   text-align: center;
@@ -99,7 +99,7 @@
   text-transform: uppercase;
 }
 .qst-streak-hint {
-  font-size: 12px;
+  font-size: 13px;
   color: #c9bde0;
 }
 .qst-pips {
@@ -173,25 +173,25 @@
 .qst-kind {
   flex: 1;
   min-width: 0;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--color-ink-soft);
 }
 .qst-title {
-  font-weight: 700;
+  font-weight: 800;
   font-size: 15px;
 }
 .qst-desc {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-ink-soft);
 }
 .qst-progress {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   padding: 2px 3px;
 }
@@ -335,7 +335,7 @@
   color: var(--color-ink-soft);
 }
 .qst-badge-title { display: block; font-weight: 700; font-size: 13px; }
-.qst-badge-how { display: block; font-size: 12px; color: var(--color-ink-soft); }
+.qst-badge-how { display: block; font-size: 13px; color: var(--color-ink-soft); }
 
 @media (prefers-reduced-motion: reduce) {
   .qst-stamp-in { animation: none; }

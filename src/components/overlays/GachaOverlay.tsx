@@ -213,7 +213,7 @@ function CoinBalance({ coins }: { coins: number }) {
   return (
     <p className="flex items-center gap-2 bg-ink px-3 py-1 text-gold" aria-label={`${coins} coins`}>
       <PixelSprite sprite={uiIcon("coin")} scale={2} />
-      <span className="font-title text-sm tabular-nums">{coins.toLocaleString()}</span>
+      <span className="text-lg font-extrabold">{coins.toLocaleString()}</span>
     </p>
   );
 }

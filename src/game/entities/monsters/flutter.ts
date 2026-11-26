@@ -7,7 +7,8 @@
  * when fighting). Every few seconds it trembles for a moment, then swoops
  * in a straight line THROUGH the spot where the hero was standing, and has
  * to rest afterwards (dizzy stars: free hits). It flies, so it ignores pots
- * and crates, but never walls.
+ * and crates, but never walls. A champion swoops twice (each swoop
+ * telegraphed) before it rests.
  */
 import { NOTICE_RADIUS_PX, type Brain, type MonsterWorld } from "./brain";
 import type { Monster } from "./monster";
@@ -33,6 +34,8 @@ const REST_SPEED_MULT = 0.3;
 const WALL_STOP_PX = 4;
 /** Seconds between noticing the hero and the first swoop. */
 const FIRST_SWOOP_DELAY_SEC = 1.5;
+/** Swoops per attack for a champion (each one telegraphed); an ordinary bat swoops once. */
+const CHAMPION_SWOOPS = 2;
 
 type State = "drift" | "telegraph" | "swoop" | "rest";
 
@@ -45,6 +48,10 @@ export class FlutterBrain implements Brain {
   private cooldown = 0;
   private swoopAngle = 0;
   private swoopLeft = 0;
+  /** Swoops left in the current attack. */
+  private swoopsLeft = 0;
+
+  constructor(private readonly champion = false) {}
 
   update(m: Monster, world: MonsterWorld, dt: number): void {
     this.clock.tick(dt);
@@ -55,7 +62,10 @@ export class FlutterBrain implements Brain {
     switch (this.clock.state) {
       case "drift":
         this.drift(m, world, dt, m.def.speed);
-        if (this.readyToSwoop(m, world)) this.startTelegraph(m);
+        if (this.readyToSwoop(m, world)) {
+          this.swoopsLeft = this.champion ? CHAMPION_SWOOPS : 1;
+          this.startTelegraph(m);
+        }
         break;
       case "telegraph":
         m.stop();
@@ -123,6 +133,11 @@ export class FlutterBrain implements Brain {
     const blocked = clearDistance(m.x, m.y, this.swoopAngle, m.fitsAt, WALL_STOP_PX) < WALL_STOP_PX;
     if (this.swoopLeft <= 0 || blocked) {
       m.stop();
+      this.swoopsLeft--;
+      if (this.swoopsLeft > 0 && world.mayAttack) {
+        this.startTelegraph(m);
+        return;
+      }
       this.clock.go("rest", REST_SEC);
       this.cooldown = jitter(...SWOOP_EVERY_SEC, world.random);
       return;

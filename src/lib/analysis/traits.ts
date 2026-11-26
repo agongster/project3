@@ -52,6 +52,8 @@ const TWIN = (why: string): TraitRow => ({ behaviour: "echoTwin", line: `Comes w
 const LEAVES = (what: string): TraitRow => ({ behaviour: "leavesName", line: `When beaten it drops {name}, ${what}, and the dust gets swept away.` });
 const WEARS = (why: string): TraitRow => ({ behaviour: "wearsName", line: `Wears the name {name} until you come close: ${why}.` });
 const NOODLES = (why: string): TraitRow => ({ behaviour: "noodles", line: `Flails one noodle ${why}.` });
+const EAVESDROPS = (why: string): TraitRow => ({ behaviour: null, line: `Listens in on every secret you send: ${why}, so anyone on the network can read them.` });
+const WONT_COMPILE: TraitRow = { behaviour: null, line: "Flickers and falls apart: Python refuses to compile this file, so none of it runs." };
 
 export const TRAITS_BY_CODE: Readonly<Record<string, TraitRow>> = {
   // ── Phantom: names that do not exist ──
@@ -110,6 +112,9 @@ export const TRAITS_BY_CODE: Readonly<Record<string, TraitRow>> = {
   S105: { behaviour: "leavesName", line: "Scatters keys everywhere and drops {name} when beaten: a password written in the code leaks to everyone who reads it." },
   S106: { behaviour: "leavesName", line: "Scatters keys everywhere and drops {name} when beaten: a password passed as a literal leaks to everyone who reads it." },
   S107: { behaviour: "leavesName", line: "Scatters keys everywhere and drops {name} when beaten: a default password leaks to everyone who reads the code." },
+  S323: EAVESDROPS("an unverified SSL context never checks who it is talking to"),
+  S501: EAVESDROPS("`verify=False` switches the certificate check off"),
+  S507: EAVESDROPS("an SSH client that trusts any host key talks to impostors too"),
 
   // ── Eval Serpent: input that becomes code ──
   S102: { behaviour: null, line: "Spits back whatever it is fed: `exec` runs any text as code, even an attacker's." },
@@ -118,6 +123,19 @@ export const TRAITS_BY_CODE: Readonly<Record<string, TraitRow>> = {
   S604: { behaviour: null, line: "Spits back whatever it is fed: `shell=True` lets text become shell commands." },
   S605: { behaviour: null, line: "Spits back whatever it is fed: running text through a shell lets it become commands." },
   S608: { behaviour: null, line: "Spits back whatever it is fed: SQL glued together from strings lets input become commands." },
+  S201: { behaviour: null, line: "Spits back whatever it is fed: Flask's debug console runs any Python a visitor types." },
+
+  // ── Glitch King: code Python refuses to compile ──
+  F622: WONT_COMPILE,
+  F701: WONT_COMPILE,
+  F702: WONT_COMPILE,
+  F704: WONT_COMPILE,
+  F706: WONT_COMPILE,
+  F707: WONT_COMPILE,
+  PLE0115: WONT_COMPILE,
+  PLE0117: WONT_COMPILE,
+  PLE0118: WONT_COMPILE,
+  PLE1142: WONT_COMPILE,
 };
 
 /** The fallback for codes without a row: what the kind always does. */

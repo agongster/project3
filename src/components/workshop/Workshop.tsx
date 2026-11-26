@@ -18,10 +18,10 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { createStore } from "@/lib/game/store";
 import { useStore } from "@/lib/game/useStore";
-import type { QuickFix } from "@/lib/workspace/contract";
 import type { EditorHandle, EditorHooks } from "./editor/types";
 import { useEditorSync, type OpenOptions } from "./hooks/useEditorSync";
 import { useForging } from "./hooks/useForging";
+import { scrollActions } from "./hooks/scrolls";
 import { markHelpSeen } from "./hooks/useHelpSeen";
 import { useKeysStayHere } from "./hooks/useKeysStayHere";
 import { useLiveCheck } from "./hooks/useLiveCheck";
@@ -104,6 +104,23 @@ export default function Workshop(props: WorkshopProps) {
     if (initial) sync.openFile(initial.path, { line: initial.line, focus: true });
   });
   useEffect(() => openInitial(), []);
+
+  // Arriving on a line (E on a glowing line in a dungeon): show that line's
+  // bug card right away, because its scrolls are what the player came for.
+  // Offered once, as soon as the live check has looked at the file.
+  const cardOffered = useRef(false);
+  const offerInitialCard = useEffectEvent(() => {
+    if (cardOffered.current || initial?.line === undefined || !editor) return;
+    if (shownPath !== initial.path || !check.fresh || popup !== null) return;
+    cardOffered.current = true;
+    const ids = editor.findingIdsAt(initial.line);
+    if (ids.length > 0) openCardAt(initial.line, ids);
+  });
+  useEffect(() => {
+    // One frame later, so the gutter already holds this check's monsters.
+    const frame = requestAnimationFrame(offerInitialCard);
+    return () => cancelAnimationFrame(frame);
+  }, [editor, shownPath, check.fresh]);
 
   // Take the keyboard when the Workshop opens, so no key lands on the game behind it.
   useEffect(() => {
@@ -191,18 +208,17 @@ export default function Workshop(props: WorkshopProps) {
     setPopup({ kind: "bug", line, ids: [...ids], anchor });
   }
 
-  function applyFixScroll(fix: QuickFix) {
-    const live = check.live;
-    if (!editor || active === null || !live || editor.textOf(active) !== live.text) {
-      forging.say("The code just changed: wait a moment for a fresh check", "warn");
-      return;
-    }
-    editor.applyEdits(fix.edits);
-    setPopup(null);
-    editor.focus();
-    audio.sfx("equip");
-    forging.say("Fix scroll used! Forge to make it real");
-  }
+  const scrolls = scrollActions({
+    editor,
+    active,
+    live: check.live,
+    audio,
+    say: forging.say,
+    done: () => {
+      setPopup(null);
+      editor?.focus();
+    },
+  });
 
   function jumpToBug(direction: 1 | -1) {
     if (!editor) return;
@@ -376,7 +392,9 @@ export default function Workshop(props: WorkshopProps) {
           setPopup(null);
           openFile(path, { focus: true });
         }}
-        onUseFix={applyFixScroll}
+        onUseFix={scrolls.applyFix}
+        sealPlan={scrolls.sealPlan}
+        onUseSeal={scrolls.applySeal}
         onRevert={(path) => {
           setPopup(null);
           void forging.revert(path).then(rescueFocus);

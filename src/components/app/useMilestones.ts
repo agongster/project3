@@ -1,7 +1,8 @@
 /**
- * Repo Health milestones: whenever the share of squashed bugs crosses 25 /
- * 50 / 75 / 100 %, pay the reward once (`claimMilestones` remembers which
- * ones were paid) and celebrate it with a toast.
+ * Repo Health milestones: whenever the share of bugs dealt with in the code
+ * (fixed or sealed; a fight alone does not count) crosses 25 / 50 / 75 /
+ * 100 %, pay the reward once (`claimMilestones` remembers which ones were
+ * paid) and celebrate it with a toast.
  */
 import { useEffect } from "react";
 import type { AudioApi } from "@/game/bridge";

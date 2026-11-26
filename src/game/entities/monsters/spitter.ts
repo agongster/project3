@@ -7,7 +7,8 @@
  * It keeps its distance, hopping away when the hero gets close and sideways
  * otherwise. Every few seconds it puffs its cheeks (the telegraph) and lobs
  * a slow glob at the spot where the hero WAS. The landing spot is marked on
- * the floor (see hazards.ts), so one step aside is enough.
+ * the floor (see hazards.ts), so one step aside is enough. A champion lobs
+ * a fan of three (one either side of the hero), so step back or forward.
  */
 import type { Brain, MonsterWorld, Pose } from "./brain";
 import type { Monster } from "./monster";
@@ -41,6 +42,8 @@ const MOUTH_OFFSET_PX = 6;
 /** Calm toads further than this from home hop back. */
 const HOME_RANGE_PX = 20;
 const BREATHE_SEC = 0.5;
+/** A champion's two extra globs land this far either side of the hero, across the line of fire. */
+const CHAMPION_FAN_PX = 22;
 
 type State = "calm" | "watch" | "puff" | "spit" | "recover";
 
@@ -52,6 +55,8 @@ export class SpitterBrain implements Brain {
   private readonly hop = new Hop();
   private hopTimer = 0;
   private attackTimer = FIRST_ATTACK_DELAY_SEC;
+
+  constructor(private readonly champion = false) {}
 
   update(m: Monster, world: MonsterWorld, dt: number): void {
     this.clock.tick(dt);
@@ -137,12 +142,19 @@ export class SpitterBrain implements Brain {
     }
   }
 
-  /** Lobs the glob at where the hero stands right now. */
+  /** Lobs the glob at where the hero stands right now (a champion: a fan of three). */
   private spit(m: Monster, world: MonsterWorld): void {
     const hero = world.hero;
     const fromX = m.x + (m.facingLeft ? -MOUTH_OFFSET_PX : MOUTH_OFFSET_PX);
     const flight = Math.max(MIN_FLIGHT_SEC, Math.min(MAX_FLIGHT_SEC, Math.hypot(hero.x - fromX, hero.y - m.y) / GLOB_SPEED));
     world.hazards.lob(m, fromX, m.y, hero.x, hero.y, flight);
+    if (this.champion) {
+      // Across the line of fire: the direction to the hero turned a quarter.
+      const across = m.heroAngle() + Math.PI / 2;
+      for (const side of [-1, 1]) {
+        world.hazards.lob(m, fromX, m.y, hero.x + Math.cos(across) * CHAMPION_FAN_PX * side, hero.y + Math.sin(across) * CHAMPION_FAN_PX * side, flight);
+      }
+    }
     world.fx.sfx("shoot", { pitch: 0.55 });
     this.clock.go("spit", SPIT_SEC);
     this.attackTimer = jitter(...ATTACK_EVERY_SEC, world.random);

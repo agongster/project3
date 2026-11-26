@@ -2,11 +2,13 @@
  * File-name labels over buildings. When the hero comes within ~2.5 tiles of
  * a building's door, its file name fades in above the roof. Only the
  * nearest MAX_LABELS are shown so labels never pile on top of each other.
+ * A boss lair's label also names who lives there (lairMarks.ts).
  */
 import { drawText } from "@/game/art/font";
 import type { ThemeId } from "@/lib/types";
 import type { BuildingEntity } from "../entities/buildings";
-import { shortPath } from "../scenes/progressView";
+import { shortPath, type BuildingStatus } from "../scenes/progressView";
+import { LAIR_COLORS, lairLabelText } from "./lairMarks";
 
 /** Labels show within this distance of the door (2.5 tiles)... */
 const SHOW_DIST_PX = 40;
@@ -15,6 +17,18 @@ const MAX_LABELS = 2;
 const FADE_PER_SEC = 5;
 /** Gap between the roof top and the label (leaves room for the badge). */
 const ABOVE_ROOF_PX = 20;
+/**
+ * Label colour by what the building still needs: pink while monsters fight
+ * inside, cyan once it is quiet (lines left to fix), cream for treasure and
+ * green when nothing is left to do. Same meaning as the minimap's dots.
+ */
+const STATUS_LABEL_COLORS: Record<BuildingStatus, string> = {
+  cursed: "#ffc2ea",
+  quiet: "#a8ecff",
+  treasure: "#fff1b8",
+  claimable: "#fff1b8",
+  done: "#c8ffd4",
+};
 
 export class BuildingLabels {
   private alpha = new Map<BuildingEntity, number>();
@@ -39,8 +53,8 @@ export class BuildingLabels {
   draw(g: CanvasRenderingContext2D, theme: ThemeId): void {
     for (const [b, alpha] of this.alpha) {
       const top = b.y - b.sprite(theme).h;
-      const color = b.status === "cursed" ? "#ffc2ea" : b.status === "done" ? "#c8ffd4" : "#fff1b8";
-      drawText(g, shortPath(b.path), Math.round(b.x), top - ABOVE_ROOF_PX, { color, outline: "#2b1d34", align: "center", alpha });
+      const color = b.lair ? LAIR_COLORS[b.lair.kind] : STATUS_LABEL_COLORS[b.status];
+      drawText(g, lairLabelText(shortPath(b.path), b.lair), Math.round(b.x), top - ABOVE_ROOF_PX, { color, outline: "#2b1d34", align: "center", alpha });
     }
   }
 }

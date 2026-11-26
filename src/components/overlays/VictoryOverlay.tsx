@@ -1,11 +1,10 @@
 "use client";
 
 /**
- * Every dungeon cleared: confetti, the hero doing a happy spin, the final
- * stats, a report card for the repo, and one last nudge toward the real
- * takeaway: fix the bugs for real (in the Workshop, or wherever the to-do
- * list goes). Bugs squashed in the game and bugs fixed in the code are
- * counted apart, and the closing line depends on how many are still in the code.
+ * Every dungeon purified (every bug fixed or sealed): confetti, the hero
+ * doing a happy spin, the final stats, a report card for the repo, and a
+ * closing line. Real fixes and seals are counted apart, and the closing
+ * line gently reminds a player who sealed bugs that they are not fixed.
  */
 import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
@@ -18,7 +17,7 @@ import { CopyChecklistButton } from "./parts/CopyChecklistButton";
 import { FX } from "./parts/fx";
 import { GradeBadge, GRADE_INFO } from "./parts/GradeBadge";
 import { useTicker } from "./parts/hooks";
-import { victoryTakeaway } from "./parts/victoryText";
+import { howDealtWith, victoryTakeaway } from "./parts/victoryText";
 import { PANEL_MEDIUM } from "./parts/panelSizes";
 import { PixelSprite } from "./parts/PixelSprite";
 import { heroSprite, petFrame } from "./parts/sprites";
@@ -51,27 +50,23 @@ export default function VictoryOverlay({ ctx }: OverlayProps<"victory">) {
   }, [audio]);
 
   const stats = [
-    // Bugs fixed in the Workshop get their own line, only once there are some.
-    ...(health.fixed === 0
-      ? [{ value: `${health.defeated}/${health.total}`, label: "bugs squashed" }]
-      : [
-          { value: `${health.defeated}/${health.total}`, label: "squashed in the game" },
-          { value: `${health.fixed}/${health.total}`, label: "fixed in the code" },
-        ]),
-    { value: `${health.dungeonsCleared}/${health.dungeonsTotal}`, label: "dungeons purified" },
+    { value: `${health.fixed}/${health.total}`, label: "fixed in the code" },
+    // Seals get their own line, only once there are some.
+    ...(health.sealed === 0 ? [] : [{ value: `${health.sealed}/${health.total}`, label: "sealed with # noqa" }]),
+    { value: `${health.dungeonsPurified}/${health.dungeonsTotal}`, label: "dungeons purified" },
     { value: `${health.chestsOpened}/${health.chestsTotal}`, label: "chests opened" },
     { value: save.coins.toLocaleString(), label: "coins saved up" },
     // Lifetime, like the coins: dazed monsters finished with the right fix (src/lib/game/finisher.ts).
-    { value: save.stats.fixesPicked.toLocaleString(), label: "critical fixes" },
+    { value: save.stats.fixesPicked.toLocaleString(), label: "right fixes picked" },
   ];
 
   return (
     <Modal label="Victory" onClose={ctx.close} className={PANEL_MEDIUM}>
       <Confetti />
       <header className="text-center">
-        <h2 className="font-title text-xl text-gold [text-shadow:0_3px_0_var(--color-ink)]">THE LAND IS PURE!</h2>
+        <h2 className="font-title text-pixel-md text-gold [text-shadow:0_3px_0_var(--color-ink)]">THE LAND IS PURE!</h2>
         <p className="mt-1 font-bold">
-          Every monster in {analysis.repo.owner}/{analysis.repo.repo} has been {health.fixed === 0 ? "squashed" : "squashed or fixed away"}. Hooray!
+          Every bug in {analysis.repo.owner}/{analysis.repo.repo} has been {howDealtWith(health)}. Hooray!
         </p>
       </header>
 
@@ -88,12 +83,12 @@ export default function VictoryOverlay({ ctx }: OverlayProps<"victory">) {
           <dl className="grid grid-cols-2 gap-2">
             {stats.map((stat) => (
               <div key={stat.label} className="flex items-baseline gap-2 bg-cream-deep/70 px-3 py-1">
-                <dd className="font-title shrink-0 text-sm tabular-nums">{stat.value}</dd>
+                <dd className="shrink-0 text-lg font-extrabold">{stat.value}</dd>
                 <dt className="min-w-0 truncate text-sm">{stat.label}</dt>
               </div>
             ))}
-            <div className={`${health.fixed === 0 ? "" : "col-span-2 "}flex items-baseline gap-2 bg-cream-deep/70 px-3 py-1`}>
-              <dd className="font-title shrink-0 text-sm">Lv {level.level}</dd>
+            <div className={`${health.sealed === 0 ? "" : "col-span-2 "}flex items-baseline gap-2 bg-cream-deep/70 px-3 py-1`}>
+              <dd className="shrink-0 text-lg font-extrabold">Lv {level.level}</dd>
               <dt className="min-w-0 truncate text-sm">
                 {save.look.name} the {level.title}
               </dt>

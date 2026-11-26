@@ -6,7 +6,8 @@
  * It walks toward the hero. About two tiles away it stops, wiggles with a
  * "!" while a red lane shows exactly where it will go, then lunges 2.5
  * tiles in that straight line — and needs a long breather afterwards
- * (dizzy stars), which is the moment to strike back.
+ * (dizzy stars), which is the moment to strike back. A champion lunges
+ * twice in a row, each lunge with its own lane, before its breather.
  */
 import { NOTICE_RADIUS_PX, type Brain, type MonsterWorld } from "./brain";
 import type { Monster } from "./monster";
@@ -23,6 +24,8 @@ const LUNGE_SEC = 0.3;
 const LUNGE_HOP_PX = 4;
 const RECOVER_SEC = 1.5;
 const LANE_WIDTH_PX = 10;
+/** Lunges per attack for a champion (an ordinary chaser lunges once). */
+const CHAMPION_LUNGES = 2;
 const CALM_WANDER_SPEED = 0.4;
 
 type State = "calm" | "chase" | "windup" | "lunge" | "recover";
@@ -36,6 +39,10 @@ export class ChaserBrain implements Brain {
   private lungeAngle = 0;
   /** How far the lunge can really go (it stops short of walls). */
   private lungeLength = 0;
+  /** Lunges left in the current attack. */
+  private lungesLeft = 0;
+
+  constructor(private readonly champion = false) {}
 
   update(m: Monster, world: MonsterWorld, dt: number): void {
     this.clock.tick(dt);
@@ -52,7 +59,10 @@ export class ChaserBrain implements Brain {
         break;
       case "chase":
         m.walkToward(world.hero.x, world.hero.y, m.def.speed);
-        if (m.heroDistance() <= LUNGE_TRIGGER_PX && world.mayAttack) this.startWindup(m);
+        if (m.heroDistance() <= LUNGE_TRIGGER_PX && world.mayAttack) {
+          this.lungesLeft = this.champion ? CHAMPION_LUNGES : 1;
+          this.startWindup(m);
+        }
         break;
       case "windup":
         m.stop();
@@ -118,6 +128,8 @@ export class ChaserBrain implements Brain {
     m.z = 0;
     m.stretch = -0.3;
     world.fx.dust(m.x, m.y, 3);
-    this.clock.go("recover", RECOVER_SEC);
+    this.lungesLeft--;
+    if (this.lungesLeft > 0 && world.mayAttack) this.startWindup(m);
+    else this.clock.go("recover", RECOVER_SEC);
   }
 }

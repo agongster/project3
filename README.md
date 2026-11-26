@@ -68,9 +68,29 @@ Requires Node 22. `npm run dev` and `npm run build` first run `scripts/copy-ruff
 4. **World generation** turns the analysis into a tile map: one region per top-level folder, one building per file. It is seeded by `owner/repo@commit`, so the same commit always makes the same world.
 5. The **engine** draws the world on a 400×225 canvas scaled up by a whole number. React draws the menus and HUD on top.
 
+### Beating a bug: fight, then fix
+
+A monster is one lint finding, and it takes two steps to beat it for good.
+
+| State | What happened | What it counts for |
+|---|---|---|
+| **Alive** | The bug is in the code and its monster fights. | Nothing yet |
+| **Subdued** | You won the fight. The monster dozes as a pale wisp over its line of code, which glows on the floor. | Coins and XP; the dungeon can go *quiet* |
+| **Fixed** | The bug is gone from the saved code. The line turns gold. | Repo Health, the fix reward, the victory |
+| **Sealed** | A seal scroll added `# noqa: CODE` to the line: the bug is accepted, not fixed. | Repo Health and the victory, but no reward |
+
+- Stand on a subdued monster's glowing line and press **E**: the Workshop opens on exactly that line. Fixing a line without fighting first is allowed.
+- A dungeon is **quiet** when nothing in it is left to fight; its **end door** (in the last room) opens then, and the entrance works at all times. It is **purified** when its file has no bug left; only then does its chest appear.
+- **Repo Health** counts fixed and sealed bugs; subdued ones show as a lighter part of the bar. The victory screen needs every bug fixed or sealed, so the game cannot be finished by fighting alone.
+- **Nobody gets stuck:** every bug card in the Workshop offers Ruff's own fix scroll when Ruff has one, and always a seal scroll. The one exception is a syntax error, which cannot be sealed and has to be repaired by hand.
+
+The rules live in `src/lib/game/progress.ts` (`findingState`, `isDungeonQuiet`, `isDungeonPurified`) and `src/lib/game/seal.ts`.
+
+**Bosses and champions.** A boss exists only where the code has a serious finding: a hardcoded secret, `eval`/`exec`/shell/pickle/SQL built from strings, a turned-off certificate check, or code Python cannot compile (`src/lib/analysis/rules.ts`). Some repos have several, some have none. A building that hides one carries a horned-skull badge and a pennant, and the maps and the notice board list them. A dungeon with at least four monsters and no boss crowns its toughest monster as a **champion** (`src/lib/game/champions.ts`). Ordinary monsters also vary: colour family by lint rule, small seeded differences in looks, and for about half of them one modifier such as Swift, Sturdy or Tiny (`monsterLooks.ts`, `monsterModifiers.ts`).
+
 ### The Workshop (editing the code)
 
-Lintlands is a game first. The Workshop is an optional room inside it: press **F** (or the Workshop button next to Bag and Codex) to open the file you are in or facing in a code editor.
+Lintlands is a game first. The Workshop is a room inside it: press **E** on a glowing line, or **F** (or the Workshop button next to Bag and Codex) to open the file you are in or facing in a code editor.
 
 - **Typing changes nothing.** While you type, live Ruff findings appear as monster sprites in the gutter.
 - **Forge (Ctrl/Cmd+S) is the game move.** The file is re-linted and the world follows: bugs that are gone are *fixed for real* (their monsters dissolve; each pays double, once), new bugs become new monsters with no penalty, and the file's grade and dungeon update. A file whose last bug is fixed turns into a treasure house.
@@ -87,7 +107,7 @@ How it fits together: `src/lib/workspace/contract.ts` is the interface (`read`, 
 | WASD / arrow keys | Move |
 | Space / J / click | Attack |
 | Shift / K | Dash |
-| E / Enter | Interact (doors, chests, villagers, the Wishing Well) |
+| E / Enter | Interact (doors, chests, villagers, the Wishing Well); on a glowing line in a dungeon, open that line in the Workshop |
 | I or B | Bag |
 | C | Codex (the bug list) |
 | M | Big map (E switches to the repo treemap) |
@@ -105,12 +125,12 @@ How it fits together: `src/lib/workspace/contract.ts` is the interface (`read`, 
 | `src/lib/workspace/` | The Workshop's engine room: opens a repo (list → download → lint), keeps every file's text and the live linter, and handles check / forge (save) / revert / export. `contract.ts` is the interface |
 | `public/lint-worker.js` | The Web Worker that runs Ruff |
 | `src/lib/worldgen/` | Overworld and dungeon generators (deterministic, validated for reachability) |
-| `src/lib/game/` | Save store, reducers, gacha, chest loot, progress, Markdown checklist |
+| `src/lib/game/` | Save store, reducers, gacha, chest loot, Markdown checklist; the fight-then-fix rules (`progress.ts`, `seal.ts`, `forge.ts`); champions, monster looks and modifiers |
 | `src/game/bridge.ts` | The contract between engine, UI and audio |
 | `src/game/engine/`, `entities/`, `combat/`, `scenes/` | The canvas engine: loop, input, camera, collision, hero, weapons, monsters, overworld and dungeon scenes |
-| `src/game/art/` | All pixel art, generated by code (no image files) |
+| `src/game/art/` | All pixel art, generated by code (no image files). The hero is drawn in layers: `character.ts` composes `characterFace/Hair/Outfits/Back/Hats.ts`; `fontGlyphs.ts` is the canvas bitmap font |
 | `src/game/audio/` | All sound, synthesized with the Web Audio API (no audio files) |
-| `src/components/app/`, `screens/`, `hud/`, `character/` | React shell: title, hero creator, loading screen, HUD |
+| `src/components/app/`, `screens/`, `hud/`, `character/` | React shell: title, hero creator (`character/LookEditor.tsx` with its tabs, presets and undo), loading screen, HUD |
 | `src/components/overlays/` | Chest reveal, Wishing Well, bag, codex, notice board, pause, wardrobe, victory |
 | `src/components/loading/` | "Bug Catch", the loading mini-game |
 | `src/components/workshop/` | The Workshop: the in-game code editor (CodeMirror 6), its explorer, bug cards, forge moment and side panel; `quests/` holds the quest board |
@@ -132,7 +152,7 @@ The tests cover the logic that can be checked without a screen: repo-input parsi
 
 ### Review and known issues
 
-`REVIEW.md` is an independent review of the build by a second AI agent that wrote none of the code. It is kept exactly as the reviewer wrote it. It reviewed the first build only: the later rounds (more code in the gameplay, the Workshop) have not been reviewed by a second agent. Six of its nine findings were fixed afterwards (3, 4, 5, 6, 8, 9; see `prompt_log.md`). Three are still open:
+`REVIEW.md` is an independent review of the build by a second AI agent that wrote none of the code. It is kept exactly as the reviewer wrote it. It reviewed the first build only: the later rounds (more code in the gameplay, the Workshop, fight-then-fix) have not been reviewed by a second agent. Six of its nine findings were fixed afterwards (3, 4, 5, 6, 8, 9; see `prompt_log.md`). Three are still open:
 
 1. **Finding 1** — several problems of the same kind on one line (for example `import os, sys, json`, all unused) become a single monster, and the others are missing from the Codex and the exported to-do list (`src/lib/analysis/normalize.ts`, `mergeSameProblem`).
 2. **Finding 2** — the quality grade counts private (`_name`) functions as documented, so a file with no docstrings can be graded S and called "Well documented" (`src/lib/analysis/quality.ts`, `docstringCoverage`).
@@ -153,5 +173,5 @@ GitHub Pages only serves files, so this build has no `/api/repo` and no `GITHUB_
 ### Credits
 
 - [Ruff](https://github.com/astral-sh/ruff) by Astral (MIT) — the linter, used through its official WebAssembly build.
-- Fonts: Pixelify Sans and Press Start 2P (SIL Open Font License), loaded through `next/font`.
+- Fonts: Nunito for text and numbers, Press Start 2P for large titles (both SIL Open Font License), loaded through `next/font`. The type scale is documented at the top of `src/app/globals.css`.
 - All pixel art and all sound in the game are generated by code in this repository.

@@ -3,9 +3,11 @@
  * around them:
  *
  *   cursed     purple miasma oozes from the roof; a bobbing skull badge
- *              shows how many bugs are still inside
+ *              shows how many monsters still fight inside
+ *   quiet      still cursed, but calmer: a thin wisp of miasma now and then,
+ *              and a "zzz" badge with how many lines are left to fix
  *   treasure   a bobbing chest icon with sparkles (clean file, chest unopened)
- *   claimable  same chest icon (dungeon cleared, prize not claimed yet)
+ *   claimable  same chest icon (dungeon purified, prize not claimed yet)
  *   done       an occasional sparkle; clean houses puff chimney smoke
  *
  * When its file is edited in the Workshop a building PULSES the first time
@@ -13,17 +15,23 @@
  * it was purified, a purple shudder and a puff of miasma when a new bug
  * cursed it, a small sparkle when only its bug count changed.
  */
-import { buildingLights, drawSprite, flashSprite, getAtlas, type BuildingState, type Sprite } from "@/game/art";
+import { buildingLights, drawSprite, flashSprite, getAtlas, lairBadgeSprite, type BuildingState, type Sprite } from "@/game/art";
+import type { Lair } from "@/lib/game/champions";
 import { drawText } from "@/game/art/font";
 import { uiSprite } from "@/game/art/ui";
 import type { AnalyzedFile, Building, ThemeId } from "@/lib/types";
 import type { SceneContext } from "../scenes/context";
 import type { Drawable, Light } from "../scenes/scene";
-import { bugsLeft, buildingStatus, type BuildingStatus } from "../scenes/progressView";
+import { buildingStatus, isCursed, linesToFix, monstersLeft, type BuildingStatus } from "../scenes/progressView";
+import { drawLairBanner, standingLair } from "../ui/lairMarks";
 import { hidesHero, TALL_ALPHA } from "./scenery";
 import { tinted } from "./monsters/monsterDraw";
 
 const MIASMA_EVERY_SEC = 0.35;
+/** A quiet dungeon's house still smoulders, only much more slowly. */
+const QUIET_MIASMA_EVERY_SEC = 1.4;
+/** The quiet badge's count: the cool cyan of a subdued monster's glowing line. */
+const QUIET_LABEL_COLOR = "#bff6ff";
 const SMOKE_EVERY_SEC = 0.55;
 const SPARKLE_EVERY_SEC = 1.6;
 const BADGE_BOB_PX = 2;
@@ -46,7 +54,7 @@ export type BuildingPulse = "cleansed" | "cursed" | "changed";
 
 /** Which picture a building uses for each status. */
 export function spriteStateFor(status: BuildingStatus, file: AnalyzedFile | undefined): BuildingState {
-  if (status === "cursed") return "corrupted";
+  if (isCursed(status)) return "corrupted";
   return file && file.findings.length > 0 ? "restored" : "clean";
 }
 
@@ -58,6 +66,8 @@ export class BuildingEntity {
   readonly doorX: number;
   readonly doorY: number;
   status: BuildingStatus = "done";
+  /** A boss or champion still to fight in its dungeon (ui/lairMarks.ts), or null. */
+  lair: Lair | null = null;
   /** The file as the code is now (replaced by `setFile` after an edit in the Workshop). */
   file: AnalyzedFile | undefined;
   private lifeClock = Math.random();
@@ -92,6 +102,7 @@ export class BuildingEntity {
   /** Re-reads the save (cheap; called every step). */
   refresh(ctx: SceneContext): void {
     this.status = buildingStatus(ctx.save.get(), ctx.repoKey, this.file);
+    this.lair = standingLair(ctx.save.get(), ctx.repoKey, this.file);
   }
 
   sprite(theme: ThemeId): Sprite {
@@ -116,16 +127,20 @@ export class BuildingEntity {
     };
   }
 
-  /** Skull + bug count, or a chest icon, bobbing over the roof. Drawn above the lighting. */
+  /** Skull + bug count (a lair's horned skull or crown, and its pennant), or a chest icon, bobbing over the roof. Drawn above the lighting. */
   drawBadge(g: CanvasRenderingContext2D, ctx: SceneContext, theme: ThemeId): void {
     if (this.status === "done") return;
     const top = this.y - this.sprite(theme).h;
     const bob = Math.round(Math.sin(ctx.time * 3 + this.x) * BADGE_BOB_PX);
     if (this.status === "cursed" && this.file) {
-      const skull = uiSprite("skull");
-      const label = `${bugsLeft(ctx.save.get(), ctx.repoKey, this.file)}`;
+      if (this.lair) drawLairBanner(g, this.x + this.sprite(theme).w / 2, this.y, this.lair.kind, ctx.time);
+      const skull = this.lair ? lairBadgeSprite(this.lair.kind) : uiSprite("skull");
+      const label = `${monstersLeft(ctx.save.get(), ctx.repoKey, this.file)}`;
       drawSprite(g, skull, this.x - 4, top - 2 + bob);
       drawText(g, label, this.x + 2, top - 10 + bob, { color: "#ffd6f5", outline: "#2b1d34" });
+    } else if (this.status === "quiet" && this.file) {
+      drawSprite(g, uiSprite("zzz"), this.x - 4, top - 2 + bob);
+      drawText(g, `${linesToFix(this.file)}`, this.x + 2, top - 10 + bob, { color: QUIET_LABEL_COLOR, outline: "#2b1d34" });
     } else {
       drawSprite(g, uiSprite("chestClosed"), this.x, top - 1 + bob);
     }
@@ -138,7 +153,8 @@ export class BuildingEntity {
     const left = this.x - sprite.ax;
     const top = this.y - sprite.ay;
     this.updatePulse(dt, ctx, sprite);
-    if (this.status === "cursed" && this.lifeClock >= MIASMA_EVERY_SEC) {
+    const miasmaEvery = this.status === "quiet" ? QUIET_MIASMA_EVERY_SEC : MIASMA_EVERY_SEC;
+    if (isCursed(this.status) && this.lifeClock >= miasmaEvery) {
       this.lifeClock = 0;
       const px = left + 4 + Math.random() * (sprite.w - 8);
       ctx.particles.emit({ x: px, y: this.y, z: this.y - top - 6 - Math.random() * 10, vz: 6, vx: (Math.random() - 0.5) * 6, life: 2.2, sprite: uiSprite("miasma", Math.floor(Math.random() * 3)), wobble: 3 });
@@ -149,7 +165,7 @@ export class BuildingEntity {
       this.lifeClock = 0;
       ctx.particles.emit({ x: left + Math.random() * sprite.w, y: this.y, z: 8 + Math.random() * (sprite.h - 12), life: 0.6, sprite: uiSprite("sparkle", 1) });
     }
-    if (this.status !== "cursed" && this.building.kind !== "tower" && Math.random() < dt / SMOKE_EVERY_SEC) this.puffSmoke(ctx, left, top);
+    if (!isCursed(this.status) && this.building.kind !== "tower" && Math.random() < dt / SMOKE_EVERY_SEC) this.puffSmoke(ctx, left, top);
   }
 
   /** Lights for the night theme / the always-on cursed doorway glow. */

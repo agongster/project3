@@ -1,5 +1,5 @@
 /**
- * The HUD's "news feed": short toasts on the right ("Unused import squashed!
+ * The HUD's "news feed": short toasts on the right ("Unused import subdued!
  * +3") and big centre banners ("DUNGEON PURIFIED!").
  *
  * It is a tiny store outside React (like the save and HUD stores) so the game
@@ -43,8 +43,8 @@ export interface Banner {
   id: number;
   title: string;
   subtitle?: string;
-  /** Picks the banner's colours ("forge": back from the Workshop). */
-  tone: "purify" | "level" | "forge";
+  /** Picks the banner's colours ("forge": back from the Workshop; "quiet": monsters subdued, lines to fix). */
+  tone: "purify" | "level" | "forge" | "quiet";
 }
 
 export interface FeedState {

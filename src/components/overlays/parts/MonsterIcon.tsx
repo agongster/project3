@@ -6,6 +6,7 @@
  * a dust bunny and a boss can sit side by side in the same list.
  */
 import { MONSTERS } from "@/lib/game/catalog";
+import type { MonsterLook } from "@/lib/game/monsterLooks";
 import type { MonsterKind } from "@/lib/types";
 import { cx } from "@/components/ui/kit";
 import { PixelSprite } from "./PixelSprite";
@@ -17,15 +18,17 @@ interface MonsterIconProps {
   box: number;
   /** Animation frame (counts up forever; wraps per monster). */
   frame?: number;
+  /** The finding's variant (lookOf); the species' classic look when missing. */
+  look?: MonsterLook;
   dim?: boolean;
   className?: string;
 }
 
-export function MonsterIcon({ kind, box, frame = 0, dim, className }: MonsterIconProps) {
+export function MonsterIcon({ kind, box, frame = 0, look, dim, className }: MonsterIconProps) {
   const scale = Math.max(1, Math.floor(box / MONSTERS[kind].size));
   return (
     <span className={cx("inline-flex shrink-0 items-end justify-center", dim && "opacity-35 grayscale", className)} style={{ width: box, height: box }}>
-      <PixelSprite sprite={monsterFrame(kind, frame)} scale={scale} label={MONSTERS[kind].name} />
+      <PixelSprite sprite={monsterFrame(kind, frame, look)} scale={scale} label={MONSTERS[kind].name} />
     </span>
   );
 }

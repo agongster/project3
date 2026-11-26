@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { addCoins, equipItem, recordDefeat, setLook, setSettings } from "@/lib/game/actions";
-import { MAX_CHARMS } from "@/lib/game/catalog";
+import { MAX_CHARMS, SKIN_TONES } from "@/lib/game/catalog";
 import { wishMany } from "@/lib/game/gacha";
 import { MAX_SAVED_REPOS, withRepoProgress } from "@/lib/game/progress";
 import {
@@ -240,7 +240,7 @@ describe("sanitizeSave", () => {
     expect(save.coins).toBe(MAX_COINS);
     expect(save.xp).toBe(0);
     expect(save.look.name).toBe("x".repeat(MAX_NAME_LENGTH));
-    expect(save.look.skin).toBe(5); // last skin tone
+    expect(save.look.skin).toBe(SKIN_TONES.length - 1); // last skin tone
     expect(save.look.hairStyle).toBe(0);
     expect(save.look.hairColor).toBe(2);
     expect(save.look.eyes).toBe(defaultSave().look.eyes);

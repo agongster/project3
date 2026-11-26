@@ -64,7 +64,7 @@ export function ErrorPanel({ error, audio, onRetry, onDemo, onPick, onClose }: P
 
   return (
     <Modal label="Couldn't build the world" onClose={onClose} className="flex w-[min(560px,100%)] flex-col gap-3 p-6">
-      <h2 className="font-title text-[16px] leading-relaxed text-berry">{HEADLINES[error.code]}</h2>
+      <h2 className="font-title text-pixel-sm leading-relaxed text-berry">{HEADLINES[error.code]}</h2>
       <p className="font-semibold">{error.message}</p>
       {error.target.kind === "repo" && <p className="text-ink-soft">Repo: {targetLabel(error.target)}</p>}
 

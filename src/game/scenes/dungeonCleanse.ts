@@ -1,13 +1,15 @@
 /**
- * The PURIFY moment. When the last monster of a dungeon falls, a wave of
- * sparkles sweeps out from the hero across the whole map. Whatever the wave
+ * The PURIFY moment. When the dungeon's code has no bug left (fixed or
+ * sealed in the Workshop), a wave of sparkles sweeps out from the hero
+ * across the whole map. Whatever the wave
  * has passed is cleansed:
  *   - torch light turns from cursed purple to warm gold,
  *   - the room gets a little brighter,
  * and the dungeon scene switches the drifting dust to sparkles.
  *
- * A dungeon that was already cleared when the hero walked in starts fully
- * purified.
+ * A dungeon that was already purified when the hero walked in starts fully
+ * purified. (A dungeon that is only quiet, its monsters subdued, keeps its
+ * cursed light: its bugs are still in the code.)
  */
 import { mix } from "@/game/art/color";
 import { uiSprite } from "@/game/art/ui";
