@@ -63,6 +63,14 @@ commit to https://github.com/agongster/project3
 
 *Outcome: see "How the build was split up" below. The orchestrating model read the assignment page and the existing spec, noticed the old `project3/` folder held unrelated uncommitted work and built in `project3_2/` instead, wrote the shared contracts first, then fanned the work out to subagents and integrated the results.*
 
+**Prompt 6 (21:38)**
+
+```
+push to my github pages and host it agongster.github.io
+```
+
+*Outcome: `agongster.github.io` itself is already my portfolio site, so the game is published next to it at `https://agongster.github.io/project3/` instead of replacing it. GitHub Pages has no server, so that build is a static export: the browser asks the GitHub API directly instead of going through `/api/repo` (`src/lib/hosting.ts`, `next.config.ts`, `.github/workflows/pages.yml`).*
+
 ## How the build was split up
 
 The orchestrating model (Fable 5.2) wrote these files itself before any subagent started, so that every subagent coded against the same contracts:

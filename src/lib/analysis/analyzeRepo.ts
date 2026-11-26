@@ -2,6 +2,8 @@
  * Browser entry point: analyze a real GitHub repo.
  *
  *   1. listing      GET /api/repo           → which Python files, at which commit
+ *                   (on a static host there is no server, so the same lookup
+ *                   runs here in the browser, without a token)
  *   2. downloading  raw.githubusercontent   → the files' text (8 at a time)
  *   3. linting      Ruff in a Web Worker    → raw diagnostics per file
  *   4. building     analyzeSources()        → RepoAnalysis
@@ -11,7 +13,9 @@
  * sees any source code (and raw downloads don't use up the API rate limit).
  */
 import type { ApiErrorBody, ApiErrorCode, RepoAnalysis, RepoListing } from "@/lib/types";
+import { STATIC_HOST } from "@/lib/hosting";
 import type { RepoTarget } from "@/lib/repo/github";
+import { handleRepoRequest } from "@/lib/repo/repoEndpoint";
 import { analyzeSources, plural, type SourceFile } from "./analyzeSources";
 import { AnalyzeError, throwIfAborted } from "./errors";
 import { createLintClient, type LintClient } from "./lintClient";
@@ -87,7 +91,10 @@ async function fetchListing(input: RepoTarget, fetchImpl: typeof fetch, signal?:
 
   let response: Response;
   try {
-    response = await fetchImpl(`/api/repo?${params}`, { signal });
+    response = STATIC_HOST
+      ? // The server's own handler, run in the browser. The wrapper keeps `fetch` bound to the window.
+        await handleRepoRequest(params, { fetch: (url, init) => fetchImpl(url, init) })
+      : await fetchImpl(`/api/repo?${params}`, { signal });
   } catch {
     throwIfAborted(signal);
     throw new AnalyzeError("network", "Couldn't reach the Lintlands server. Check your connection and try again.");

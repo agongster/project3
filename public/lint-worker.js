@@ -3,7 +3,9 @@
  * loading screen stays smooth while hundreds of files are checked.
  *
  * It is a plain-JS module served as a static file (not bundled by Next.js),
- * and it imports Ruff from /ruff/, which scripts/copy-ruff.mjs fills.
+ * and it imports Ruff from the ruff/ folder next to it, which
+ * scripts/copy-ruff.mjs fills. The path is relative so the site also works
+ * when it is hosted in a sub-folder (GitHub Pages).
  *
  * Messages (see src/lib/analysis/lintClient.ts for the other side):
  *   in:  { type: "init", options }      → out: { type: "ready", version }
@@ -11,7 +13,7 @@
  *   in:  { type: "lint", id, source }   → out: { type: "lint-result", id, diagnostics }
  *                                         or   { type: "lint-result", id, error }
  */
-import init, { PositionEncoding, Workspace } from "/ruff/ruff_wasm.js";
+import init, { PositionEncoding, Workspace } from "./ruff/ruff_wasm.js";
 
 /** Ruff options from the init message (kept so a crashed workspace can be rebuilt). */
 let ruffOptions = null;

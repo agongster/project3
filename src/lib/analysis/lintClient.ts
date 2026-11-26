@@ -7,11 +7,12 @@
  *
  * Browser-only (it needs `Worker`).
  */
+import { BASE_PATH } from "@/lib/hosting";
 import type { RawDiagnostic } from "./normalize";
 import { RUFF_OPTIONS } from "./rules";
 
-/** Served from /public; the worker itself imports /ruff/ruff_wasm.js. */
-export const LINT_WORKER_URL = "/lint-worker.js";
+/** Served from /public; the worker itself imports ./ruff/ruff_wasm.js from next to it. */
+export const LINT_WORKER_URL = `${BASE_PATH}/lint-worker.js`;
 /** Loading ~10 MB of WebAssembly on a slow connection can take a while. */
 export const LINT_INIT_TIMEOUT_MS = 30_000;
 

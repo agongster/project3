@@ -123,6 +123,12 @@ The tests cover the logic that can be checked without a screen: repo-input parsi
 2. **Finding 2** — the quality grade counts private (`_name`) functions as documented, so a file with no docstrings can be graded S and called "Well documented" (`src/lib/analysis/quality.ts`, `docstringCoverage`).
 3. **Finding 7** — pasting a GitHub *folder* URL (`…/tree/main/src`) fails, because `main/src` is read as the branch name (`src/lib/repo/parseRepoInput.ts`).
 
+### Deploying (GitHub Pages)
+
+Every push to `main` runs `.github/workflows/pages.yml`, which builds a static copy of the game and publishes it to the `gh-pages` branch, served at https://agongster.github.io/project3/.
+
+GitHub Pages only serves files, so this build has no `/api/repo` and no `GITHUB_TOKEN`: the player's browser asks the GitHub API itself. Each visitor therefore gets their own 60 requests per hour (about 20 new repos), and no secret exists anywhere in the deployed site. The two switches are explained in `src/lib/hosting.ts`.
+
 ### Deploying (Vercel)
 
 1. Import the GitHub repo in Vercel (framework preset: Next.js; no other settings needed).

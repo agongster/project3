@@ -1,0 +1,45 @@
+name: Deploy to GitHub Pages
+
+# Builds a static copy of the game and publishes it to the gh-pages branch,
+# which GitHub Pages serves at https://agongster.github.io/project3/
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # A static site has no server, so the API route cannot be part of it:
+      # the browser talks to GitHub directly instead (src/lib/hosting.ts).
+      - run: rm -rf src/app/api
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_STATIC_HOST: "1"
+          NEXT_PUBLIC_BASE_PATH: /project3
+      # .nojekyll stops Pages from hiding the _next/ folder.
+      - run: touch out/.nojekyll
+      - name: Publish out/ to the gh-pages branch
+        run: |
+          cd out
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Deploy ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
