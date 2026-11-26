@@ -194,6 +194,12 @@ describe("repoHealth", () => {
     });
   });
 
+  it("does not expect a chest from a near-empty __init__.py (it is only a lantern on the map)", () => {
+    const marker = { ...makeFile("pkg/__init__.py"), kind: "init" as const, lineCount: 1 };
+    const health = repoHealth(makeAnalysis([makeFile("pkg/core.py"), marker]), emptyProgress());
+    expect(health.chestsTotal).toBe(1);
+  });
+
   it("counts defeated findings, cleared dungeons and opened chests", () => {
     const progress = progressWith({ defeated: [bugA.id, bugB.id], opened: ["clean.py", "a.py"] });
     const health = repoHealth(analysis, progress);

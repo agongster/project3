@@ -12,6 +12,7 @@
 import { BASE_MAX_HP, LEVEL_TITLES, LEVEL_XP, STARTER_WEAPON, getItem, getWeapon } from "@/lib/game/catalog";
 import type { CharmDef, PetPerk, WeaponDef } from "@/lib/game/catalog";
 import type { AnalyzedFile, RepoAnalysis, RepoProgress, SaveData } from "@/lib/types";
+import { isTrivialInit } from "@/lib/worldgen/regions";
 
 // ───────────────────────────── Tuning ─────────────────────────────
 
@@ -235,7 +236,10 @@ export interface RepoHealth {
   /** Files with at least one finding. */
   dungeonsTotal: number;
   chestsOpened: number;
-  /** One chest per successfully analyzed file: clean files hold one, dungeons drop one when cleared. */
+  /**
+   * One chest per building: clean files hold one, dungeons drop one when
+   * cleared. A near-empty `__init__.py` is only a lantern, so it has none.
+   */
   chestsTotal: number;
 }
 
@@ -270,7 +274,7 @@ export function repoHealth(analysis: RepoAnalysis, progress: RepoProgress): Repo
     dungeonsCleared,
     dungeonsTotal,
     chestsOpened,
-    chestsTotal: files.length,
+    chestsTotal: files.filter((file) => !isTrivialInit(file)).length,
   };
 }
 

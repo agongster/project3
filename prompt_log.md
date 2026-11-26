@@ -72,4 +72,32 @@ The orchestrating model (Fable 5.2) wrote these files itself before any subagent
 - `src/game/bridge.ts` — the engine ↔ UI ↔ audio interfaces
 - `src/lib/rng.ts`, `src/components/ui/kit.tsx`, `src/components/overlays/types.ts`, project scaffold and CI
 
-<!-- SUBAGENT-TABLE -->
+Then one prompt from the orchestrator went to each subagent below (Claude Opus 5.5). Each subagent owned its own folders and was not allowed to edit anyone else's files or the shared contracts. The subagent briefs were written by the orchestrating model, not by me, so they are summarised here rather than quoted.
+
+| # | Subagent's job | Files it owned | Commit |
+|---|---|---|---|
+| 1 | GitHub fetching and the Ruff lint pipeline: `/api/repo`, input parsing, file filtering, rule → monster table, quality grade, Web Worker, offline demo repo | `src/app/api/repo/`, `src/lib/repo/`, `src/lib/analysis/`, `public/lint-worker.js`, `tests/analysis/` | `663c3e2` |
+| 2 | Game-state logic: save store, reducers, gacha odds and pity, chest loot, repo-health maths, Markdown checklist export | `src/lib/game/` (except `catalog.ts`), `tests/game/` | `2d48881` |
+| 3 | Sound: 34 synthesized sound effects and 6 chiptune loops with the Web Audio API | `src/game/audio/` | `c7825a2` |
+| 4 | Pixel art, part 1: ground tiles, props, buildings, six colour themes, the hero generator | `src/game/art/` (environment and character files) | `e9f2ce1` |
+| 5 | World generation: overworld village layout and per-file dungeons, seeded and checked for reachability | `src/lib/worldgen/`, `tests/worldgen/` | `2db7802` |
+| 6 | Pixel art, part 2: monsters, item icons, weapons, pets, UI sprites, bitmap font | `src/game/art/` (monster, item, weapon, pet, ui, font files) | `c038f51` |
+| 7 | "Bug Catch", the loading-screen mini-game | `src/components/loading/`, `tests/loading/` | `5a5d4e6` |
+| 8 | App shell: title screen, hero creator, loading screen, HUD, pause / wardrobe / dialog overlays | `src/components/app/`, `screens/`, `character/`, `hud/`, `src/app/page.tsx` | `626ee4d` |
+| 9 | Canvas engine: game loop, input, camera, collision, hero, weapons, pets, overworld and dungeon scenes | `src/game/engine/`, `entities/`, `combat/`, `scenes/`, `tests/engine/` | `565714d` |
+| 10 | Reward and information overlays: chest reveal, Wishing Well, bag, codex, notice board, bug card, victory | `src/components/overlays/` | `b595d58` |
+| 11 | Dungeon monsters: 8 enemy behaviours, 3 bosses, the purify-and-chest flow | `src/game/entities/monsters/`, `src/game/scenes/dungeonCleanse.ts` | `83fa9fc` |
+| 12 | Independent review of the finished build against `SPEC.md` (wrote `REVIEW.md`, changed no code) | `REVIEW.md` | see the last section |
+
+### What the orchestrating model changed after the subagents finished
+
+Found by play-testing the assembled game in the browser and with a scripted bot:
+
+- World generator picked random variants for torches, cobwebs and fences, but the art gives those variants a meaning (wall sconce, left / right corner). Fixed in `src/lib/worldgen/dungeon.ts` and `nature.ts`.
+- Villager portraits in dialogs did not match the villager on the map (`src/lib/worldgen/placement.ts`).
+- After a ten-wish pull the Wishing Well said "Out of coins" even with enough for a single wish (`src/components/overlays/GachaOverlay.tsx`, commit `0556a2b`).
+- The example repo `karpathy/micrograd` lints completely clean, which makes a dull first world; swapped for `karpathy/minGPT` (commit `060d6b2`).
+- Balance: Spaghetti Beast HP 12 → 9 (commit `f773372`); the monsters subagent's play-tested HP values were moved into `catalog.ts`.
+- HUD text was hard to read on a normal-density screen: the font's "fi" ligature turned `config.py` into something like "conAg.py", and the bold weight closed up "c" and "2". Ligatures are now off and only the two lightest weights are loaded (`src/app/layout.tsx`, `src/app/globals.css`).
+
+<!-- REVIEW-FIXES -->

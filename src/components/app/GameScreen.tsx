@@ -17,7 +17,8 @@
  * game first. Closing an overlay always resumes it.
  */
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type CSSProperties } from "react";
-import { createGame } from "@/game";
+import { createEngine } from "@/game";
+import type { GameDebug } from "@/game/debug";
 import { INITIAL_HUD, VIEW_H, VIEW_W, repoKey as makeRepoKey, type GameEvent, type GameHandle, type HudState } from "@/game/bridge";
 import { OverlayHost } from "@/components/overlays/OverlayHost";
 import type { OverlayContext, OverlayRequest } from "@/components/overlays/types";
@@ -41,6 +42,8 @@ declare global {
       save: Store<SaveData>;
       hud: Store<HudState>;
       game: GameHandle | null;
+      /** Teleport, monster positions and other play-test helpers (see src/game/debug.ts). */
+      debug: GameDebug | null;
       open: (request: OverlayRequest) => void;
       /** The world being played, e.g. to look up finding ids in a script. */
       analysis: RepoAnalysis;
@@ -75,6 +78,7 @@ export function GameScreen({ loaded, services, onExit }: Props) {
   const screenRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<GameHandle | null>(null);
+  const debugRef = useRef<GameDebug | null>(null);
   const scale = useGameScale(screenRef);
   const [overlay, setOverlay] = useState<OverlayRequest | null>(null);
   const [feed] = useState(createFeed);
@@ -108,7 +112,7 @@ export function GameScreen({ loaded, services, onExit }: Props) {
     if (!canvas) return;
     hud.set(INITIAL_HUD); // no stale boss bar or prompt from a previous world
     const filesByPath = new Map(analysis.files.map((file) => [file.path, file]));
-    const game = createGame({
+    const { handle: game, debug } = createEngine({
       canvas,
       analysis,
       world,
@@ -123,11 +127,15 @@ export function GameScreen({ loaded, services, onExit }: Props) {
       emit: (event) => onGameEvent(event),
     });
     gameRef.current = game;
+    debugRef.current = debug;
     game.start();
     // React's development mode mounts twice; destroying here makes the second mount start fresh.
     return () => {
       game.destroy();
-      if (gameRef.current === game) gameRef.current = null;
+      if (gameRef.current === game) {
+        gameRef.current = null;
+        debugRef.current = null;
+      }
     };
   }, [analysis, world, save, hud, audio]);
 
@@ -171,6 +179,9 @@ export function GameScreen({ loaded, services, onExit }: Props) {
       hud,
       get game() {
         return gameRef.current;
+      },
+      get debug() {
+        return debugRef.current;
       },
       open: (request) => {
         gameRef.current?.pause();

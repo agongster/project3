@@ -39,6 +39,10 @@ body {
   font-family: var(--font-body), ui-monospace, monospace;
   font-size: 18px;
   -webkit-font-smoothing: none;
+  /* The font's "fi" ligature is unreadable at small sizes ("config.py" → "conAg.py"). */
+  font-variant-ligatures: none;
+  /* Never fake a bold: use the heaviest weight that is loaded (500) instead. */
+  font-synthesis: none;
 }
 
 /* Keep pixel art crisp when canvases/images are scaled up. */

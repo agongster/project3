@@ -93,9 +93,20 @@ describe("game events", () => {
 });
 
 describe("worldTeaser", () => {
+  // A linter that finds nothing, so every demo file is clean.
+  const analysis = analyzeDemoSources(() => []);
+  const isMarker = (file: (typeof analysis.files)[number]) => file.kind === "init" && file.lineCount <= 5;
+  const markers = analysis.files.filter(isMarker);
+  const houses = analysis.files.filter((file) => !isMarker(file));
+
   it("pluralises properly", () => {
-    const analysis = analyzeDemoSources(() => []);
-    const teaser = worldTeaser({ ...analysis, stats: { ...analysis.stats, fileCount: 1, findingCount: 2, bySeverity: { minion: 0, elite: 0, boss: 1 }, cleanFiles: 3 } });
-    expect(teaser).toBe("1 file · 2 bugs · 1 boss · 3 treasure houses");
+    const stats = { ...analysis.stats, fileCount: 1, findingCount: 2, bySeverity: { minion: 0, elite: 0, boss: 1 } };
+    expect(worldTeaser({ ...analysis, files: houses.slice(0, 3), stats })).toBe("1 file · 2 bugs · 1 boss · 3 treasure houses");
+    expect(worldTeaser({ ...analysis, files: houses.slice(0, 1), stats })).toContain("1 treasure house");
+  });
+
+  it("does not count a near-empty __init__.py as a treasure house (it is only a lantern)", () => {
+    expect(markers.length).toBeGreaterThan(0);
+    expect(worldTeaser({ ...analysis, files: [...houses.slice(0, 2), ...markers] })).toContain("2 treasure houses");
   });
 });

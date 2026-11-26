@@ -8,6 +8,7 @@
 import { useEffect, useEffectEvent } from "react";
 import { KeyCap, PixelButton, PixelPanel } from "@/components/ui/kit";
 import type { RepoAnalysis } from "@/lib/types";
+import { isTrivialInit } from "@/lib/worldgen/regions";
 
 /** "1 boss" / "3 bosses": English plurals that are not just "+s". */
 function count(n: number, singular: string, pluralForm = `${singular}s`): string {
@@ -17,11 +18,13 @@ function count(n: number, singular: string, pluralForm = `${singular}s`): string
 /** The one-line teaser, e.g. "42 files · 17 bugs · 3 bosses · 12 treasure houses". */
 export function worldTeaser(analysis: RepoAnalysis): string {
   const { stats } = analysis;
+  // A clean file becomes a treasure house, except a near-empty `__init__.py` (only a lantern on the map).
+  const treasureHouses = analysis.files.filter((file) => file.status === "ok" && file.findings.length === 0 && !isTrivialInit(file)).length;
   return [
     count(stats.fileCount, "file"),
     count(stats.findingCount, "bug"),
     count(stats.bySeverity.boss, "boss", "bosses"),
-    count(stats.cleanFiles, "treasure house"),
+    count(treasureHouses, "treasure house"),
   ].join(" · ");
 }
 
