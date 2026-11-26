@@ -37,6 +37,8 @@ import { FaintSequence, heroLight, renderShared, updateShared } from "./world";
 const NIGHT_DARKNESS = 0.58;
 /** Name shown in the HUD when the hero is between regions. */
 const WILDS_NAME = "Countryside";
+/** Shown once when the repo has no findings at all (no dungeons, so no victory screen either). */
+const ALREADY_PURE_TEXT = "Ruff found no bugs here: this land is already pure! Go open its treasure chests.";
 
 export class OverworldScene implements Scene {
   readonly kind = "overworld";
@@ -57,6 +59,8 @@ export class OverworldScene implements Scene {
   private pendingChest: string | null = null;
   /** The save we last derived building states from. */
   private seenSave: SaveData | null = null;
+  /** Whether the one-off greeting for a bug-free repo was already considered. */
+  private greeted = false;
 
   constructor(private readonly game: GameServices) {
     const world = game.options.world;
@@ -112,6 +116,7 @@ export class OverworldScene implements Scene {
       return;
     }
     if (!updateShared(ctx, dt)) return;
+    this.greetIfAlreadyPure();
 
     for (const v of this.villagers) {
       v.update(dt, ctx);
@@ -268,6 +273,17 @@ export class OverworldScene implements Scene {
     const ty = Math.floor(p.y / 16);
     const region = this.game.options.world.regions.find((r) => tx >= r.x && tx < r.x + r.w && ty >= r.y && ty < r.y + r.h);
     return region?.name ?? WILDS_NAME;
+  }
+
+  /**
+   * A repo without a single finding has no dungeons and so no victory to
+   * win: say so once, on the first step, and point at the treasure instead.
+   */
+  private greetIfAlreadyPure(): void {
+    if (this.greeted) return;
+    this.greeted = true;
+    if (this.game.analysis.stats.findingCount > 0) return;
+    this.game.emit({ type: "toast", text: ALREADY_PURE_TEXT, tone: "good" });
   }
 
   private checkVictory(): void {

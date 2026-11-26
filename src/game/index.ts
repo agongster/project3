@@ -1,5 +1,5 @@
 /**
- * Public entry point of the canvas game engine: `createGame(options)`.
+ * Public entry point of the canvas game engine: `createEngine(options)`.
  *
  * It wires everything together:
  *   - the game-wide services (save, audio, input, HUD, the hero, pet, trail)
@@ -8,6 +8,7 @@
  *   - the loop (fixed 60 Hz updates, one render per frame) and the
  *     transitions between scenes
  *   - the GameHandle the React UI uses (start / pause / resume / destroy / warp)
+ *   - the debug helpers that play-test scripts use (see debug.ts)
  *
  * The engine follows the save store live: a new look, hat, pet, trail,
  * weapon or scenery theme shows up immediately, even while paused.
@@ -36,11 +37,7 @@ export type { GameDebug } from "./debug";
 /** Only equipped items the player owns count (a hand-edited save can't sneak a pet in). */
 const ownedOrNull = (save: SaveData, id: string | null) => (id && save.owned.includes(id) ? id : null);
 
-export function createGame(options: GameOptions): GameHandle {
-  return createEngine(options).handle;
-}
-
-/** createGame plus debug helpers (used by the /dev/engine page and screenshot scripts). */
+/** Builds the whole game on `options.canvas`. Call `handle.start()` to begin and `handle.destroy()` when leaving. */
 export function createEngine(options: GameOptions): { handle: GameHandle; debug: GameDebug } {
   const { canvas, save, audio } = options;
   canvas.width = VIEW_W;

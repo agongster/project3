@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fetchRepoListing, RepoLookupError } from "@/lib/repo/github";
+import { BRANCH_CACHE_SEC, COMMIT_CACHE_SEC, fetchRepoListing, RepoLookupError } from "@/lib/repo/github";
 import { handleRepoRequest } from "@/lib/repo/repoEndpoint";
 import type { ApiErrorBody, RepoListing } from "@/lib/types";
 
@@ -9,6 +9,8 @@ const NOW_MS = 1_700_000_000_000;
 interface FakeCall {
   url: string;
   headers: Record<string, string>;
+  /** How long Next.js may reuse the answer (the `next.revalidate` fetch option), in seconds. */
+  cacheSec: number | undefined;
 }
 
 /** A fake GitHub: maps URL substrings to responses, and records every call. */
@@ -16,7 +18,8 @@ function fakeGitHub(routes: Record<string, () => Response>) {
   const calls: FakeCall[] = [];
   const fetchFake = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    calls.push({ url, headers: (init?.headers ?? {}) as Record<string, string> });
+    const revalidate = init?.next?.revalidate;
+    calls.push({ url, headers: (init?.headers ?? {}) as Record<string, string>, cacheSec: typeof revalidate === "number" ? revalidate : undefined });
     const route = Object.keys(routes).find((pattern) => url.includes(pattern));
     return route ? routes[route]() : new Response("not found", { status: 404 });
   }) as typeof fetch;
@@ -53,6 +56,18 @@ describe("fetchRepoListing", () => {
     expect(github.calls[0].headers["User-Agent"]).toBeTruthy();
     expect(github.calls[0].headers["X-GitHub-Api-Version"]).toBeTruthy();
     expect(github.calls[0].headers.Authorization).toBeUndefined();
+  });
+
+  it("asks Next.js to cache every GitHub answer, the commit's file tree for much longer", async () => {
+    const github = fakeGitHub({
+      "/commits/main": commitSha,
+      "/git/trees/": tree(["a.py"]),
+      "/repos/bakery/shop": repoInfo,
+    });
+    await fetchRepoListing({ owner: "bakery", repo: "shop" }, { fetch: github.fetch });
+    // Order of calls: repo details, branch → commit, the commit's tree.
+    expect(github.calls.map((call) => call.cacheSec)).toEqual([BRANCH_CACHE_SEC, BRANCH_CACHE_SEC, COMMIT_CACHE_SEC]);
+    expect(COMMIT_CACHE_SEC).toBeGreaterThan(BRANCH_CACHE_SEC);
   });
 
   it("sends the token only as a Bearer header, and keeps slashes in branch names", async () => {

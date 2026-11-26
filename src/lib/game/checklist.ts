@@ -37,19 +37,36 @@ function inlineMarkdown(text: string): string {
     .join("");
 }
 
+/**
+ * Wraps a file path or branch name in a Markdown code span.
+ *
+ * Such a name may itself contain backticks, which would end a one-backtick
+ * span early and let the rest of the name be read as Markdown (a link, for
+ * example) wherever the list is pasted. The CommonMark rule fixes that: fence
+ * the span with one more backtick than the longest run inside it, and pad
+ * with a space when the text touches the fence.
+ */
+export function codeSpan(text: string): string {
+  const oneLine = text.replace(/\s+/g, " ");
+  const longestRun = Math.max(0, ...(oneLine.match(/`+/g) ?? []).map((run) => run.length));
+  const fence = "`".repeat(longestRun + 1);
+  const pad = oneLine.startsWith("`") || oneLine.endsWith("`") ? " " : "";
+  return `${fence}${pad}${oneLine}${pad}${fence}`;
+}
+
 function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
 function findingLine(finding: Finding, done: boolean): string {
   const box = done ? "[x]" : "[ ]";
-  const where = `\`${finding.path}:${finding.line}\``;
+  const where = codeSpan(`${finding.path}:${finding.line}`);
   return `- ${box} ${where} — **${inlineMarkdown(finding.code)}** ${inlineMarkdown(finding.title)} — ${inlineMarkdown(finding.message)}`;
 }
 
 function fileSection(file: AnalyzedFile, defeated: ReadonlySet<string>): string[] {
   const squashed = file.findings.filter((finding) => defeated.has(finding.id)).length;
-  const lines = [`## \`${file.path}\` (${squashed}/${file.findings.length})`, ""];
+  const lines = [`## ${codeSpan(file.path)} (${squashed}/${file.findings.length})`, ""];
   for (const finding of file.findings) lines.push(findingLine(finding, defeated.has(finding.id)));
   if (file.overflow > 0) lines.push(`- +${file.overflow} more smaller finding${file.overflow === 1 ? "" : "s"} not shown`);
   lines.push("");
@@ -76,11 +93,11 @@ export function buildChecklist(analysis: RepoAnalysis, progress: RepoProgress): 
   const lines = [`# Bug checklist: ${owner}/${repo}`, ""];
 
   if (files.length === 0) {
-    lines.push(`Commit \`${sha.slice(0, SHORT_SHA_LENGTH)}\` on \`${ref}\``, "");
+    lines.push(`Commit \`${sha.slice(0, SHORT_SHA_LENGTH)}\` on ${codeSpan(ref)}`, "");
     lines.push("No findings: Ruff found nothing to fix in this repo. Spotless!", "");
   } else {
     lines.push(
-      `Commit \`${sha.slice(0, SHORT_SHA_LENGTH)}\` on \`${ref}\` · **${squashed} of ${total}** bugs squashed in Lintlands (${percent}%) · ${plural(files.length, "file")}`,
+      `Commit \`${sha.slice(0, SHORT_SHA_LENGTH)}\` on ${codeSpan(ref)} · **${squashed} of ${total}** bugs squashed in Lintlands (${percent}%) · ${plural(files.length, "file")}`,
       "",
     );
     if (hidden > 0) lines.push(`Plus ${plural(hidden, "smaller finding")} not listed below.`, "");

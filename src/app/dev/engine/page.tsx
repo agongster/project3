@@ -12,7 +12,10 @@
  * Pausing events (chest, dialog, menu...) are logged below the canvas and the
  * game resumes itself shortly after, so testing never gets stuck.
  *
- * In development, `window.__lintlands` exposes the game and helpers for
+ * The page keeps its own throwaway save in memory, and like every /dev page
+ * it only exists in development (see ../layout.tsx).
+ *
+ * `window.__lintlands` exposes the game and helpers for
  * scripted screenshots, e.g.
  *   __lintlands.teleport(...Object.values(__lintlands.nearest("well")))
  *   __lintlands.monsters()   // living monsters: kind, position, HP, telegraphing?
@@ -80,7 +83,8 @@ export default function EngineDevPage() {
     let game: GameHandle | null = null;
     let unsubscribeHud = () => {};
 
-    const save = createSaveStore();
+    // An in-memory save (null = no localStorage): experiments here never touch the player's real progress.
+    const save = createSaveStore(null);
     const themeParam = params.get("theme");
     if (themeParam && THEMES.some((t) => t.id === themeParam)) save.set((s) => setTheme(s, themeParam as ThemeId));
     const hudStore = createStore<HudState>(INITIAL_HUD);

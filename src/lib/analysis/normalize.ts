@@ -135,7 +135,8 @@ export const MAX_MONSTERS_PER_RULE = 3;
  */
 export const MAX_SYNTAX_MONSTERS = 1;
 
-const SEVERITY_RANK: Record<Severity, number> = { boss: 0, elite: 1, minion: 2 };
+/** Which findings get a monster first when a file has too many: a lower number is kept first. */
+const KEEP_PRIORITY: Record<Severity, number> = { boss: 0, elite: 1, minion: 2 };
 
 function byLineThenColumn(a: Finding, b: Finding): number {
   return a.line - b.line || a.col - b.col;
@@ -149,7 +150,7 @@ function byLineThenColumn(a: Finding, b: Finding): number {
  */
 export function selectMonsters(findings: readonly Finding[]): { findings: Finding[]; overflow: number } {
   const unique = mergeSameProblem(findings);
-  const byPriority = unique.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] || byLineThenColumn(a, b));
+  const byPriority = unique.sort((a, b) => KEEP_PRIORITY[a.severity] - KEEP_PRIORITY[b.severity] || byLineThenColumn(a, b));
   const perRule = new Map<string, number>();
   const chosen: Finding[] = [];
 

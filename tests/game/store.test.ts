@@ -364,6 +364,36 @@ describe("createSaveStore", () => {
     expect(storage.writes).toBe(1); // the pending timer was cancelled
   });
 
+  it("two tabs share one save: a tab adopts what the other tab wrote instead of overwriting it", () => {
+    vi.useFakeTimers();
+    const storage = new FakeStorage(); // one localStorage, shared by both tabs
+    const tabA = createSaveStore(storage);
+    const tabB = createSaveStore(storage); // opened while the save was still empty
+
+    tabA.set((save) => addCoins(save, 500));
+    tabA.flush();
+    // The browser tells the *other* tab about the write (the `storage` event).
+    tabB.adoptFromOtherTab(storage.data.get(SAVE_STORAGE_KEY)!);
+    expect(tabB.get().coins).toBe(500);
+
+    // Adopting is not a change of tab B's own, so it writes nothing back…
+    vi.advanceTimersByTime(SAVE_DEBOUNCE_MS * 2);
+    expect(storage.writes).toBe(1);
+
+    // …and tab B's next save builds on tab A's coins instead of wiping them.
+    tabB.set((save) => addCoins(save, 1));
+    tabB.flush();
+    expect(JSON.parse(storage.data.get(SAVE_STORAGE_KEY)!).coins).toBe(501);
+  });
+
+  it("ignores a cleared or unreadable save from another tab", () => {
+    const store = createSaveStore(new FakeStorage());
+    store.set((save) => addCoins(save, 7));
+    store.adoptFromOtherTab(null);
+    store.adoptFromOtherTab("{not json");
+    expect(store.get().coins).toBe(7);
+  });
+
   it("does not write when a reducer returns the same save", () => {
     vi.useFakeTimers();
     const storage = new FakeStorage();

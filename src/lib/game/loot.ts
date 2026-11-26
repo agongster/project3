@@ -62,7 +62,8 @@ export const DUNGEON_COINS_PER_FINDING = 4;
 /** Shown as the reason for a clean file's chest when the analysis gave no highlights. */
 const FALLBACK_CLEAN_REASON = "Ruff found nothing to complain about";
 
-const SEVERITY_RANK: Readonly<Record<Severity, number>> = { minion: 0, elite: 1, boss: 2 };
+/** How dangerous each severity is: a higher number is a tougher monster. */
+const DANGER_LEVEL: Readonly<Record<Severity, number>> = { minion: 0, elite: 1, boss: 2 };
 
 // ───────────────────────────── Types ─────────────────────────────
 
@@ -113,7 +114,7 @@ export function beginnerSlot(owned: readonly string[]): ItemSlot | null {
 /** The most dangerous severity among the file's findings ("minion" for a file with none). */
 export function worstSeverity(file: AnalyzedFile): Severity {
   return file.findings.reduce<Severity>(
-    (worst, finding) => (SEVERITY_RANK[finding.severity] > SEVERITY_RANK[worst] ? finding.severity : worst),
+    (worst, finding) => (DANGER_LEVEL[finding.severity] > DANGER_LEVEL[worst] ? finding.severity : worst),
     "minion",
   );
 }
@@ -131,7 +132,7 @@ function dungeonReasons(file: AnalyzedFile): string[] {
   const count = file.findings.length;
   const reasons = [`Squashed ${count} bug${count === 1 ? "" : "s"} in this file`];
   const toughest = file.findings.reduce<AnalyzedFile["findings"][number] | null>(
-    (best, finding) => (!best || SEVERITY_RANK[finding.severity] > SEVERITY_RANK[best.severity] ? finding : best),
+    (best, finding) => (!best || DANGER_LEVEL[finding.severity] > DANGER_LEVEL[best.severity] ? finding : best),
     null,
   );
   if (toughest) reasons.push(`Toughest foe: ${MONSTERS[toughest.monster]?.name ?? toughest.title}`);

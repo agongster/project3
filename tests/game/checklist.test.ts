@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildChecklist } from "@/lib/game/checklist";
+import { buildChecklist, codeSpan } from "@/lib/game/checklist";
 import { emptyProgress } from "@/lib/game/progress";
 import { makeAnalysis, makeFile, makeFinding } from "./helpers";
 
@@ -72,5 +72,26 @@ describe("buildChecklist", () => {
   it("ends with exactly one newline", () => {
     expect(markdown.endsWith("\n")).toBe(true);
     expect(markdown.endsWith("\n\n")).toBe(false);
+  });
+});
+
+describe("codeSpan", () => {
+  it("uses a single backtick fence for ordinary names", () => {
+    expect(codeSpan("potions/brew.py")).toBe("`potions/brew.py`");
+  });
+
+  it("fences with one more backtick than the name contains, so the span cannot end early", () => {
+    expect(codeSpan("a`b.py")).toBe("``a`b.py``");
+    expect(codeSpan("a``b`c.py")).toBe("```a``b`c.py```");
+    // Padding keeps a leading or trailing backtick from merging into the fence.
+    expect(codeSpan("`x")).toBe("`` `x ``");
+  });
+
+  it("keeps a hostile file name from injecting a link into the checklist", () => {
+    const path = "x`[click](https://evil.example)`.py";
+    const hostile = makeFinding(path, 1);
+    const out = buildChecklist(makeAnalysis([makeFile(path, { findings: [hostile] })]), emptyProgress());
+    expect(out).toContain(`## \`\`${path}\`\` (0/1)`);
+    expect(out).toContain(`- [ ] \`\`${path}:1\`\` — `);
   });
 });

@@ -2,7 +2,7 @@
  * Game-wide services: the things that live as long as the game itself and
  * are shared by every scene (the save, audio, input, the hero...).
  *
- * `createGame` (index.ts) builds one `GameServices` object and hands it to
+ * `createEngine` (index.ts) builds one `GameServices` object and hands it to
  * each scene through its SceneContext (`ctx.game`).
  */
 import type { AudioApi, GameEvent, GameOptions } from "./bridge";

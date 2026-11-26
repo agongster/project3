@@ -184,7 +184,7 @@ export class DungeonScene implements Scene {
     const { ctx, game } = this;
     this.cleared = true;
     game.save.set((save) => recordDungeonCleared(save, game.repoKey, this.path));
-    ctx.audio.sfx("purify");
+    // The UI plays the fanfare when it shows the "DUNGEON PURIFIED!" banner for this event.
     ctx.juice.flash("#ffffff", 0.5, 0.5);
     ctx.emit({ type: "purified", path: this.path });
     this.cleanse.start(game.player.x, game.player.y);

@@ -1,6 +1,7 @@
 /**
- * Debug helpers for the /dev/engine page and screenshot scripts
- * (`window.__lintlands` in development). Not used by the real game UI.
+ * Debug helpers for play-testing and screenshot scripts. In development they
+ * are reachable as `window.__lintlands` on the /dev/engine page and as
+ * `window.__app.debug` in the real game. The game itself never calls them.
  */
 import type { Dungeon, Prop } from "@/lib/types";
 import { Monster } from "./entities/monsters/monster";

@@ -323,6 +323,12 @@ export interface SaveStore extends Store<SaveData> {
   /** Writes any pending change to storage right now (e.g. before navigating away). */
   flush(): void;
   /**
+   * Replaces this tab's save with one that another browser tab just wrote
+   * (`text` is the raw localStorage value). Without this, two open tabs would
+   * each keep writing their own stale copy and undo each other's progress.
+   */
+  adoptFromOtherTab(text: string | null): void;
+  /**
    * The save the server rendered with: always a default save, because the
    * server has no localStorage. `useStore` uses it while React hydrates, so
    * the first client render matches the server HTML. Always the same object.
@@ -369,6 +375,9 @@ function writeSave(storage: SaveStorage, save: SaveData): void {
  * every change (batched by SAVE_DEBOUNCE_MS, and flushed immediately when the
  * page is hidden or closed so the last coins are never lost).
  *
+ * If the game is open in two tabs, each tab copies in what the other one
+ * saves (the browser's `storage` event), so they share one save.
+ *
  * Safe to call during server rendering: without `window` it simply holds a
  * default save in memory. Pass `storage` to use something other than
  * localStorage (tests do), or `null` to disable persistence.
@@ -378,6 +387,8 @@ export function createSaveStore(storage: SaveStorage | null = browserStorage()):
   const serverSnapshot = defaultSave();
   let timer: ReturnType<typeof setTimeout> | null = null;
   let dirty = false;
+  /** True while another tab's save is being copied in, so that copy is not written straight back. */
+  let adopting = false;
 
   function flush(): void {
     if (timer !== null) {
@@ -389,7 +400,27 @@ export function createSaveStore(storage: SaveStorage | null = browserStorage()):
     writeSave(storage, store.get());
   }
 
+  function adoptFromOtherTab(text: string | null): void {
+    if (text === null) return; // the other tab cleared its storage: keep what we have
+    let incoming: SaveData;
+    try {
+      incoming = sanitizeSave(JSON.parse(text));
+    } catch {
+      return; // not a save we can read: ignore it
+    }
+    // The other tab's save is newer than anything this tab has not written yet.
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    dirty = false;
+    adopting = true;
+    store.set(() => incoming);
+    adopting = false;
+  }
+
   store.subscribe(() => {
+    if (adopting) return;
     dirty = true;
     if (timer === null) timer = setTimeout(flush, SAVE_DEBOUNCE_MS);
   });
@@ -402,7 +433,11 @@ export function createSaveStore(storage: SaveStorage | null = browserStorage()):
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") flush();
     });
+    // Fires only in the *other* tabs of this site when one tab writes to localStorage.
+    window.addEventListener("storage", (event) => {
+      if (storage !== null && event.storageArea === storage && event.key === SAVE_STORAGE_KEY) adoptFromOtherTab(event.newValue);
+    });
   }
 
-  return { ...store, flush, getServerSnapshot: () => serverSnapshot };
+  return { ...store, flush, adoptFromOtherTab, getServerSnapshot: () => serverSnapshot };
 }
