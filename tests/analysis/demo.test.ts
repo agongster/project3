@@ -4,7 +4,8 @@
  * monster type.
  */
 import { describe, expect, it } from "vitest";
-import { analyzeDemoSources, DEMO_REPO, DEMO_SOURCES } from "@/lib/analysis/demo";
+import { analyzeDemo, analyzeDemoSources, DEMO_OTHER_FILES, DEMO_README, DEMO_REPO, DEMO_SOURCES } from "@/lib/analysis/demo";
+import { nodeLintClient } from "./nodeLint";
 import type { MonsterKind } from "@/lib/types";
 import { createNodeLint } from "./nodeLint";
 
@@ -62,5 +63,17 @@ describe("demo kingdom", () => {
     for (const finding of analysis.files.flatMap((f) => f.findings)) {
       expect(finding.snippet.some((line) => line.hit && line.n === finding.line)).toBe(true);
     }
+  });
+
+  it("has a few non-Python files for the Workshop, the README being the one the town quotes", () => {
+    const paths = DEMO_OTHER_FILES.map((f) => f.path);
+    expect(paths).toEqual(expect.arrayContaining(["README.md", "requirements.txt", "pyproject.toml"]));
+    expect(DEMO_OTHER_FILES.find((f) => f.path === "README.md")?.text).toBe(DEMO_README);
+    expect(paths.some((path) => path.endsWith(".py"))).toBe(false);
+  });
+
+  it("analyzeDemo (the developer pages' analysis) matches the Node-linted demo", async () => {
+    const viaWorker = await analyzeDemo(() => undefined, undefined, { createLintClient: nodeLintClient, sleep: async () => undefined });
+    expect(viaWorker).toEqual(analysis);
   });
 });

@@ -1,0 +1,342 @@
+/*
+ * The quest board, the streak meter and the achievement gallery (the news
+ * toasts are in news.css). Plain global CSS (this project's Turbopack setup treats every
+ * .css file as global), so every class and keyframe name starts with "qst-".
+ * Colours are the tokens from globals.css; animations use steps() timing so
+ * they move in visible frames, like the rest of the pixel UI.
+ *
+ * The board is a wooden notice board with parchment notes pinned to it.
+ * Everything wraps, so it fits a 320 px side panel as well as a wide area.
+ */
+
+/* ───────────────────────────── Board ───────────────────────────── */
+
+.qst-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 10px 12px;
+  font-size: 15px;
+  line-height: 1.25;
+  /* Planks: a darker seam every 26 px. */
+  background-image: repeating-linear-gradient(180deg, transparent 0 24px, rgb(0 0 0 / 0.1) 24px 26px);
+}
+
+.qst-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.qst-head h2 {
+  font-size: 20px;
+  color: var(--color-cream);
+  text-shadow: 2px 2px 0 var(--color-ink);
+}
+.qst-head-count {
+  font-size: 13px;
+  color: var(--color-cream-deep);
+}
+
+/* Small "sub-heading" plates on the wood. */
+.qst-label {
+  align-self: flex-start;
+  padding: 1px 8px 2px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-cream);
+  background: var(--color-wood-deep);
+  box-shadow: 0 2px 0 0 rgb(0 0 0 / 0.25);
+}
+
+/* Wraps any long word from a repo (paths, function names) instead of overflowing the panel. */
+.qst-wrap {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* ───────────────────────────── Streak ───────────────────────────── */
+
+.qst-streak {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  color: var(--color-cream);
+  background: var(--color-night-soft);
+  box-shadow:
+    0 -3px 0 0 var(--color-ink),
+    0 3px 0 0 var(--color-ink),
+    -3px 0 0 0 var(--color-ink),
+    3px 0 0 0 var(--color-ink),
+    inset 0 -3px 0 0 #1f1a38;
+  margin: 3px;
+}
+.qst-streak-count {
+  min-width: 2.6em;
+  font-size: 22px;
+  color: var(--color-gold);
+  text-shadow: 2px 2px 0 var(--color-ink);
+  text-align: center;
+}
+.qst-streak[data-active="false"] .qst-streak-count {
+  color: var(--color-ink-soft);
+}
+.qst-streak-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.qst-streak-title {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.qst-streak-hint {
+  font-size: 12px;
+  color: #c9bde0;
+}
+.qst-pips {
+  display: flex;
+  gap: 4px;
+}
+.qst-pip {
+  width: 12px;
+  height: 10px;
+  background: #3b3360;
+  box-shadow: inset 0 -2px 0 0 rgb(0 0 0 / 0.3);
+}
+.qst-pip[data-lit="true"] {
+  background: var(--color-gold);
+  box-shadow: inset 0 -2px 0 0 #d99a12, inset 0 2px 0 0 rgb(255 255 255 / 0.45);
+}
+
+/* ───────────────────────────── Quest cards ───────────────────────────── */
+
+.qst-list {
+  display: grid;
+  /* One column in a side panel; two or three in a wide area. */
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: 14px 12px;
+  margin: 0;
+  padding: 4px 3px 0;
+  list-style: none;
+}
+
+.qst-card {
+  --qst-accent: var(--color-sky);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 10px 8px;
+  color: var(--color-ink);
+  background: var(--color-cream);
+  box-shadow:
+    0 -3px 0 0 var(--color-ink),
+    0 3px 0 0 var(--color-ink),
+    -3px 0 0 0 var(--color-ink),
+    3px 0 0 0 var(--color-ink),
+    inset 0 -3px 0 0 var(--color-cream-deep),
+    inset 4px 0 0 0 var(--qst-accent),
+    0 6px 0 0 rgb(0 0 0 / 0.25);
+}
+/* The pushpin holding the note to the board. */
+.qst-card::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  background: var(--color-berry);
+  box-shadow: 0 2px 0 0 #8c2226, inset 2px 2px 0 0 rgb(255 255 255 / 0.45);
+}
+.qst-card[data-kind="fix"] { --qst-accent: var(--color-rose); }
+.qst-card[data-kind="document"] { --qst-accent: var(--color-gold); }
+.qst-card[data-kind="grade"] { --qst-accent: var(--color-sky); }
+.qst-card[data-kind="purify"] { --qst-accent: var(--color-leaf); }
+.qst-card[data-kind="tidy"] { --qst-accent: var(--color-grape); }
+
+.qst-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qst-kind {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+.qst-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+.qst-desc {
+  font-size: 13px;
+  color: var(--color-ink-soft);
+}
+.qst-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 3px;
+}
+.qst-progress > :first-child {
+  flex: 1;
+  height: 10px;
+}
+.qst-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.qst-go {
+  max-width: 100%;
+  min-width: 0;
+}
+.qst-go > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The reward: coin and XP gem with their amounts. */
+.qst-reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.qst-reward-coins { color: var(--color-wood-deep); }
+.qst-reward-xp { color: #6a3fd1; margin-left: 4px; }
+
+/* A finished quest: the note turns green and gets a stamp. */
+.qst-card[data-done="true"] {
+  background: #e6f6cf;
+  --qst-accent: var(--color-leaf-deep);
+}
+.qst-stamp {
+  margin: 0 6px 0 auto;
+  padding: 2px 8px;
+  font-size: 16px;
+  color: var(--color-leaf-deep);
+  border: 3px solid var(--color-leaf-deep);
+  transform: rotate(-8deg);
+  background: rgb(255 255 255 / 0.6);
+  pointer-events: none;
+}
+.qst-stamp-in { animation: qst-kf-stamp 260ms steps(5) both; }
+@keyframes qst-kf-stamp {
+  0% { transform: rotate(-8deg) scale(2.2); opacity: 0; }
+  70% { transform: rotate(-8deg) scale(0.92); opacity: 1; }
+  100% { transform: rotate(-8deg) scale(1); }
+}
+
+/* Completed quests, one compact line each. */
+.qst-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.qst-recent li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--color-ink);
+  background: #e6f6cf;
+  box-shadow: 0 2px 0 0 rgb(0 0 0 / 0.25);
+}
+.qst-recent li > .qst-wrap {
+  flex: 1;
+  text-decoration: line-through;
+  text-decoration-color: rgb(43 27 61 / 0.45);
+}
+
+/* ───────────────────────────── Sprites ───────────────────────────── */
+
+.qst-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+/* A badge not earned yet: just its outline in shadow. */
+.qst-silhouette {
+  filter: brightness(0) opacity(0.35);
+}
+
+/* ───────────────────────────── Achievements ───────────────────────────── */
+
+.qst-gallery-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-cream);
+  background: var(--color-wood-deep);
+  cursor: pointer;
+  box-shadow: 0 3px 0 0 rgb(0 0 0 / 0.3);
+}
+.qst-gallery-toggle:hover { filter: brightness(1.1); }
+.qst-gallery-toggle:focus-visible { outline: 3px solid var(--color-gold); outline-offset: 2px; }
+.qst-gallery-toggle .qst-chevron { margin-left: auto; transition: transform 80ms steps(2); }
+.qst-gallery-toggle[aria-expanded="true"] .qst-chevron { transform: rotate(90deg); }
+
+.qst-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.qst-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  color: var(--color-ink);
+  background: var(--color-cream);
+  box-shadow: 0 2px 0 0 rgb(0 0 0 / 0.25), inset 0 -2px 0 0 var(--color-cream-deep);
+}
+.qst-badge[data-earned="true"] {
+  background: #fff0b8;
+  box-shadow: 0 2px 0 0 rgb(0 0 0 / 0.25), inset 0 0 0 2px var(--color-gold);
+}
+.qst-badge[data-earned="false"] {
+  background: #e2d4b4;
+  color: var(--color-ink-soft);
+}
+.qst-badge-title { display: block; font-weight: 700; font-size: 13px; }
+.qst-badge-how { display: block; font-size: 12px; color: var(--color-ink-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .qst-stamp-in { animation: none; }
+}

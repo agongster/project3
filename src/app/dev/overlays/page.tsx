@@ -26,6 +26,7 @@ import type { AudioApi } from "@/game/bridge";
 import { VIEW_H, VIEW_W, repoKey } from "@/game/bridge";
 import { analyzeDemo } from "@/lib/analysis/demo";
 import { createStore } from "@/lib/game";
+import { chooseBounties } from "@/lib/game/bounties";
 import { mulberry32 } from "@/lib/rng";
 import type { RepoAnalysis, SaveData, Store } from "@/lib/types";
 import { allClearedSave, demoRequests, demoSave, withGradeCFile, withManyFindings } from "./demoData";
@@ -158,6 +159,9 @@ export default function OverlayDevPage() {
     open: (request) => setActive({ name: request.kind, request }),
     close: () => setActive(null),
     resolveFinisher: (_findingId, correct) => setLastExit(`resolveFinisher(${correct}) was called`),
+    spareFinisher: () => setLastExit("spareFinisher() was called"),
+    openWorkshop: (target) => setLastExit(`openWorkshop(${target?.path ?? "here"}:${target?.line ?? ""}) was called`),
+    bounties: chooseBounties(demo.analysis),
     exitToTitle: () => {
       setActive(null);
       setLastExit("exitToTitle() was called");

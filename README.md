@@ -68,6 +68,18 @@ Requires Node 22. `npm run dev` and `npm run build` first run `scripts/copy-ruff
 4. **World generation** turns the analysis into a tile map: one region per top-level folder, one building per file. It is seeded by `owner/repo@commit`, so the same commit always makes the same world.
 5. The **engine** draws the world on a 400×225 canvas scaled up by a whole number. React draws the menus and HUD on top.
 
+### The Workshop (editing the code)
+
+Lintlands is a game first. The Workshop is an optional room inside it: press **F** (or the Workshop button next to Bag and Codex) to open the file you are in or facing in a code editor.
+
+- **Typing changes nothing.** While you type, live Ruff findings appear as monster sprites in the gutter.
+- **Forge (Ctrl/Cmd+S) is the game move.** The file is re-linted and the world follows: bugs that are gone are *fixed for real* (their monsters dissolve; each pays double, once), new bugs become new monsters with no penalty, and the file's grade and dungeon update. A file whose last bug is fixed turns into a treasure house.
+- **All text files open**; only Python files have monsters.
+- **Edits stay in the browser** (localStorage, per commit). Nothing is written to GitHub. The Changes tab downloads a patch (`git apply` accepts it) or a zip.
+- **Quests** come from the repo's own code ("Document `take_order()`"), plus a streak for forges that fix without breaking, and achievements.
+
+How it fits together: `src/lib/workspace/contract.ts` is the interface (`read`, `check`, `forge`, `revert`, `exportPatch`…), `src/lib/game/forge.ts` pays the rewards, and `GameHandle.updateAnalysis` in `src/game/bridge.ts` lets the running game follow the code without restarting.
+
 ### Controls
 
 | Key | Action |
@@ -78,7 +90,8 @@ Requires Node 22. `npm run dev` and `npm run build` first run `scripts/copy-ruff
 | E / Enter | Interact (doors, chests, villagers, the Wishing Well) |
 | I or B | Bag |
 | C | Codex (the bug list) |
-| M | Big map |
+| M | Big map (E switches to the repo treemap) |
+| F | Open the Workshop (the code editor) at the file you are in or facing |
 | Esc / Tab | Pause menu |
 
 ### Project map
@@ -88,7 +101,8 @@ Requires Node 22. `npm run dev` and `npm run build` first run `scripts/copy-ruff
 | `src/lib/types.ts` | Every data shape shared between modules. **Start reading here.** |
 | `src/lib/game/catalog.ts` | The design sheet: every item, monster, theme and character option as plain data |
 | `src/app/api/repo/route.ts`, `src/lib/repo/` | The backend endpoint and GitHub client; input parsing; file filtering |
-| `src/lib/analysis/` | Ruff rule → monster table (`rules.ts`), diagnostics → findings (`normalize.ts`), good-code grading (`quality.ts`), the browser pipeline (`analyzeRepo.ts`), the offline demo (`demo.ts`) |
+| `src/lib/analysis/` | Ruff rule → monster table (`rules.ts`), diagnostics → findings (`normalize.ts`), good-code grading (`quality.ts`), the per-file code outline (`outline.ts`), the offline demo (`demo.ts`) |
+| `src/lib/workspace/` | The Workshop's engine room: opens a repo (list → download → lint), keeps every file's text and the live linter, and handles check / forge (save) / revert / export. `contract.ts` is the interface |
 | `public/lint-worker.js` | The Web Worker that runs Ruff |
 | `src/lib/worldgen/` | Overworld and dungeon generators (deterministic, validated for reachability) |
 | `src/lib/game/` | Save store, reducers, gacha, chest loot, progress, Markdown checklist |
@@ -99,6 +113,7 @@ Requires Node 22. `npm run dev` and `npm run build` first run `scripts/copy-ruff
 | `src/components/app/`, `screens/`, `hud/`, `character/` | React shell: title, hero creator, loading screen, HUD |
 | `src/components/overlays/` | Chest reveal, Wishing Well, bag, codex, notice board, pause, wardrobe, victory |
 | `src/components/loading/` | "Bug Catch", the loading mini-game |
+| `src/components/workshop/` | The Workshop: the in-game code editor (CodeMirror 6), its explorer, bug cards, forge moment and side panel; `quests/` holds the quest board |
 | `src/app/dev/*` | Developer pages, available only with `npm run dev` (a deployed site answers 404): `/dev/art`, `/dev/art2`, `/dev/audio`, `/dev/engine`, `/dev/ui`, `/dev/overlays`, `/dev/loading`, `/dev/analysis` |
 | `tests/` | Vitest unit tests |
 
@@ -117,7 +132,7 @@ The tests cover the logic that can be checked without a screen: repo-input parsi
 
 ### Review and known issues
 
-`REVIEW.md` is an independent review of the build by a second AI agent that wrote none of the code. It is kept exactly as the reviewer wrote it. Six of its nine findings were fixed afterwards (3, 4, 5, 6, 8, 9; see `prompt_log.md`). Three are still open:
+`REVIEW.md` is an independent review of the build by a second AI agent that wrote none of the code. It is kept exactly as the reviewer wrote it. It reviewed the first build only: the later rounds (more code in the gameplay, the Workshop) have not been reviewed by a second agent. Six of its nine findings were fixed afterwards (3, 4, 5, 6, 8, 9; see `prompt_log.md`). Three are still open:
 
 1. **Finding 1** — several problems of the same kind on one line (for example `import os, sys, json`, all unused) become a single monster, and the others are missing from the Codex and the exported to-do list (`src/lib/analysis/normalize.ts`, `mergeSameProblem`).
 2. **Finding 2** — the quality grade counts private (`_name`) functions as documented, so a file with no docstrings can be graded S and called "Well documented" (`src/lib/analysis/quality.ts`, `docstringCoverage`).

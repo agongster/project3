@@ -16,6 +16,7 @@ const BANNER_FONT_ART_PX = 9;
 const TONE_COLORS = {
   purify: { title: "var(--color-leaf)", ribbon: "#2f6b3a" },
   level: { title: "var(--color-gold)", ribbon: "#5b3fa8" },
+  forge: { title: "var(--color-sky)", ribbon: "#1f5f78" },
 } as const;
 
 export function BannerView({ feed }: { feed: Feed }) {

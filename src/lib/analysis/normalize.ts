@@ -16,6 +16,13 @@ interface RuffLocation {
   column: number;
 }
 
+/** One replacement in a fix Ruff offers (`content` null = delete the range). */
+interface RuffEdit {
+  content: string | null;
+  location: RuffLocation;
+  end_location: RuffLocation;
+}
+
 /**
  * The part of a Ruff diagnostic that we read. Locations are optional because
  * this JSON crosses a Web Worker boundary untyped; we never trust it blindly.
@@ -26,6 +33,25 @@ export interface RawDiagnostic {
   message: string;
   start_location?: RuffLocation;
   end_location?: RuffLocation;
+  /** The automatic fix Ruff offers, if any. (Ruff's WebAssembly build does not say whether it is safe.) */
+  fix?: { message: string | null; edits: RuffEdit[] } | null;
+}
+
+/** One replacement of a fix, in our own vocabulary (1-based; the end column is one past the last character). */
+export interface LintEdit {
+  line: number;
+  col: number;
+  endLine: number;
+  endCol: number;
+  /** The new text ("" deletes the range). */
+  text: string;
+}
+
+/** A fix Ruff offers for a hit. */
+export interface LintFix {
+  /** Ruff's own description, e.g. "Remove unused import: `os`" (null if it gave none). */
+  message: string | null;
+  edits: LintEdit[];
 }
 
 /** A Ruff diagnostic in our own vocabulary (1-based positions). */
@@ -36,6 +62,8 @@ export interface LintHit {
   col: number;
   endLine: number;
   endCol: number;
+  /** Ruff's automatic fix, or null when it offers none. */
+  fix: LintFix | null;
 }
 
 /**
@@ -57,7 +85,34 @@ export function normalizeDiagnostic(raw: RawDiagnostic): LintHit {
     col: start.column,
     endLine: end.row,
     endCol: end.column,
+    fix: normalizeFix(raw.fix),
   };
+}
+
+function isLocation(value: unknown): value is RuffLocation {
+  const location = value as Partial<RuffLocation> | null;
+  return typeof location === "object" && location !== null && Number.isInteger(location.row) && Number.isInteger(location.column);
+}
+
+/**
+ * Ruff's fix in our vocabulary, or null. A fix with any malformed edit is
+ * dropped whole: applying only part of a fix could break the code.
+ */
+function normalizeFix(raw: RawDiagnostic["fix"]): LintFix | null {
+  if (typeof raw !== "object" || raw === null || !Array.isArray(raw.edits) || raw.edits.length === 0) return null;
+  const edits: LintEdit[] = [];
+  for (const edit of raw.edits) {
+    if (!isLocation(edit?.location) || !isLocation(edit.end_location)) return null;
+    if (edit.content !== null && typeof edit.content !== "string") return null;
+    edits.push({
+      line: edit.location.row,
+      col: edit.location.column,
+      endLine: edit.end_location.row,
+      endCol: edit.end_location.column,
+      text: edit.content ?? "",
+    });
+  }
+  return { message: typeof raw.message === "string" ? raw.message : null, edits };
 }
 
 // ─────────────────────────── Findings ───────────────────────────
@@ -98,7 +153,7 @@ export function extractSnippet(lines: readonly string[], line: number, endLine: 
  * Builds the Finding for one lint hit. Positions are clamped into the file:
  * Ruff points syntax errors at "end of file" one line past the last line.
  */
-export function buildFinding(path: string, hit: LintHit, lines: readonly string[]): Finding {
+export function buildFinding(path: string, hit: Omit<LintHit, "fix">, lines: readonly string[]): Finding {
   const lastLine = Math.max(1, lines.length);
   const line = clamp(hit.line, 1, lastLine);
   const endLine = clamp(hit.endLine, line, lastLine);
@@ -140,6 +195,19 @@ const KEEP_PRIORITY: Record<Severity, number> = { boss: 0, elite: 1, minion: 2 }
 
 function byLineThenColumn(a: Finding, b: Finding): number {
   return a.line - b.line || a.col - b.col;
+}
+
+/**
+ * A file's full finding list: every finding in line order, except that only
+ * the first syntax error is kept (after it the parser is confused, and later
+ * "errors" are usually echoes of the first). This uncapped list is what the
+ * Workshop underlines and what a forge compares (src/lib/workspace/reconcile.ts);
+ * a dungeon shows a capped selection of it (`selectMonsters`).
+ */
+export function fullFindingList(findings: readonly Finding[]): Finding[] {
+  const sorted = [...findings].sort(byLineThenColumn);
+  const firstSyntaxError = sorted.find((finding) => finding.code === SYNTAX_CODE);
+  return sorted.filter((finding) => finding.code !== SYNTAX_CODE || finding === firstSyntaxError);
 }
 
 /**

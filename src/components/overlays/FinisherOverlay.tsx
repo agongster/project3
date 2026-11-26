@@ -9,9 +9,13 @@
  *   right → "CRITICAL FIX!" and confetti; the engine pays double coins and XP
  *   wrong → no penalty: the real fix lights up and the bug goes down anyway
  *   closed without a pick (Esc) → an ordinary defeat
+ *   "Fix it for real" → declines the finisher: the monster gets back up
+ *         (`ctx.spareFinisher`) and the Workshop opens on its line, so the
+ *         bug can be fixed in the code instead
  *
  * However it closes, it first tells the engine the result
- * (`ctx.resolveFinisher`), then resumes the game (`ctx.close`).
+ * (`ctx.resolveFinisher`), then resumes the game (`ctx.close`) — or, for
+ * "Fix it for real", leaves it paused under the Workshop.
  */
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { KeyCap, Modal, PixelButton, cx } from "@/components/ui/kit";
@@ -25,6 +29,7 @@ import { FX } from "./parts/fx";
 import { isConfirmKey, useKeyDown, useReady, useTicker, useTimeout } from "./parts/hooks";
 import { MonsterIcon } from "./parts/MonsterIcon";
 import { PixelSprite } from "./parts/PixelSprite";
+import { WorkshopLink } from "./parts/WorkshopLink";
 import { uiIcon } from "./parts/sprites";
 import type { OverlayProps } from "./types";
 
@@ -81,6 +86,11 @@ export default function FinisherOverlay({ request, ctx }: OverlayProps<"finisher
   function finish() {
     ctx.resolveFinisher(finding.id, phase === "right");
     ctx.close();
+  }
+
+  function fixForReal() {
+    ctx.spareFinisher(finding.id);
+    ctx.openWorkshop({ path: finding.path, line: finding.line });
   }
 
   useKeyDown((event) => {
@@ -150,9 +160,12 @@ export default function FinisherOverlay({ request, ctx }: OverlayProps<"finisher
       <footer className="flex items-center gap-3 px-4 pb-4">
         <p className="min-w-0 flex-1 text-sm font-bold">{verdict[phase]}</p>
         {phase === "asking" ? (
-          <PixelButton tone="cream" small onClick={finish}>
-            Just squash it <KeyCap>Esc</KeyCap>
-          </PixelButton>
+          <>
+            <WorkshopLink className="text-sm" onClick={fixForReal} title="Spare it, and fix its bug in the Workshop instead" />
+            <PixelButton tone="cream" small onClick={finish}>
+              Just squash it <KeyCap>Esc</KeyCap>
+            </PixelButton>
+          </>
         ) : (
           <PixelButton tone="gold" onClick={finish}>
             Squash it! <KeyCap>Space</KeyCap>

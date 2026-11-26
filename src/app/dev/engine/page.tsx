@@ -32,7 +32,7 @@ import { generateDungeon, generateOverworld } from "@/lib/worldgen";
 import type { SaveData, Store, ThemeId } from "@/lib/types";
 
 /** Events after which the real UI would show an overlay (the engine paused itself). */
-const PAUSING: ReadonlySet<GameEvent["type"]> = new Set(["chest", "gacha", "wardrobe", "board", "dialog", "bugCard", "finisher", "menu", "victory"]);
+const PAUSING: ReadonlySet<GameEvent["type"]> = new Set(["chest", "gacha", "wardrobe", "board", "dialog", "workshop", "bugCard", "finisher", "menu", "victory"]);
 const AUTO_RESUME_MS = 400;
 const LOG_LENGTH = 10;
 
@@ -66,6 +66,8 @@ function describe(event: GameEvent): string {
       return `purified ${event.path}`;
     case "finisher":
       return `finisher ${event.finding.code} (answered: right fix)`;
+    case "workshop":
+      return `workshop ${event.target.path ?? "(no file)"}${event.target.line ? `:${event.target.line}` : ""}`;
     default:
       return event.type;
   }
@@ -110,7 +112,7 @@ export default function EngineDevPage() {
           canvas,
           analysis,
           world,
-          makeDungeon: (path) => generateDungeon(files.get(path)!, world.seed),
+          makeDungeon: (file) => generateDungeon(file, world.seed),
           save,
           hud: hudStore,
           audio,

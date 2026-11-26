@@ -9,12 +9,16 @@
  */
 import type { AnalyzeErrorCode } from "@/lib/analysis/errors";
 import type { Overworld, RepoAnalysis } from "@/lib/types";
+import type { Workspace, WorkspaceTarget } from "@/lib/workspace";
 
 /** Which world to build: the offline demo, or a GitHub repo. */
-export type WorldTarget = { kind: "demo" } | { kind: "repo"; owner: string; repo: string; ref?: string };
+export type WorldTarget = WorkspaceTarget;
 
-/** A finished analysis plus the overworld generated from it. */
+/** An opened world: its workspace, the analysis at load time and the overworld generated from it. */
 export interface LoadedWorld {
+  /** The repo's files, the live linter and the player's edits (src/lib/workspace). Dispose it when leaving the world. */
+  workspace: Workspace;
+  /** `workspace.analysis.get()` when the world was opened (stored edits already applied). */
   analysis: RepoAnalysis;
   world: Overworld;
 }

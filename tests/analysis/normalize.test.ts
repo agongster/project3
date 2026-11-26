@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFinding,
+  fullFindingList,
   MAX_MONSTERS_PER_FILE,
   MAX_MONSTERS_PER_RULE,
   normalizeDiagnostic,
@@ -27,7 +28,27 @@ describe("normalizeDiagnostic", () => {
   });
 
   it("survives missing locations", () => {
-    expect(normalizeDiagnostic({ code: "F401", message: "m" })).toMatchObject({ line: 1, col: 1, endLine: 1, endCol: 1 });
+    expect(normalizeDiagnostic({ code: "F401", message: "m" })).toMatchObject({ line: 1, col: 1, endLine: 1, endCol: 1, fix: null });
+  });
+
+  it("keeps Ruff's fix, and drops a malformed one whole", () => {
+    const at = (row: number, column: number) => ({ row, column });
+    const fix = { message: "Remove unused import: `os`", edits: [{ content: null, location: at(1, 1), end_location: at(2, 1) }] };
+    expect(normalizeDiagnostic({ code: "F401", message: "m", fix }).fix).toEqual({ message: "Remove unused import: `os`", edits: [{ line: 1, col: 1, endLine: 2, endCol: 1, text: "" }] });
+    const broken = { message: "x", edits: [{ content: "a", location: at(1, 1), end_location: at(1, 2) }, { content: 5, location: at(1, 1), end_location: at(1, 2) }] };
+    expect(normalizeDiagnostic({ code: "F401", message: "m", fix: broken as never }).fix).toBeNull();
+    expect(normalizeDiagnostic({ code: "F401", message: "m", fix: { message: null, edits: [] } }).fix).toBeNull();
+  });
+});
+
+describe("fullFindingList", () => {
+  it("sorts by position and keeps only the first syntax error", () => {
+    const list = fullFindingList([finding("F401", 9), finding("SYNTAX", 7), finding("SYNTAX", 3), finding("E711", 1)]);
+    expect(list.map((f) => [f.code, f.line])).toEqual([
+      ["E711", 1],
+      ["SYNTAX", 3],
+      ["F401", 9],
+    ]);
   });
 });
 

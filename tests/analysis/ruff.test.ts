@@ -41,7 +41,17 @@ describe("Ruff with RUFF_OPTIONS", () => {
 
   it("reads Ruff's raw diagnostic fields correctly (normalizeDiagnostic)", () => {
     const raw = lint('"""Module docstring."""\nimport os\n');
-    expect(raw.map(normalizeDiagnostic)).toEqual([{ code: "F401", message: "`os` imported but unused", line: 2, col: 8, endLine: 2, endCol: 10 }]);
+    expect(raw.map(normalizeDiagnostic)).toEqual([
+      {
+        code: "F401",
+        message: "`os` imported but unused",
+        line: 2,
+        col: 8,
+        endLine: 2,
+        endCol: 10,
+        fix: { message: "Remove unused import: `os`", edits: [{ line: 2, col: 1, endLine: 3, endCol: 1, text: "" }] },
+      },
+    ]);
   });
 
   it("applies the nested options (Ruff silently ignores misspelled keys)", () => {

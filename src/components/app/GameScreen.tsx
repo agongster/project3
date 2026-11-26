@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * The in-game screen: the canvas engine, the HTML HUD over it, and the
- * overlay (chest, bag, pause, …) that is open, if any.
+ * The in-game screen: the canvas engine, the HTML HUD over it, the overlay
+ * (chest, bag, pause, …) that is open, if any, and the Workshop (the code
+ * editor) when the player opens it.
  *
  *   ┌ main (whole window, dark) ───────────────────────┐
  *   │   ┌ stage: exactly the scaled canvas size ─────┐ │
@@ -10,31 +11,40 @@
  *   │   │ <Hud>      (absolutely positioned on top)   │ │
  *   │   │ <OverlayHost>                               │ │
  *   │   └─────────────────────────────────────────────┘ │
+ *   │ <WorkshopLayer>  (the whole window, when open)    │
  *   └───────────────────────────────────────────────────┘
  *
  * The engine pauses itself before emitting a "pausing" event; whenever the
- * UI opens an overlay on its own (HUD button, shortcut key) it pauses the
- * game first. Closing an overlay always resumes it.
+ * UI opens an overlay or the Workshop on its own (HUD button, shortcut key)
+ * it pauses the game first. Closing an overlay or the Workshop resumes it.
+ *
+ * The world follows the code: the screen reads the workspace's LIVE
+ * analysis (HUD health, overlays), and the engine hears about every new one
+ * (useGameEngine). Forges are applied in one place (useWorkshop → forgeFlow).
  */
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type CSSProperties } from "react";
-import { createEngine } from "@/game";
 import type { GameDebug } from "@/game/debug";
-import { INITIAL_HUD, VIEW_H, VIEW_W, repoKey as makeRepoKey, type GameEvent, type GameHandle, type HudState } from "@/game/bridge";
+import { VIEW_H, VIEW_W, repoKey as makeRepoKey, type GameEvent, type GameHandle, type HudState, type WorkshopTarget } from "@/game/bridge";
 import { OverlayHost } from "@/components/overlays/OverlayHost";
 import type { OverlayContext, OverlayRequest } from "@/components/overlays/types";
 import { Hud } from "@/components/hud/Hud";
 import { createFeed } from "@/components/hud/feed";
-import { getProgress, repoHealth } from "@/lib/game";
+import { createStore, getProgress, repoHealth, type QuestNewsItem } from "@/lib/game";
 import { useStore } from "@/lib/game/useStore";
-import { generateDungeon } from "@/lib/worldgen";
 import type { RepoAnalysis, SaveData, Store } from "@/lib/types";
+import type { Workspace } from "@/lib/workspace";
 import { useMusic } from "./audioHooks";
 import type { LoadedWorld } from "./flow";
-import { announceEvent, overlayForEvent } from "./gameEvents";
+import { announceEvent, overlayForEvent, workshopForEvent } from "./gameEvents";
 import type { AppServices } from "./services";
+import { useBountyPayouts, createBountyBoard } from "./useBountyPayouts";
+import { useGameEngine } from "./useGameEngine";
 import { useGameScale } from "./useGameScale";
 import { useMilestones } from "./useMilestones";
-import { useBountyPayouts } from "./useBountyPayouts";
+import { useQuestSettling } from "./useQuestSettling";
+import { useWorkshop } from "./useWorkshop";
+import { WorkshopDoor } from "./WorkshopDoor";
+import { WorkshopLayer } from "./WorkshopLayer";
 
 declare global {
   interface Window {
@@ -46,8 +56,12 @@ declare global {
       /** Teleport, monster positions and other play-test helpers (see src/game/debug.ts). */
       debug: GameDebug | null;
       open: (request: OverlayRequest) => void;
-      /** The world being played, e.g. to look up finding ids in a script. */
+      /** The world being played as the code is NOW, e.g. to look up finding ids in a script. */
       analysis: RepoAnalysis;
+      /** The repo's files and the player's edits (forge, revert, changes…). */
+      workspace: Workspace;
+      /** Opens the Workshop (at the hero's code when no target is given). */
+      openWorkshop: (target?: WorkshopTarget) => void;
     };
   }
 }
@@ -63,36 +77,47 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 }
 
-/** I or B → bag, C → codex (Esc / Tab are handled by the engine, which emits "menu"). */
-function shortcutRequest(key: string): OverlayRequest | null {
+/** The key that opens the Workshop (free in the engine's bindings, see src/game/engine/input.ts). */
+export const WORKSHOP_KEY = "F";
+
+/** What a shortcut key opens: I or B → bag, C → codex, F → the Workshop (Esc / Tab are the engine's "menu"). */
+export function shortcutFor(key: string): OverlayRequest | "workshop" | null {
   const lower = key.toLowerCase();
   if (lower === "i" || lower === "b") return { kind: "bag" };
   if (lower === "c") return { kind: "codex" };
+  if (lower === WORKSHOP_KEY.toLowerCase()) return "workshop";
   return null;
 }
 
 export function GameScreen({ loaded, services, onExit }: Props) {
-  const { analysis, world } = loaded;
+  const { workspace } = loaded;
   const { save, audio, hud } = services;
-  const key = makeRepoKey(analysis);
+  const key = makeRepoKey(loaded.analysis);
+  const analysis = useStore(workspace.analysis, (a) => a);
 
   const screenRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const gameRef = useRef<GameHandle | null>(null);
-  const debugRef = useRef<GameDebug | null>(null);
   const scale = useGameScale(screenRef);
   const [overlay, setOverlay] = useState<OverlayRequest | null>(null);
   const [feed] = useState(createFeed);
+  const [bountyBoard] = useState(() => createBountyBoard(loaded.analysis, new Set(workspace.changes().map((change) => change.path))));
+  const [newsStore] = useState(() => createStore<readonly QuestNewsItem[]>([]));
+  const bounties = useStore(bountyBoard, (list) => list);
 
   const progress = useStore(save, (s) => getProgress(s, key));
   const health = useMemo(() => repoHealth(analysis, progress), [analysis, progress]);
   useMilestones(save, key, health, feed, audio);
-  useBountyPayouts(save, key, analysis, feed, audio);
+  useBountyPayouts(save, key, bountyBoard, feed, audio);
+  useQuestSettling(save, key, analysis, feed, audio);
 
-  // ── Music follows the action ──
+  const { gameRef, debugRef } = useGameEngine({ canvasRef, loaded, services, onEvent: handleGameEvent });
+  const workshop = useWorkshop({ gameRef, workspace, services, repoKey: key, feed, bounties: bountyBoard, news: newsStore });
+
+  // ── Music follows the action (and calms down in the Workshop) ──
   const scene = useStore(hud, (h) => h.scene);
   const bossAlive = useStore(hud, (h) => h.boss !== null);
-  const track = overlay?.kind === "victory" ? "victory" : bossAlive ? "boss" : scene === "dungeon" ? "dungeon" : "overworld";
+  const inWorkshop = workshop.visit !== null && workshop.visit.phase !== "leaving";
+  const track = inWorkshop ? "title" : overlay?.kind === "victory" ? "victory" : bossAlive ? "boss" : scene === "dungeon" ? "dungeon" : "overworld";
   useMusic(audio, track);
 
   /** Opens an overlay from the UI side (HUD button / shortcut): pause the game first. */
@@ -102,52 +127,30 @@ export function GameScreen({ loaded, services, onExit }: Props) {
     setOverlay(request);
   };
 
-  const onGameEvent = useEffectEvent((event: GameEvent) => {
+  /** Opens the Workshop at `target`, or at the code where the hero is. Any open overlay gives way. */
+  const openWorkshop = (target?: WorkshopTarget) => {
+    const where = target ?? gameRef.current?.workshopTarget() ?? { path: null };
+    setOverlay(null);
+    workshop.open(where);
+  };
+
+  /** Every engine event: the Workshop, an overlay, or a toast (useGameEngine always calls the latest one). */
+  function handleGameEvent(event: GameEvent) {
+    const workshopTarget = workshopForEvent(event);
+    if (workshopTarget) return openWorkshop(workshopTarget);
     const request = overlayForEvent(event);
     if (request) setOverlay(request);
     else announceEvent(event, feed, audio);
-  });
+  }
 
-  // ── Create the engine once per world; destroy it when leaving ──
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    hud.set(INITIAL_HUD); // no stale boss bar or prompt from a previous world
-    const filesByPath = new Map(analysis.files.map((file) => [file.path, file]));
-    const { handle: game, debug } = createEngine({
-      canvas,
-      analysis,
-      world,
-      makeDungeon: (path) => {
-        const file = filesByPath.get(path);
-        if (!file) throw new Error(`Lintlands: no analysed file at ${path}`);
-        return generateDungeon(file, world.seed);
-      },
-      save,
-      hud,
-      audio,
-      emit: (event) => onGameEvent(event),
-    });
-    gameRef.current = game;
-    debugRef.current = debug;
-    game.start();
-    // React's development mode mounts twice; destroying here makes the second mount start fresh.
-    return () => {
-      game.destroy();
-      if (gameRef.current === game) {
-        gameRef.current = null;
-        debugRef.current = null;
-      }
-    };
-  }, [analysis, world, save, hud, audio]);
-
-  // ── Keyboard shortcuts (only while no overlay is open) ──
+  // ── Keyboard shortcuts (only while nothing covers the game) ──
   const onShortcutKey = useEffectEvent((event: KeyboardEvent) => {
-    if (overlay || event.repeat || event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target)) return;
-    const request = shortcutRequest(event.key);
-    if (!request) return;
+    if (overlay || workshop.visit || event.repeat || event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target)) return;
+    const shortcut = shortcutFor(event.key);
+    if (!shortcut) return;
     event.preventDefault();
-    openOverlay(request);
+    if (shortcut === "workshop") openWorkshop();
+    else openOverlay(shortcut);
   });
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => onShortcutKey(event);
@@ -156,25 +159,30 @@ export function GameScreen({ loaded, services, onExit }: Props) {
   }, []);
 
   // ── What overlays get to work with ──
-  const overlayCtx = useMemo<OverlayContext>(
-    () => ({
-      analysis,
-      repoKey: key,
-      save,
-      audio,
-      open: (request) => setOverlay(request),
-      close: () => {
-        setOverlay(null);
-        gameRef.current?.resume();
-      },
-      resolveFinisher: (findingId, correct) => gameRef.current?.resolveFinisher(findingId, correct),
-      // Leaving unmounts this screen, and the engine effect's cleanup destroys the game.
-      exitToTitle: onExit,
-    }),
-    [analysis, key, save, audio, onExit],
-  );
+  const overlayCtx: OverlayContext = {
+    analysis,
+    repoKey: key,
+    save,
+    audio,
+    bounties,
+    open: (request) => setOverlay(request),
+    close: () => {
+      setOverlay(null);
+      gameRef.current?.resume();
+    },
+    resolveFinisher: (findingId, correct) => gameRef.current?.resolveFinisher(findingId, correct),
+    spareFinisher: (findingId) => gameRef.current?.spareFinisher(findingId),
+    openWorkshop,
+    // Leaving unmounts this screen, and the engine effect's cleanup destroys the game.
+    exitToTitle: onExit,
+  };
 
   // ── Development handles for scripted screenshots ──
+  const openFromScript = useEffectEvent((target?: WorkshopTarget) => openWorkshop(target));
+  const overlayFromScript = useEffectEvent((request: OverlayRequest) => {
+    gameRef.current?.pause();
+    setOverlay(request);
+  });
   useEffect(() => {
     if (process.env.NODE_ENV === "production") return;
     window.__app = {
@@ -186,16 +194,17 @@ export function GameScreen({ loaded, services, onExit }: Props) {
       get debug() {
         return debugRef.current;
       },
-      open: (request) => {
-        gameRef.current?.pause();
-        setOverlay(request);
+      open: (request) => overlayFromScript(request),
+      get analysis() {
+        return workspace.analysis.get();
       },
-      analysis,
+      workspace,
+      openWorkshop: (target) => openFromScript(target),
     };
     return () => {
       delete window.__app;
     };
-  }, [save, hud, analysis]);
+  }, [save, hud, workspace, gameRef, debugRef]);
 
   const stageStyle = { width: VIEW_W * scale, height: VIEW_H * scale, "--s": scale } as CSSProperties;
 
@@ -209,11 +218,26 @@ export function GameScreen({ loaded, services, onExit }: Props) {
           feed={feed}
           health={health}
           scale={scale}
-          interactive={overlay === null}
+          interactive={overlay === null && workshop.visit === null}
           onOpen={openOverlay}
+          onWorkshop={() => openWorkshop()}
         />
         <OverlayHost request={overlay} ctx={overlayCtx} />
       </div>
+      {workshop.target && (
+        <WorkshopLayer
+          workspace={workspace}
+          save={save}
+          repoKey={key}
+          audio={audio}
+          target={workshop.target}
+          news={newsStore}
+          onForged={workshop.onForged}
+          onClose={workshop.close}
+        />
+      )}
+      {workshop.visit?.phase === "entering" && <WorkshopDoor way="in" onDone={workshop.entered} />}
+      {workshop.visit?.phase === "leaving" && <WorkshopDoor way="out" onDone={workshop.left} />}
     </main>
   );
 }

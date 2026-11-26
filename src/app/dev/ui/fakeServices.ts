@@ -13,6 +13,8 @@ import type { RepoAnalysis } from "@/lib/types";
 const DEV_COINS = 240;
 const DEV_XP = 120;
 const DEV_HATS = ["catEars", "wizardHat", "crown"];
+/** Bugs the fake Repo Health counts as fixed in the code. */
+const DEV_FIXED = 3;
 
 export function createDevServices(): AppServices {
   const save = createSaveStore(null);
@@ -28,8 +30,10 @@ export function createDevAnalysis(): RepoAnalysis {
   return analyzeDemoSources(() => []);
 }
 
-/** Repo Health numbers for the HUD view. */
+/** Repo Health numbers for the HUD view (a few of the bugs dealt with were fixed in the code). */
 export function devHealth(ratio: number): RepoHealth {
   const total = 20;
-  return { ratio, defeated: Math.round(ratio * total), total, dungeonsCleared: 2, dungeonsTotal: 8, chestsOpened: 3, chestsTotal: 17 };
+  const dealtWith = Math.round(ratio * total);
+  const fixed = Math.min(DEV_FIXED, dealtWith);
+  return { ratio, defeated: dealtWith - fixed, fixed, total, dungeonsCleared: 2, dungeonsTotal: 8, chestsOpened: 3, chestsTotal: 17 };
 }

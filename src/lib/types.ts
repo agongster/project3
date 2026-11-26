@@ -10,6 +10,7 @@
  *                                   Web Worker)
  */
 import type { FileOutline } from "@/lib/analysis/outline";
+import type { RepoQuests, WorkshopProgress } from "@/lib/game/questsTypes";
 
 export type { Definition, FileOutline, OutlineComment } from "@/lib/analysis/outline";
 
@@ -38,6 +39,8 @@ export interface RepoListing {
   stars: number;
   /** Python files that survived filtering (vendored dirs, size cap, file cap). */
   files: RepoFileEntry[];
+  /** Other text files the Workshop can open (README, config, docs, other languages; see filterFiles.ts). */
+  otherFiles: RepoFileEntry[];
   skipped: { vendored: number; tooLarge: number; overCap: number };
   /** True when GitHub itself truncated the tree (very large repos). */
   truncated: boolean;
@@ -182,6 +185,8 @@ export interface AnalyzedFile {
    * those: they no longer exist in the saved text.
    */
   realFixes?: number;
+  /** The findings counted by `realFixes`, as they were in the original text (original ids). Missing when there are none. */
+  fixedFindings?: Finding[];
 }
 
 export interface RepoStats {
@@ -456,6 +461,10 @@ export interface RepoProgress {
   milestones: number[];
   /** Finding ids of notice-board bounties already settled (src/lib/game/bounties.ts). Missing in older saves. */
   bounties?: string[];
+  /** The Workshop's quest board for this repo (src/lib/game/quests.ts). Missing in older saves. */
+  quests?: RepoQuests;
+  /** Original finding ids whose real fix (in the Workshop) has been paid, so each pays once (src/lib/game/forge.ts). Missing in older saves. */
+  fixes?: string[];
 }
 
 /** Where a chest item was found: the function (or class) and the file it came from. */
@@ -482,6 +491,8 @@ export interface SaveData {
   settings: { sfx: number; music: number; screenShake: boolean };
   /** Where each chest item came from, by item id (src/lib/game/engraving.ts). Missing in older saves. */
   engravings?: Record<string, Engraving>;
+  /** The Workshop's forge streak, lifetime editing counts and achievements (src/lib/game/questsStreak.ts). Missing in older saves. */
+  workshop?: WorkshopProgress;
   stats: {
     bugsSquashed: number;
     chestsOpened: number;
@@ -489,6 +500,8 @@ export interface SaveData {
     wishes: number;
     /** Dazed elites and bosses finished by picking the right fix (see src/lib/game/finisher.ts). */
     fixesPicked: number;
+    /** Findings fixed for real by editing code in the Workshop (each counted once). Missing in older saves. */
+    realFixes?: number;
   };
 }
 

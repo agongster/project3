@@ -3,13 +3,13 @@
  *
  * It never touches the network, the DOM or a Web Worker. The caller hands in
  * the file contents and a synchronous `lint` function, which is why the very
- * same code runs in the browser (analyzeRepo.ts, demo.ts) and in Vitest
+ * same code runs in the browser (src/lib/workspace, demo.ts) and in Vitest
  * (with Ruff's Node.js build).
  */
 import { emptyOutline, outlineSource } from "./outline";
-import type { AnalyzedFile, FileQuality, RepoAnalysis, RepoRef, RepoStats } from "@/lib/types";
+import type { AnalyzedFile, FileQuality, Finding, RepoAnalysis, RepoRef, RepoStats } from "@/lib/types";
 import { classifyFile } from "./fileKind";
-import { buildFinding, normalizeDiagnostic, selectMonsters, splitLines, type LintHit, type RawDiagnostic } from "./normalize";
+import { buildFinding, fullFindingList, normalizeDiagnostic, selectMonsters, splitLines, type LintFix, type LintHit, type RawDiagnostic } from "./normalize";
 import { gradeFile } from "./quality";
 import { isIgnoredForFile, isProbeRule } from "./rules";
 
@@ -38,9 +38,16 @@ export type LintFunction = (source: string) => RawDiagnostic[];
 /** Analyzes every file and adds up the repo statistics. */
 export function analyzeSources(meta: AnalysisMeta, files: readonly SourceFile[], lint: LintFunction): RepoAnalysis {
   const analyzed = files.map((file) => analyzeFile(file, lint));
-
-  const warnings = [...meta.warnings];
   const lintFailures = analyzed.filter((file, i) => file.status === "failed" && files[i].source !== null).length;
+  return assembleAnalysis(meta, analyzed, lintFailures);
+}
+
+/**
+ * Puts analyzed files together into a RepoAnalysis: adds up the statistics
+ * and warns about files that were downloaded but couldn't be linted.
+ */
+export function assembleAnalysis(meta: AnalysisMeta, files: AnalyzedFile[], lintFailures: number): RepoAnalysis {
+  const warnings = [...meta.warnings];
   if (lintFailures > 0) {
     warnings.push(`${plural(lintFailures, "file")} couldn't be analyzed and appear as ruins.`);
   }
@@ -49,8 +56,8 @@ export function analyzeSources(meta: AnalysisMeta, files: readonly SourceFile[],
     repo: meta.repo,
     description: meta.description,
     stars: meta.stars,
-    files: analyzed,
-    stats: computeStats(analyzed),
+    files,
+    stats: computeStats(files),
     warnings,
     demo: meta.demo,
     readme: meta.readme ?? null,
@@ -63,23 +70,44 @@ export function analyzeSources(meta: AnalysisMeta, files: readonly SourceFile[],
  * A file that can't be downloaded or linted becomes a "failed" ruin.
  */
 export function analyzeFile(file: SourceFile, lint: LintFunction): AnalyzedFile {
+  return inspectFile(file, lint).file;
+}
+
+/** One file analyzed, plus what the dungeon leaves out (the Workshop needs it). */
+export interface FileInspection {
+  /** The file as the world sees it (capped monsters). */
+  file: AnalyzedFile;
+  /** Every finding, uncapped, in line order (see `fullFindingList`). Empty for a failed file. */
+  findings: Finding[];
+  /** The fix Ruff offers for a finding of `findings`, looked up by the finding object itself. */
+  fixes: ReadonlyMap<Finding, LintFix>;
+}
+
+/** Like `analyzeFile`, but also returns the full finding list and Ruff's fixes. */
+export function inspectFile(file: SourceFile, lint: LintFunction): FileInspection {
   const kind = classifyFile(file.path, file.source);
-  if (file.source === null) return failedFile(file, kind);
+  const failed: FileInspection = { file: failedFile(file, kind), findings: [], fixes: new Map() };
+  if (file.source === null) return failed;
 
   let hits: LintHit[];
   try {
     hits = lint(file.source).map(normalizeDiagnostic);
   } catch {
-    return failedFile(file, kind);
+    return failed;
   }
 
   const lines = splitLines(file.source);
   const probeHits = hits.filter((hit) => isProbeRule(hit.code));
   const monsterHits = hits.filter((hit) => !isProbeRule(hit.code) && !isIgnoredForFile(hit.code, kind));
-  const allFindings = monsterHits.map((hit) => buildFinding(file.path, hit, lines));
+  const fixes = new Map<Finding, LintFix>();
+  const allFindings = monsterHits.map((hit) => {
+    const finding = buildFinding(file.path, hit, lines);
+    if (hit.fix) fixes.set(finding, hit.fix);
+    return finding;
+  });
   const { findings, overflow } = selectMonsters(allFindings);
 
-  return {
+  const analyzed: AnalyzedFile = {
     path: file.path,
     size: file.size,
     lineCount: countLines(file.source),
@@ -90,6 +118,7 @@ export function analyzeFile(file: SourceFile, lint: LintFunction): AnalyzedFile 
     quality: gradeFile(file.source, probeHits, allFindings.length),
     outline: outlineSource(file.source),
   };
+  return { file: analyzed, findings: fullFindingList(allFindings), fixes };
 }
 
 /** Number of lines, not counting the empty "line" after a final newline. */

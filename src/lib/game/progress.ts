@@ -34,7 +34,7 @@ export const HP_PER_BONUS_HEART = 2;
 export const MAX_SAVED_REPOS = 12;
 
 /**
- * Repo Health milestones: when the share of defeated findings reaches
+ * Repo Health milestones: when the share of findings dealt with (defeated or fixed) reaches
  * `percent`, the player is paid `coins` once (see `claimMilestones`). The last
  * one is the biggest so finishing a repo feels like a jackpot.
  */
@@ -226,14 +226,21 @@ export function withRepoProgress(save: SaveData, key: string, progress: RepoProg
 // ────────────────────────── Repo health ──────────────────────────
 
 export interface RepoHealth {
-  /** defeated ÷ total, 0–1. A repo with no findings is perfectly healthy (1). */
+  /** (defeated + fixed) ÷ total, 0–1. A repo with no findings is perfectly healthy (1). */
   ratio: number;
-  /** Findings (monsters) defeated. */
+  /** Monsters defeated (among those in the world now). */
   defeated: number;
-  /** Findings that exist as monsters (the per-file `overflow` extras are not monsters). */
+  /** Findings of the original code fixed for real in the Workshop (`AnalyzedFile.realFixes`). */
+  fixed: number;
+  /**
+   * Findings to deal with: the monsters in the world now (the per-file
+   * `overflow` extras are not monsters) plus the ones fixed for real. Fixing
+   * a bug removes its monster but counts it as dealt with, so the bar moves
+   * forward and reaches 100% once everything is either beaten or fixed.
+   */
   total: number;
   dungeonsCleared: number;
-  /** Files with at least one finding. */
+  /** Files with at least one finding, plus files purified by editing (those count as cleared). */
   dungeonsTotal: number;
   chestsOpened: number;
   /**
@@ -250,26 +257,31 @@ export function repoHealth(analysis: RepoAnalysis, progress: RepoProgress): Repo
   // Failed downloads have no findings and no chest, so they don't count for anything.
   const files = analysis.files.filter((file) => file.status === "ok");
 
-  let total = 0;
+  let monsters = 0;
   let defeated = 0;
+  let fixed = 0;
   let dungeonsTotal = 0;
   let dungeonsCleared = 0;
   let chestsOpened = 0;
   for (const file of files) {
     // Only count ids that exist in this analysis, so stale ids can never push health past 100%.
     const beaten = file.findings.filter((finding) => defeatedIds.has(finding.id)).length;
-    total += file.findings.length;
+    const fixedHere = file.realFixes ?? 0;
+    monsters += file.findings.length;
     defeated += beaten;
-    if (file.findings.length > 0) {
+    fixed += fixedHere;
+    if (file.findings.length > 0 || fixedHere > 0) {
       dungeonsTotal++;
       if (beaten === file.findings.length || progress.cleared.includes(file.path)) dungeonsCleared++;
     }
     if (openedPaths.has(file.path)) chestsOpened++;
   }
 
+  const total = monsters + fixed;
   return {
-    ratio: total === 0 ? 1 : defeated / total,
+    ratio: total === 0 ? 1 : (defeated + fixed) / total,
     defeated,
+    fixed,
     total,
     dungeonsCleared,
     dungeonsTotal,

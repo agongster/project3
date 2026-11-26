@@ -373,6 +373,7 @@ Added after the first review, at the owner's request ("repo should matter more i
 
 **Decisions**
 
+0. **Game first, editor second** (owner, 2026-11-26: "it is primarily a game, and secondarily an IDE, as opposed to the other way around"). The app opens into the game exactly as before and can be played to the victory screen without ever opening the editor. The Workshop is an optional room of the game: one ordinary HUD button and a key, secondary buttons beside the game's own actions, never opened automatically, never required.
 1. **The world stays; the editor joins it.** The Workshop is a full-window code editor inside the game. It opens from the HUD, from a building, from a dungeon room, and from every place a bug is explained ("Fix it for real").
 2. **Typing is free, saving is the game move.** While typing, the editor shows live Ruff findings as monster markers in the gutter, but nothing in the world changes. Pressing save ("Forge", Ctrl/Cmd+S) re-lints the file and applies the result: bugs that are gone are *fixed for real* (their monsters are banished and pay more than a fight would), new bugs become new monsters (no penalty), the file's grade and its dungeon update.
 3. **All files can be viewed and edited, Python files are the game.** Non-Python text files open in the same editor with syntax highlighting but have no monsters.

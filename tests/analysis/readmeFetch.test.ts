@@ -3,10 +3,10 @@
  * the common names in order and never breaks or slows the load.
  */
 import { describe, expect, it } from "vitest";
-import { analyzeRepo, fetchReadmeBlurb, README_NAMES } from "@/lib/analysis/analyzeRepo";
-import type { LintClient } from "@/lib/analysis/lintClient";
 import type { RepoListing } from "@/lib/types";
-import { createNodeLint } from "./nodeLint";
+import { openWorkspace } from "@/lib/workspace";
+import { fetchReadmeBlurb, README_NAMES } from "@/lib/workspace/repoSource";
+import { nodeLintClient } from "./nodeLint";
 
 const SHA = "c".repeat(40);
 const LISTING: RepoListing = {
@@ -14,6 +14,7 @@ const LISTING: RepoListing = {
   description: "A teapot",
   stars: 1,
   files: [{ path: "pot.py", size: 10 }],
+  otherFiles: [],
   skipped: { vendored: 0, tooLarge: 0, overCap: 0 },
   truncated: false,
 };
@@ -29,11 +30,6 @@ function fakeFetch(readmes: Record<string, string>, requested: string[] = []): t
     const name = README_NAMES.find((n) => url === raw(n));
     return name && readmes[name] !== undefined ? new Response(readmes[name]) : new Response("missing", { status: 404 });
   }) as typeof fetch;
-}
-
-function nodeLintClient(): Promise<LintClient> {
-  const lint = createNodeLint();
-  return Promise.resolve({ lint: async (source: string) => lint(source), dispose: () => undefined });
 }
 
 describe("fetchReadmeBlurb", () => {
@@ -59,17 +55,17 @@ describe("fetchReadmeBlurb", () => {
   });
 });
 
-describe("analyzeRepo with a README", () => {
+describe("opening a repo with a README", () => {
+  const open = (fetch: typeof globalThis.fetch) =>
+    openWorkspace({ kind: "repo", owner: "tea", repo: "pot" }, () => undefined, undefined, { fetch, createLintClient: nodeLintClient, storage: null });
+
   it("puts the blurb on the analysis", async () => {
-    const analysis = await analyzeRepo({ owner: "tea", repo: "pot" }, () => undefined, undefined, {
-      fetch: fakeFetch({ "README.md": "# Pot\n\n![badge](b.svg)\n\nA teapot that brews itself every single morning." }),
-      createLintClient: nodeLintClient,
-    });
-    expect(analysis.readme).toBe("A teapot that brews itself every single morning.");
+    const workspace = await open(fakeFetch({ "README.md": "# Pot\n\n![badge](b.svg)\n\nA teapot that brews itself every single morning." }));
+    expect(workspace.analysis.get().readme).toBe("A teapot that brews itself every single morning.");
   });
 
   it("loads fine without one", async () => {
-    const analysis = await analyzeRepo({ owner: "tea", repo: "pot" }, () => undefined, undefined, { fetch: fakeFetch({}), createLintClient: nodeLintClient });
+    const analysis = (await open(fakeFetch({}))).analysis.get();
     expect(analysis.readme).toBeNull();
     expect(analysis.files).toHaveLength(1);
   });

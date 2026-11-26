@@ -7,7 +7,8 @@
  * `OverlayContext` so it can read/write the save, play sounds, and close
  * itself (closing resumes the game).
  */
-import type { AudioApi } from "@/game/bridge";
+import type { AudioApi, WorkshopTarget } from "@/game/bridge";
+import type { Bounty } from "@/lib/game/bounties";
 import type { Finding, RepoAnalysis, SaveData, Store } from "@/lib/types";
 
 export type OverlayRequest =
@@ -29,12 +30,13 @@ export type OverlayRequest =
   | { kind: "finisher"; finding: Finding }
   /** All dungeons cleared. */
   | { kind: "victory" }
-  /** An NPC or sign talking. */
-  | { kind: "dialog"; speaker: string; lines: string[] }
+  /** An NPC or sign talking; `edit` adds a button that opens the Workshop (a plaque's "Edit this function"). */
+  | { kind: "dialog"; speaker: string; lines: string[]; edit?: { label: string; target: WorkshopTarget } }
   /** Pause menu (settings, controls, exit). */
   | { kind: "pause" };
 
 export interface OverlayContext {
+  /** The repo as the code is now (it changes when the player forges in the Workshop). */
   analysis: RepoAnalysis;
   /** Key of this repo's progress in `SaveData.repos`. */
   repoKey: string;
@@ -46,6 +48,12 @@ export interface OverlayContext {
   close(): void;
   /** Tells the engine how a finisher ended (the Finisher overlay calls it right before `close`). */
   resolveFinisher(findingId: string, correct: boolean): void;
+  /** The finisher's "Fix it for real": the dazed monster gets back up (call it before `openWorkshop`). */
+  spareFinisher(findingId: string): void;
+  /** Closes the overlay and opens the Workshop at `target` (the game stays paused); with no target, at the code where the hero is. */
+  openWorkshop(target?: WorkshopTarget): void;
+  /** The notice board's WANTED posters. */
+  bounties: readonly Bounty[];
   /** Leave the world and go back to the title screen. */
   exitToTitle(): void;
 }

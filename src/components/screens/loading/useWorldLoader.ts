@@ -1,17 +1,17 @@
 /**
  * Runs the whole "repo → world" pipeline for the loading screen:
- * analysis (download + Ruff) followed by overworld generation.
+ * opening the workspace (download + Ruff + the player's stored edits)
+ * followed by overworld generation.
  *
  * The work starts when the component mounts and is cancelled (AbortSignal)
  * when it unmounts, so leaving the loading screen never leaves a download
- * running in the background.
+ * (or a lint worker) running in the background.
  */
 import { useEffect, useEffectEvent, useState } from "react";
-import { analyzeRepo } from "@/lib/analysis/analyzeRepo";
-import { analyzeDemo } from "@/lib/analysis/demo";
 import { AnalyzeError } from "@/lib/analysis/errors";
+import { openWorkspace } from "@/lib/workspace";
 import { generateOverworld } from "@/lib/worldgen";
-import type { AnalyzeProgress, RepoAnalysis } from "@/lib/types";
+import type { AnalyzeProgress } from "@/lib/types";
 import type { FlowError, LoadedWorld, WorldTarget } from "@/components/app/flow";
 
 export type LoaderState =
@@ -46,10 +46,6 @@ function toFlowError(error: unknown, target: WorldTarget): FlowError {
   return { code: "unknown", message: UNKNOWN_ERROR_MESSAGE, target };
 }
 
-function analyze(target: WorldTarget, onProgress: (p: AnalyzeProgress) => void, signal: AbortSignal): Promise<RepoAnalysis> {
-  return target.kind === "demo" ? analyzeDemo(onProgress, signal) : analyzeRepo(target, onProgress, signal);
-}
-
 /**
  * @param onError called once if the analysis fails (not when it is cancelled)
  */
@@ -64,10 +60,12 @@ export function useWorldLoader(target: WorldTarget, onError: (error: FlowError) 
       if (!controller.signal.aborted) setState({ status: "running", progress });
     };
 
-    analyze(target, onProgress, controller.signal)
-      .then((analysis) => {
-        if (controller.signal.aborted) return;
-        const loaded: LoadedWorld = { analysis, world: generateOverworld(analysis) };
+    openWorkspace(target, onProgress, controller.signal)
+      .then((workspace) => {
+        // Cancelled while the last step finished: nobody will use this workspace, so stop its worker.
+        if (controller.signal.aborted) return workspace.dispose();
+        const analysis = workspace.analysis.get();
+        const loaded: LoadedWorld = { workspace, analysis, world: generateOverworld(analysis) };
         setState({ status: "ready", loaded });
       })
       .catch((error: unknown) => {

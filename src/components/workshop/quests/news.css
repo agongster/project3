@@ -1,0 +1,136 @@
+/*
+ * Quest news (QuestNews.tsx): toasts on the right for completed quests,
+ * clean-forge streaks and level-ups, and the big achievement banner. Plain
+ * global CSS like quests.css, so every class starts with "qst-". The toast
+ * and banner animations use steps() timing, like the HUD's (hud.css).
+ */
+
+.qst-news {
+  position: fixed;
+  top: 64px;
+  right: 16px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  width: min(320px, calc(100vw - 32px));
+  pointer-events: none;
+  font-size: 15px;
+  line-height: 1.25;
+}
+.qst-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  color: var(--color-ink);
+  background: var(--color-cream);
+  box-shadow:
+    0 -3px 0 0 var(--color-ink),
+    0 3px 0 0 var(--color-ink),
+    -3px 0 0 0 var(--color-ink),
+    3px 0 0 0 var(--color-ink),
+    inset 5px 0 0 0 var(--qst-accent, var(--color-leaf)),
+    0 6px 0 0 rgb(0 0 0 / 0.3);
+}
+.qst-toast[data-tone="streak"] {
+  --qst-accent: var(--color-gold);
+  color: var(--color-cream);
+  background: var(--color-night-soft);
+}
+.qst-toast[data-tone="calm"] {
+  --qst-accent: var(--color-ink-soft);
+  background: #efe4c9;
+  color: var(--color-ink-soft);
+}
+.qst-toast[data-tone="level"] {
+  --qst-accent: var(--color-grape);
+  background: #fff0b8;
+}
+.qst-toast-head {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-leaf-deep);
+}
+.qst-toast[data-tone="streak"] .qst-toast-head,
+.qst-toast[data-tone="streak"] .qst-reward-coins { color: var(--color-gold); }
+.qst-toast[data-tone="calm"] .qst-toast-head { color: var(--color-ink-soft); }
+.qst-toast[data-tone="level"] .qst-toast-head { color: #6a3fd1; }
+.qst-toast-text { display: block; font-weight: 700; }
+.qst-toast-detail { display: block; font-size: 13px; opacity: 0.8; }
+
+/* The achievement banner: big, centred at the top, one at a time. */
+.qst-banner-wrap {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  z-index: 61;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.qst-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 460px;
+  padding: 12px 18px 12px 12px;
+  color: var(--color-ink);
+  background: #fff0b8;
+  box-shadow:
+    0 -4px 0 0 var(--color-ink),
+    0 4px 0 0 var(--color-ink),
+    -4px 0 0 0 var(--color-ink),
+    4px 0 0 0 var(--color-ink),
+    inset 0 0 0 4px var(--color-gold),
+    inset 0 -8px 0 0 #f3d36b,
+    0 8px 0 0 rgb(0 0 0 / 0.3);
+}
+.qst-banner-head {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-wood-deep);
+}
+.qst-banner-title {
+  display: block;
+  font-size: 22px;
+  color: var(--color-ink);
+}
+.qst-banner-how { display: block; margin-bottom: 2px; font-size: 13px; color: var(--color-ink-soft); }
+
+.qst-toast-in { animation: qst-kf-toast-in 220ms steps(5) both; }
+@keyframes qst-kf-toast-in {
+  from { transform: translateX(110%); }
+  to { transform: translateX(0); }
+}
+.qst-leaving { animation: qst-kf-fade-out 300ms steps(4) forwards; }
+@keyframes qst-kf-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.qst-banner-in { animation: qst-kf-banner-in 380ms steps(7) both; }
+@keyframes qst-kf-banner-in {
+  0% { transform: scale(0.3) rotate(-4deg); opacity: 0; }
+  60% { transform: scale(1.1) rotate(1deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+/* The badge on the banner shimmers gently. */
+.qst-shine { animation: qst-kf-shine 900ms steps(3) infinite; }
+@keyframes qst-kf-shine {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qst-toast-in, .qst-banner-in, .qst-shine { animation: none; }
+}

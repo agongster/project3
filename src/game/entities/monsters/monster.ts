@@ -302,6 +302,19 @@ export class Monster implements Hittable {
     this.stop();
   }
 
+  /**
+   * Gets back up from a daze with `hp` left: the player chose to fix its bug
+   * in the code instead of finishing it (dazed.ts, `spareFinisher`).
+   */
+  recover(hp: number): void {
+    if (!this.dazed) return;
+    this.dazedFor = -1;
+    this.finisherOpened = false;
+    this.dizzy = false;
+    this.targetable = true;
+    this.hp = Math.max(1, Math.min(this.maxHp, hp));
+  }
+
   /** Elites spring away from the hero after a quick flurry of hits (see BREAKAWAY_HITS). */
   private checkBreakaway(): void {
     if (this.def.severity !== "elite" || this.def.archetype === "tank") return;

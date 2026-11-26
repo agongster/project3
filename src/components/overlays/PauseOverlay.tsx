@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * The pause menu: resume, jump to the bag / codex / wardrobe, sound and
- * screen-shake settings, a controls cheat-sheet, and "Leave world" (with a
- * confirm step, although progress is always saved).
+ * The pause menu: resume, jump to the Workshop / bag / codex / wardrobe,
+ * sound and screen-shake settings, a controls cheat-sheet, and "Leave world"
+ * (with a confirm step, although progress is always saved).
  */
 import { useState, type ReactNode } from "react";
 import { KeyCap, Modal, PixelButton } from "@/components/ui/kit";
@@ -19,6 +19,7 @@ const CONTROLS: readonly { action: string; keys: readonly string[] }[] = [
   { action: "Interact", keys: ["E", "Enter"] },
   { action: "Bag", keys: ["I", "B"] },
   { action: "Codex", keys: ["C"] },
+  { action: "Workshop", keys: ["F"] },
   { action: "Map", keys: ["M"] },
   { action: "Menu", keys: ["Esc", "Tab"] },
 ];
@@ -96,6 +97,15 @@ export default function PauseOverlay({ ctx }: OverlayProps<"pause">) {
                   {shortcut.label}
                 </PixelButton>
               ))}
+              <PixelButton
+                tone="cream"
+                onClick={() => {
+                  ctx.audio.sfx("uiSelect");
+                  ctx.openWorkshop();
+                }}
+              >
+                Workshop
+              </PixelButton>
             </div>
           </Section>
 

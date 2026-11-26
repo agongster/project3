@@ -44,6 +44,9 @@ export function OverlayView({ services, request: initial }: Props) {
       setRequest(null);
     },
     resolveFinisher: (_findingId, correct) => setNote(`resolveFinisher(${correct})`),
+    spareFinisher: () => setNote("spareFinisher()"),
+    openWorkshop: (target) => setNote(`openWorkshop(${target?.path ?? "here"})`),
+    bounties: [],
     exitToTitle: () => {
       setNote("exitToTitle()");
       setRequest(null);
@@ -55,7 +58,7 @@ export function OverlayView({ services, request: initial }: Props) {
       <DevStage theme={theme}>
         {(scale) => (
           <>
-            <Hud hud={hud} save={save} feed={feed} health={devHealth(0.4)} scale={scale} interactive={request === null} onOpen={setRequest} />
+            <Hud hud={hud} save={save} feed={feed} health={devHealth(0.4)} scale={scale} interactive={request === null} onOpen={setRequest} onWorkshop={() => setNote("openWorkshop()")} />
             <OverlayHost request={request} ctx={ctx} />
           </>
         )}

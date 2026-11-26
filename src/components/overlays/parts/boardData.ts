@@ -19,8 +19,12 @@ export interface RegionRow {
   /** "potions/" or ROOT_REGION. */
   name: string;
   files: number;
+  /** Bugs in the code now. */
   bugs: number;
+  /** Of those, squashed in the game. */
   defeated: number;
+  /** Bugs of the original code fixed in the Workshop (no longer in `bugs`). */
+  fixed: number;
 }
 
 /** One row per top-level directory, like the regions of the overworld, biggest first. */
@@ -30,9 +34,10 @@ export function regionRows(analysis: RepoAnalysis, progress: RepoProgress): Regi
   for (const file of okFiles(analysis)) {
     const slash = file.path.indexOf("/");
     const name = slash === -1 ? ROOT_REGION : `${file.path.slice(0, slash)}/`;
-    const row = rows.get(name) ?? { name, files: 0, bugs: 0, defeated: 0 };
+    const row = rows.get(name) ?? { name, files: 0, bugs: 0, defeated: 0, fixed: 0 };
     row.files++;
     row.bugs += file.findings.length;
+    row.fixed += file.realFixes ?? 0;
     row.defeated += file.findings.filter((finding) => defeated.has(finding.id)).length;
     rows.set(name, row);
   }

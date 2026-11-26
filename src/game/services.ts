@@ -5,7 +5,7 @@
  * `createEngine` (index.ts) builds one `GameServices` object and hands it to
  * each scene through its SceneContext (`ctx.game`).
  */
-import type { AudioApi, GameEvent, GameOptions } from "./bridge";
+import type { AudioApi, GameEvent, GameOptions, WorkshopTarget } from "./bridge";
 import type { Input } from "./engine/input";
 import type { HudWriter } from "./hud";
 import type { Player } from "./entities/player";
@@ -29,6 +29,7 @@ export interface GameServices {
   readonly audio: AudioApi;
   readonly hud: HudWriter;
   readonly input: Input;
+  /** The repo as the code is NOW: replaced (never changed) each time the player forges in the Workshop. */
   readonly analysis: RepoAnalysis;
   readonly repoKey: string;
   readonly player: Player;
@@ -48,6 +49,14 @@ export interface GameServices {
   enterDungeon(path: string): void;
   /** Iris back to the overworld, in front of the dungeon's building. */
   leaveDungeon(): void;
+  /**
+   * The current dungeon's code changed: the room shimmers away and the
+   * dungeon is built again from the new findings, the hero at its entrance.
+   * `caption` says why, on screen, once it has re-formed.
+   */
+  rebuildDungeon(caption: string): void;
+  /** Pauses the game and asks the UI to open the Workshop at `target`. */
+  openWorkshop(target: WorkshopTarget): void;
   /** Fades the screen out, runs `onCovered` (e.g. a respawn), and fades back in. */
   fade(onCovered: () => void): void;
 }

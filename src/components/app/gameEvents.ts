@@ -1,10 +1,11 @@
 /**
- * What the game screen does with each event the engine emits. Two kinds:
+ * What the game screen does with each event the engine emits. Three kinds:
  *
  *  - "pausing" events open an overlay (the engine has already paused itself),
+ *  - the "workshop" event (also pausing) opens the Workshop instead,
  *  - "news" events show a toast or banner over the running game.
  */
-import type { AudioApi, GameEvent } from "@/game/bridge";
+import type { AudioApi, GameEvent, WorkshopTarget } from "@/game/bridge";
 import type { OverlayRequest } from "@/components/overlays/types";
 import type { Feed } from "@/components/hud/feed";
 
@@ -20,7 +21,7 @@ export function overlayForEvent(event: GameEvent): OverlayRequest | null {
     case "board":
       return { kind: "board" };
     case "dialog":
-      return { kind: "dialog", speaker: event.speaker, lines: event.lines };
+      return event.edit ? { kind: "dialog", speaker: event.speaker, lines: event.lines, edit: event.edit } : { kind: "dialog", speaker: event.speaker, lines: event.lines };
     case "bugCard":
       return { kind: "bugCard", finding: event.finding };
     case "finisher":
@@ -32,6 +33,11 @@ export function overlayForEvent(event: GameEvent): OverlayRequest | null {
     default:
       return null;
   }
+}
+
+/** Where to open the Workshop for a "workshop" event, or null for every other event. */
+export function workshopForEvent(event: GameEvent): WorkshopTarget | null {
+  return event.type === "workshop" ? event.target : null;
 }
 
 /** The file name without its folders, which fits nicely in a banner. */

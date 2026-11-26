@@ -8,10 +8,11 @@
  *   - the persisted save store  (Store<SaveData>, see src/lib/game/store.ts)
  *   - the HUD store             (Store<HudState>, written by the engine every frame it changes)
  *   - GameEvents                (engine → UI: "the player opened a chest", ...)
- *   - the GameHandle            (UI → engine: pause / resume / destroy, and the
- *                                answer to a `finisher` question)
+ *   - the GameHandle            (UI → engine: pause / resume / destroy, the
+ *                                answer to a `finisher` question, and each
+ *                                new analysis after the code was edited)
  */
-import type { Dungeon, Finding, Overworld, RepoAnalysis, SaveData, Store } from "@/lib/types";
+import type { AnalyzedFile, Dungeon, Finding, Overworld, RepoAnalysis, SaveData, Store } from "@/lib/types";
 
 // ─────────────────────────── Screen size ────────────────────────
 
@@ -114,6 +115,16 @@ export const INITIAL_HUD: HudState = {
 };
 
 /**
+ * Where the Workshop (the code editor) should open: a file and a 1-based
+ * line, just a file, or nowhere in particular (`path` null: the Workshop
+ * opens on whatever it showed last).
+ */
+export interface WorkshopTarget {
+  path: string | null;
+  line?: number;
+}
+
+/**
  * Things the engine asks the UI to show. For every event marked (pauses) the
  * engine pauses itself first; the UI must call `game.resume()` when its
  * overlay closes. Events are plain data: the only one that needs an answer
@@ -128,8 +139,13 @@ export type GameEvent =
   | { type: "wardrobe" }
   /** (pauses) The player read the notice board (repo stats). */
   | { type: "board" }
-  /** (pauses) An NPC or sign is talking. */
-  | { type: "dialog"; speaker: string; lines: string[] }
+  /**
+   * (pauses) An NPC or sign is talking. `edit` adds a button that opens the
+   * Workshop there (a dungeon plaque's "Edit this function").
+   */
+  | { type: "dialog"; speaker: string; lines: string[]; edit?: { label: string; target: WorkshopTarget } }
+  /** (pauses) Open the Workshop (a clean building's "Read the code"). */
+  | { type: "workshop"; target: WorkshopTarget }
   /** (pauses) Show the full bug card (boss defeated, or player inspected a monster). */
   | { type: "bugCard"; finding: Finding }
   /**
@@ -154,8 +170,8 @@ export interface GameOptions {
   canvas: HTMLCanvasElement;
   analysis: RepoAnalysis;
   world: Overworld;
-  /** Builds the dungeon for a file path on demand (deterministic). */
-  makeDungeon: (path: string) => Dungeon;
+  /** Builds the dungeon of a file on demand (deterministic for the same file). */
+  makeDungeon: (file: AnalyzedFile) => Dungeon;
   save: Store<SaveData>;
   hud: Store<HudState>;
   audio: AudioApi;
@@ -174,6 +190,23 @@ export interface GameHandle {
    * an answer (the overlay was closed), the monster is defeated normally.
    */
   resolveFinisher(findingId: string, correct: boolean): void;
+  /**
+   * The other answer to a `finisher` event: "I'll fix it for real". The dazed
+   * monster gets back up with a sliver of health instead of going down, so
+   * the Workshop has a bug left to fix. Call it before `resume()`.
+   */
+  spareFinisher(findingId: string): void;
+  /**
+   * The code was edited: from now on the game follows `analysis` (the
+   * workspace's new one) without restarting. Buildings change state at once;
+   * a dungeon the hero stands in re-forms when the game resumes. `fixedIds`
+   * are ids (as the world knew them) of findings fixed for real in the code:
+   * their monsters dissolve as "rewritten" instead of just vanishing.
+   * Calling it again with the same analysis only adds `fixedIds`.
+   */
+  updateAnalysis(analysis: RepoAnalysis, fixedIds?: readonly string[]): void;
+  /** Where the Workshop should open for the hero's situation (the file they are in or in front of). */
+  workshopTarget(): WorkshopTarget;
   /** Stop the loop and remove every listener. */
   destroy(): void;
   /** Test/debug helper: jump into the dungeon for `path` (or back out with null). */

@@ -3,14 +3,16 @@
 /**
  * The codex's left column: findings grouped by file. Only open groups render
  * their rows, so even a repo with hundreds of findings stays snappy.
- * Up/Down arrows move the selection through the visible findings.
+ * Up/Down arrows move the selection through the visible findings. Bugs
+ * fixed in the code (in the Workshop) are listed after a file's live ones,
+ * with a FIXED tag.
  */
 import type { KeyboardEvent } from "react";
 import { cx } from "@/components/ui/kit";
 import type { Finding } from "@/lib/types";
 import { MonsterIcon } from "../MonsterIcon";
 import { SEVERITY_INFO } from "../monsterText";
-import type { FileGroup } from "../codexData";
+import type { BugStatus, FileGroup } from "../codexData";
 import { DoneMark } from "../DoneMark";
 
 const ROW_ICON_BOX = 32;
@@ -25,7 +27,7 @@ interface BugListProps {
 }
 
 export function BugList({ groups, defeated, openPaths, selectedId, onToggle, onSelect }: BugListProps) {
-  const visible = groups.filter((group) => openPaths.has(group.file.path)).flatMap((group) => group.file.findings);
+  const visible = groups.filter((group) => openPaths.has(group.file.path)).flatMap((group) => [...group.file.findings, ...group.fixed]);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
@@ -54,10 +56,15 @@ export function BugList({ groups, defeated, openPaths, selectedId, onToggle, onS
                   <li key={finding.id}>
                     <FindingRow
                       finding={finding}
-                      done={defeated.has(finding.id)}
+                      status={defeated.has(finding.id) ? "squashed" : "lurking"}
                       selected={finding.id === selectedId}
                       onSelect={() => onSelect(finding)}
                     />
+                  </li>
+                ))}
+                {group.fixed.map((finding) => (
+                  <li key={`fixed:${finding.id}`}>
+                    <FindingRow finding={finding} status="fixed" selected={finding.id === selectedId} onSelect={() => onSelect(finding)} />
                   </li>
                 ))}
                 {group.file.overflow > 0 && (
@@ -73,7 +80,7 @@ export function BugList({ groups, defeated, openPaths, selectedId, onToggle, onS
 }
 
 function GroupHeader({ group, open, onToggle }: { group: FileGroup; open: boolean; onToggle: () => void }) {
-  const total = group.file.findings.length;
+  const total = group.file.findings.length + group.fixed.length;
   return (
     <button
       type="button"
@@ -86,7 +93,7 @@ function GroupHeader({ group, open, onToggle }: { group: FileGroup; open: boolea
       </span>
       <span className="min-w-0 flex-1 truncate">{group.file.path}</span>
       <span className="text-sm tabular-nums">
-        {group.defeated}/{total}
+        {group.defeated + group.fixed.length}/{total}
       </span>
       <span
         className="px-1.5 text-xs uppercase text-cream"
@@ -100,12 +107,13 @@ function GroupHeader({ group, open, onToggle }: { group: FileGroup; open: boolea
 
 interface FindingRowProps {
   finding: Finding;
-  done: boolean;
+  status: BugStatus;
   selected: boolean;
   onSelect: () => void;
 }
 
-function FindingRow({ finding, done, selected, onSelect }: FindingRowProps) {
+function FindingRow({ finding, status, selected, onSelect }: FindingRowProps) {
+  const done = status !== "lurking";
   return (
     <button
       type="button"
@@ -124,7 +132,7 @@ function FindingRow({ finding, done, selected, onSelect }: FindingRowProps) {
       <code className="w-16 shrink-0 font-mono text-xs">{finding.code}</code>
       <span className="min-w-0 flex-1 truncate">{finding.title}</span>
       <span className="shrink-0 text-xs tabular-nums opacity-70">L{finding.line}</span>
-      <DoneMark done={done} />
+      {status === "fixed" ? <span className="shrink-0 bg-leaf-deep px-1 text-[11px] font-bold uppercase text-cream">Fixed</span> : <DoneMark done={done} />}
     </button>
   );
 }

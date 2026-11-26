@@ -43,8 +43,8 @@ export interface Banner {
   id: number;
   title: string;
   subtitle?: string;
-  /** Picks the banner's colours. */
-  tone: "purify" | "level";
+  /** Picks the banner's colours ("forge": back from the Workshop). */
+  tone: "purify" | "level" | "forge";
 }
 
 export interface FeedState {

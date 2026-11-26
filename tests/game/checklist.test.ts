@@ -75,6 +75,36 @@ describe("buildChecklist", () => {
   });
 });
 
+describe("buildChecklist with bugs fixed in the code", () => {
+  const bareExcept = makeFinding("potions/brew.py", 7, "swallowToad", { code: "E722", title: "Bare except", message: "Do not use bare `except`" });
+  const edited = makeAnalysis([
+    { ...makeFile("potions/brew.py", { findings: [unused, undefinedName] }), realFixes: 1, fixedFindings: [bareExcept] },
+    { ...makeFile("pkg/fixed.py"), realFixes: 1, fixedFindings: [makeFinding("pkg/fixed.py", 2)] },
+  ]);
+  const markdown = buildChecklist(edited, { ...emptyProgress(), defeated: [unused.id] });
+  const lines = markdown.split("\n");
+
+  it("counts squashed and fixed bugs apart in the header", () => {
+    expect(markdown).toContain("**3 of 4** bugs dealt with in Lintlands (75%): 1 squashed in the game, 2 fixed in the code · 2 files");
+  });
+
+  it("lists a fixed bug as done and says it was fixed in the code", () => {
+    expect(lines).toContain("- [x] `potions/brew.py:7` — **E722** Bare except — Do not use bare `except` — _fixed in the code_");
+    expect(lines).toContain("- [x] `potions/brew.py:3` — **F401** Unused import — `os` imported but unused");
+    expect(lines.filter((line) => line.includes("fixed in the code_"))).toHaveLength(2);
+  });
+
+  it("keeps a file whose every bug was fixed, and counts it per file", () => {
+    expect(lines).toContain("## `pkg/fixed.py` (1/1)");
+    expect(lines).toContain("## `potions/brew.py` (2/3)");
+  });
+
+  it("points at the Workshop's patch", () => {
+    expect(markdown).toContain("download them as a patch (or a zip) from its Changes tab");
+    expect(buildChecklist(analysis, emptyProgress())).not.toContain("Changes tab");
+  });
+});
+
 describe("codeSpan", () => {
   it("uses a single backtick fence for ordinary names", () => {
     expect(codeSpan("potions/brew.py")).toBe("`potions/brew.py`");

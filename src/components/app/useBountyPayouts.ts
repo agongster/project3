@@ -3,21 +3,38 @@
  * dies), pay its reward once and celebrate it with a toast. The engine only
  * records the defeat in the save; this hook watches the save, like
  * useMilestones does, and `settleBounties` remembers which bounties are paid.
+ * (A wanted bug fixed for real in the Workshop is paid by the forge itself,
+ * see forgeFlow.ts, and is then remembered as settled the same way.)
  *
  * The first check after the game screen opens pays nothing: a wanted monster
  * that is already defeated by then (a save from before bounties existed) is
  * only marked settled, and its poster simply shows CLAIMED.
+ *
+ * The bounties are the board's list for this visit to the world: chosen
+ * once when it opened, then following the code (`createBountyBoard`).
  */
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { AudioApi } from "@/game/bridge";
 import type { Feed } from "@/components/hud/feed";
-import { getProgress } from "@/lib/game";
-import { chooseBounties, settleBounties } from "@/lib/game/bounties";
+import { createStore, getProgress } from "@/lib/game";
+import { chooseBounties, settleBounties, type Bounty } from "@/lib/game/bounties";
 import { useStore } from "@/lib/game/useStore";
 import type { RepoAnalysis, SaveData, Store } from "@/lib/types";
 
-export function useBountyPayouts(save: Store<SaveData>, repoKey: string, analysis: RepoAnalysis, feed: Feed, audio: AudioApi): void {
-  const bounties = useMemo(() => chooseBounties(analysis), [analysis]);
+/**
+ * The board's bounties for a visit to the world, chosen from the code as it
+ * was when the world opened. They are not chosen again after each edit, so
+ * fixing a wanted bug never makes a different notice appear in its place.
+ * Files the player has edited (`editedPaths`) are left out, so a bug they
+ * wrote themselves never becomes a bounty when the world is loaded again.
+ */
+export function createBountyBoard(analysis: RepoAnalysis, editedPaths: ReadonlySet<string>): Store<Bounty[]> {
+  const untouched = analysis.files.filter((file) => !editedPaths.has(file.path));
+  return createStore(chooseBounties({ ...analysis, files: untouched }));
+}
+
+export function useBountyPayouts(save: Store<SaveData>, repoKey: string, board: Store<Bounty[]>, feed: Feed, audio: AudioApi): void {
+  const bounties = useStore(board, (list) => list);
   const defeated = useStore(save, (s) => getProgress(s, repoKey).defeated);
   /** False until the first check has run (that one settles old defeats without paying). */
   const watching = useRef(false);

@@ -1,26 +1,28 @@
 "use client";
 
 /**
- * Developer page for the analysis pipeline: run the demo kingdom or a real
- * repo and look at the raw RepoAnalysis (stats, grades, every finding).
+ * Developer page for the analysis pipeline: open the demo kingdom or a real
+ * repo as a workspace and look at the raw RepoAnalysis (stats, grades, every
+ * finding).
  *
  * For scripted checks it exposes `window.__runAnalysis("demo" | "owner/repo")`,
  * which starts a run and returns a promise of the RepoAnalysis (the latest run
- * is also kept as `window.__analysis`), e.g.
+ * is also kept as `window.__analysis`, and its live workspace, with stored
+ * edits applied, as `window.__workspace`), e.g.
  *   node scripts/shot.mjs http://localhost:3100/dev/analysis .shots/a.png \
  *     --eval "window.__runAnalysis('demo').then(a => a.stats)"
  */
 import { useEffect, useRef, useState } from "react";
-import { analyzeDemo } from "@/lib/analysis/demo";
-import { analyzeRepo } from "@/lib/analysis/analyzeRepo";
 import { AnalyzeError } from "@/lib/analysis/errors";
 import { parseRepoInput } from "@/lib/repo/parseRepoInput";
 import type { AnalyzeProgress, RepoAnalysis } from "@/lib/types";
+import { openWorkspace, type Workspace, type WorkspaceTarget } from "@/lib/workspace";
 
 declare global {
   interface Window {
     __analysis?: Promise<RepoAnalysis>;
     __runAnalysis?: (target: string) => Promise<RepoAnalysis>;
+    __workspace?: Workspace;
   }
 }
 
@@ -31,8 +33,10 @@ export default function AnalysisDevPage() {
   const [state, setState] = useState<RunState>({ status: "idle" });
   const abortRef = useRef<AbortController | null>(null);
 
-  function start(run: (onProgress: (p: AnalyzeProgress) => void, signal: AbortSignal) => Promise<RepoAnalysis>): Promise<RepoAnalysis> {
+  function start(target: WorkspaceTarget): Promise<RepoAnalysis> {
     abortRef.current?.abort();
+    window.__workspace?.dispose();
+    window.__workspace = undefined;
     const controller = new AbortController();
     abortRef.current = controller;
     const startedAt = performance.now();
@@ -40,7 +44,14 @@ export default function AnalysisDevPage() {
 
     // Only the latest run may update the page (an older, cancelled one may still settle).
     const isLatest = () => abortRef.current === controller;
-    const promise = run((progress) => isLatest() && setState({ status: "running", progress }), controller.signal);
+    const promise = openWorkspace(target, (progress) => isLatest() && setState({ status: "running", progress }), controller.signal).then((workspace) => {
+      if (!isLatest()) {
+        workspace.dispose();
+        return workspace.analysis.get();
+      }
+      window.__workspace = workspace;
+      return workspace.analysis.get();
+    });
     window.__analysis = promise;
     promise.then(
       (analysis) => isLatest() && setState({ status: "done", analysis, ms: Math.round(performance.now() - startedAt) }),
@@ -53,13 +64,16 @@ export default function AnalysisDevPage() {
   }
 
   function runDemo(): Promise<RepoAnalysis> {
-    return start((onProgress, signal) => analyzeDemo(onProgress, signal));
+    return start({ kind: "demo" });
   }
 
   function runRepo(text: string): Promise<RepoAnalysis> {
     const parsed = parseRepoInput(text);
-    if (!parsed.ok) return start(() => Promise.reject(new AnalyzeError("bad_input", parsed.message)));
-    return start((onProgress, signal) => analyzeRepo({ owner: parsed.owner, repo: parsed.repo, ref: parsed.ref }, onProgress, signal));
+    if (!parsed.ok) {
+      setState({ status: "error", message: `bad_input: ${parsed.message}` });
+      return Promise.reject(new AnalyzeError("bad_input", parsed.message));
+    }
+    return start({ kind: "repo", owner: parsed.owner, repo: parsed.repo, ref: parsed.ref });
   }
 
   // Hook for scripted checks (see the comment at the top of this file).
@@ -142,6 +156,7 @@ function AnalysisReport({ analysis, ms }: { analysis: RepoAnalysis; ms: number }
               <td>
                 {file.status === "failed" ? "failed" : file.findings.length}
                 {file.overflow > 0 && ` (+${file.overflow})`}
+                {(file.realFixes ?? 0) > 0 && ` · ${file.realFixes} fixed`}
               </td>
               <td>
                 {file.quality.grade} ({file.quality.score})

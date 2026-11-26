@@ -3,7 +3,9 @@
 /**
  * Every dungeon cleared: confetti, the hero doing a happy spin, the final
  * stats, a report card for the repo, and one last nudge toward the real
- * takeaway: copy the to-do list and go fix the bugs for real.
+ * takeaway: fix the bugs for real (in the Workshop, or wherever the to-do
+ * list goes). Bugs squashed in the game and bugs fixed in the code are
+ * counted apart, and the closing line depends on how many are still in the code.
  */
 import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
@@ -16,6 +18,7 @@ import { CopyChecklistButton } from "./parts/CopyChecklistButton";
 import { FX } from "./parts/fx";
 import { GradeBadge, GRADE_INFO } from "./parts/GradeBadge";
 import { useTicker } from "./parts/hooks";
+import { victoryTakeaway } from "./parts/victoryText";
 import { PANEL_MEDIUM } from "./parts/panelSizes";
 import { PixelSprite } from "./parts/PixelSprite";
 import { heroSprite, petFrame } from "./parts/sprites";
@@ -28,6 +31,7 @@ const TWIRL_MS = 260;
 const HERO_SCALE = 4;
 const PET_SCALE = 2;
 const GOLD_RAYS = { "--fx-color": "var(--color-gold)", "--rays-size": "340px" } as CSSProperties;
+
 
 export default function VictoryOverlay({ ctx }: OverlayProps<"victory">) {
   const { analysis, audio } = ctx;
@@ -47,7 +51,13 @@ export default function VictoryOverlay({ ctx }: OverlayProps<"victory">) {
   }, [audio]);
 
   const stats = [
-    { value: `${health.defeated}/${health.total}`, label: "bugs squashed" },
+    // Bugs fixed in the Workshop get their own line, only once there are some.
+    ...(health.fixed === 0
+      ? [{ value: `${health.defeated}/${health.total}`, label: "bugs squashed" }]
+      : [
+          { value: `${health.defeated}/${health.total}`, label: "squashed in the game" },
+          { value: `${health.fixed}/${health.total}`, label: "fixed in the code" },
+        ]),
     { value: `${health.dungeonsCleared}/${health.dungeonsTotal}`, label: "dungeons purified" },
     { value: `${health.chestsOpened}/${health.chestsTotal}`, label: "chests opened" },
     { value: save.coins.toLocaleString(), label: "coins saved up" },
@@ -61,7 +71,7 @@ export default function VictoryOverlay({ ctx }: OverlayProps<"victory">) {
       <header className="text-center">
         <h2 className="font-title text-xl text-gold [text-shadow:0_3px_0_var(--color-ink)]">THE LAND IS PURE!</h2>
         <p className="mt-1 font-bold">
-          Every monster in {analysis.repo.owner}/{analysis.repo.repo} has been squashed. Hooray!
+          Every monster in {analysis.repo.owner}/{analysis.repo.repo} has been {health.fixed === 0 ? "squashed" : "squashed or fixed away"}. Hooray!
         </p>
       </header>
 
@@ -82,7 +92,7 @@ export default function VictoryOverlay({ ctx }: OverlayProps<"victory">) {
                 <dt className="min-w-0 truncate text-sm">{stat.label}</dt>
               </div>
             ))}
-            <div className="flex items-baseline gap-2 bg-cream-deep/70 px-3 py-1">
+            <div className={`${health.fixed === 0 ? "" : "col-span-2 "}flex items-baseline gap-2 bg-cream-deep/70 px-3 py-1`}>
               <dd className="font-title shrink-0 text-sm">Lv {level.level}</dd>
               <dt className="min-w-0 truncate text-sm">
                 {save.look.name} the {level.title}
@@ -103,7 +113,7 @@ export default function VictoryOverlay({ ctx }: OverlayProps<"victory">) {
         </div>
       </div>
 
-      <p className="text-center text-sm font-bold">The monsters are gone, but the bugs are still in the code. Now go fix them for real!</p>
+      <p className="text-center text-sm font-bold">{victoryTakeaway(health)}</p>
       <footer className="flex flex-wrap items-start justify-center gap-2">
         <CopyChecklistButton analysis={analysis} progress={progress} onCopied={() => audio.sfx("uiSelect")} />
         <PixelButton tone="leaf" onClick={ctx.close}>

@@ -32,7 +32,7 @@ const tree = (paths: string[], truncated = false) => () =>
   Response.json({ truncated, tree: paths.map((path) => ({ path, type: "blob", mode: "100644", size: 1234 })) });
 
 describe("fetchRepoListing", () => {
-  it("lists Python files at the resolved commit", async () => {
+  it("lists Python files (and other text files) at the resolved commit", async () => {
     // After the first call, GitHub's own spelling ("Bakery/Shop") is used.
     const github = fakeGitHub({
       "/repos/Bakery/Shop/commits/main": commitSha,
@@ -49,6 +49,7 @@ describe("fetchRepoListing", () => {
         { path: "app.py", size: 1234 },
         { path: "pkg/util.py", size: 1234 },
       ],
+      otherFiles: [{ path: "README.md", size: 1234 }],
       skipped: { vendored: 1, tooLarge: 0, overCap: 0 },
       truncated: false,
     });

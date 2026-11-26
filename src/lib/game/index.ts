@@ -11,6 +11,7 @@ export {
   DEFAULT_NAME,
   MAX_COINS,
   MAX_NAME_LENGTH,
+  MAX_PAID_FIXES,
   MAX_XP,
   SAVE_DEBOUNCE_MS,
   SAVE_STORAGE_KEY,
@@ -96,3 +97,18 @@ export {
 export type { ChestInput, ChestLoot, ChestSource, ChestTier } from "@/lib/game/loot";
 
 export { buildChecklist } from "@/lib/game/checklist";
+
+// What saving code in the Workshop pays and how it moves progress (src/lib/workspace forges, this pays).
+export { FIX_COIN_MULTIPLIER, FIX_XP_MULTIPLIER, applyForge, fixCoins, fixXp } from "@/lib/game/forge";
+export type { ForgePayout, ForgeResult } from "@/lib/game/forge";
+
+// The Workshop's quests, forge streak and achievements (start reading at quests.ts).
+export { QUEST_BOARD_SIZE, QUEST_KIND_LABELS, QUEST_REWARDS } from "@/lib/game/quests";
+export type { Quest, QuestKind, QuestProgress, QuestReward, QuestTarget, RepoQuests, WorkshopProgress } from "@/lib/game/quests";
+export { questBoard } from "@/lib/game/questsBoard";
+export type { BoardView } from "@/lib/game/questsBoard";
+export { STREAK_BONUS_CAP, STREAK_BONUS_STEP, streakBonus, workshopOf } from "@/lib/game/questsStreak";
+export { newsLine, settleQuests } from "@/lib/game/questsSettle";
+export type { QuestNewsItem, SettleResult } from "@/lib/game/questsSettle";
+export { ACHIEVEMENTS, ACHIEVEMENT_REWARD } from "@/lib/game/achievements";
+export type { Achievement, AchievementIcon, AchievementId } from "@/lib/game/achievements";

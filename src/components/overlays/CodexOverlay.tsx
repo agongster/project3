@@ -4,7 +4,9 @@
  * The Bug Codex: every finding in the repo, the game's real-world takeaway.
  *
  *   Bugs tab      findings grouped by file → pick one to see its code, Ruff's
- *                 message, a fix tip and a GitHub link
+ *                 message, a fix tip, a GitHub link and "Fix it for real"
+ *                 (the Workshop opens on that line); bugs already fixed in
+ *                 the code are listed too
  *   Bestiary tab  every monster species and what code problem it embodies
  *
  * The "Copy to-do list" button exports the same list as Markdown.
@@ -19,7 +21,7 @@ import type { Finding } from "@/lib/types";
 import { Bestiary } from "./parts/codex/Bestiary";
 import { BugList } from "./parts/codex/BugList";
 import { FindingDetail } from "./parts/codex/FindingDetail";
-import { findFinding, groupFindings, tallyMonsters } from "./parts/codexData";
+import { bugStatus, findFinding, groupFindings, tallyMonsters } from "./parts/codexData";
 import { CopyChecklistButton } from "./parts/CopyChecklistButton";
 import { PanelHeader } from "./parts/PanelHeader";
 import { PANEL_LARGE } from "./parts/panelSizes";
@@ -32,13 +34,15 @@ export default function CodexOverlay({ request, ctx }: OverlayProps<"codex">) {
   const { analysis, audio } = ctx;
   const progress = useStore(ctx.save, (save) => getProgress(save, ctx.repoKey));
   const groups = useMemo(() => groupFindings(analysis, progress), [analysis, progress]);
+  // The first group with a bug still lurking, else the first group: where the codex opens without a focus.
+  const firstLive = groups[0]?.file.findings[0] ?? groups[0]?.fixed[0];
   const defeated = useMemo(() => new Set(progress.defeated), [progress]);
   const tallies = useMemo(() => tallyMonsters(analysis, progress), [analysis, progress]);
   const health = repoHealth(analysis, progress);
 
   // Start on the requested finding, else the first one of the first (most urgent) file.
   const [selectedId, setSelectedId] = useState<string | null>(
-    () => findFinding(analysis, request.focusFindingId)?.id ?? groups[0]?.file.findings[0]?.id ?? null,
+    () => findFinding(analysis, request.focusFindingId)?.id ?? firstLive?.id ?? null,
   );
   const [openPaths, setOpenPaths] = useState<ReadonlySet<string>>(() => {
     const first = findFinding(analysis, selectedId ?? undefined)?.path;
@@ -95,7 +99,7 @@ export default function CodexOverlay({ request, ctx }: OverlayProps<"codex">) {
         />
         <PixelBar value={health.ratio} label="Repo health" className="min-w-24 flex-1" />
         <p className="shrink-0 text-sm font-bold">
-          {health.defeated} of {health.total} bugs squashed
+          {health.fixed === 0 ? `${health.defeated} of ${health.total} bugs squashed` : `${health.defeated} squashed · ${health.fixed} fixed in the code · of ${health.total}`}
         </p>
       </div>
 
@@ -113,7 +117,12 @@ export default function CodexOverlay({ request, ctx }: OverlayProps<"codex">) {
           </div>
           <div className="px-scroll min-h-0 pr-1">
             {selected ? (
-              <FindingDetail finding={selected} analysis={analysis} done={defeated.has(selected.id)} />
+              <FindingDetail
+                finding={selected}
+                analysis={analysis}
+                status={bugStatus(analysis, progress, selected)}
+                onFix={() => ctx.openWorkshop({ path: selected.path, line: selected.line })}
+              />
             ) : (
               <p className="p-4 text-center opacity-70">Pick a bug on the left to see its details.</p>
             )}

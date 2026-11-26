@@ -28,6 +28,7 @@ import {
 } from "@/lib/game/catalog";
 import { HEALTH_MILESTONES, MAX_SAVED_REPOS } from "@/lib/game/progress";
 import { sanitizeEngravings } from "@/lib/game/engraving";
+import { sanitizeRepoQuests, sanitizeWorkshop } from "@/lib/game/questsSave";
 import type { CharacterLook, EquippedItems, ItemSlot, RepoProgress, SaveData, Store, ThemeId } from "@/lib/types";
 
 // ─────────────────────────── Constants ───────────────────────────
@@ -53,6 +54,8 @@ const MAX_COUNTER = 999_999_999;
 export const MAX_SETTLED_BOUNTIES = 10;
 /** Finding ids ("path:line:col:code") longer than this are not real ones. */
 const MAX_FINDING_ID_LENGTH = 500;
+/** A save remembers at most this many paid real fixes per repo (src/lib/game/forge.ts); the oldest are forgotten first. */
+export const MAX_PAID_FIXES = 2000;
 
 /** Longest hero name, in characters (it is drawn above the player's head). */
 export const MAX_NAME_LENGTH = 16;
@@ -260,6 +263,8 @@ function sanitizeProgress(raw: unknown): RepoProgress {
   const progress = asRecord(raw);
   const milestones = Array.isArray(progress.milestones) ? progress.milestones : [];
   const bounties = sanitizeSettledBounties(progress.bounties);
+  const quests = sanitizeRepoQuests(progress.quests);
+  const fixes = sanitizeFindingIds(progress.fixes, MAX_PAID_FIXES);
   return {
     defeated: toStringList(progress.defeated),
     cleared: toStringList(progress.cleared),
@@ -267,7 +272,17 @@ function sanitizeProgress(raw: unknown): RepoProgress {
     milestones: [...new Set(milestones.filter((m): m is number => typeof m === "number" && VALID_MILESTONES.has(m)))],
     // Only present once a bounty was settled, so progress from before bounties comes back unchanged.
     ...(bounties && { bounties }),
+    // Only present once the Workshop has posted a quest board for the repo.
+    ...(quests && { quests }),
+    // Only present once the Workshop has paid for a real fix in this repo.
+    ...(fixes && { fixes }),
   };
+}
+
+/** Unique finding ids of a sane length, the newest `max`. Undefined when there are none. */
+function sanitizeFindingIds(raw: unknown, max: number): string[] | undefined {
+  const ids = toStringList(raw).filter((id) => id.length > 0 && id.length <= MAX_FINDING_ID_LENGTH);
+  return ids.length === 0 ? undefined : ids.slice(-max);
 }
 
 /**
@@ -304,6 +319,7 @@ export function sanitizeSave(raw: unknown): SaveData {
     const stats = asRecord(save.stats);
     const owned = sanitizeOwned(save.owned);
     const engravings = sanitizeEngravings(save.engravings, owned);
+    const workshop = sanitizeWorkshop(save.workshop);
     return {
       version: 1,
       created: toBool(save.created, false),
@@ -322,6 +338,8 @@ export function sanitizeSave(raw: unknown): SaveData {
       settings: sanitizeSettings(save.settings),
       // Added with named loot: only present once an item is engraved, so older saves come back unchanged.
       ...(engravings && { engravings }),
+      // Added with the Workshop: only present once the player has forged or settled quests.
+      ...(workshop && { workshop }),
       stats: {
         bugsSquashed: toCounter(stats.bugsSquashed),
         chestsOpened: toCounter(stats.chestsOpened),
@@ -329,6 +347,8 @@ export function sanitizeSave(raw: unknown): SaveData {
         wishes: toCounter(stats.wishes),
         // Added with the pick-the-fix finisher: older saves have no such field and start at 0.
         fixesPicked: toCounter(stats.fixesPicked),
+        // Added with the Workshop: only present once a real fix was paid, so older saves come back unchanged.
+        ...(toCounter(stats.realFixes) > 0 && { realFixes: toCounter(stats.realFixes) }),
       },
     };
   } catch {

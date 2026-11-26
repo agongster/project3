@@ -7,8 +7,13 @@
  *   treasure   a bobbing chest icon with sparkles (clean file, chest unopened)
  *   claimable  same chest icon (dungeon cleared, prize not claimed yet)
  *   done       an occasional sparkle; clean houses puff chimney smoke
+ *
+ * When its file is edited in the Workshop a building PULSES the first time
+ * it is on screen afterwards: a white flash and a shower of gold stars when
+ * it was purified, a purple shudder and a puff of miasma when a new bug
+ * cursed it, a small sparkle when only its bug count changed.
  */
-import { buildingLights, drawSprite, getAtlas, type BuildingState, type Sprite } from "@/game/art";
+import { buildingLights, drawSprite, flashSprite, getAtlas, type BuildingState, type Sprite } from "@/game/art";
 import { drawText } from "@/game/art/font";
 import { uiSprite } from "@/game/art/ui";
 import type { AnalyzedFile, Building, ThemeId } from "@/lib/types";
@@ -16,6 +21,7 @@ import type { SceneContext } from "../scenes/context";
 import type { Drawable, Light } from "../scenes/scene";
 import { bugsLeft, buildingStatus, type BuildingStatus } from "../scenes/progressView";
 import { hidesHero, TALL_ALPHA } from "./scenery";
+import { tinted } from "./monsters/monsterDraw";
 
 const MIASMA_EVERY_SEC = 0.35;
 const SMOKE_EVERY_SEC = 0.55;
@@ -23,6 +29,20 @@ const SPARKLE_EVERY_SEC = 1.6;
 const BADGE_BOB_PX = 2;
 /** Roof top row inside the sprite for house-like buildings (see art/buildings.ts). */
 const ROOF_TOP: Record<Building["kind"], number> = { cottage: 7, house: 6, manor: 5, tower: 3 };
+/** How long an edited building's pulse lasts. */
+const PULSE_SEC = 0.9;
+/** The strongest flash over the sprite, at the start of a pulse. */
+const PULSE_FLASH_ALPHA = 0.85;
+const CURSE_TINT = "#b56cff";
+/** A newly cursed building shudders sideways by this much (px), this many times a second. */
+const SHUDDER_PX = 1;
+const SHUDDER_HZ = 18;
+const PULSE_STARS = 18;
+const PULSE_MIASMA = 10;
+const PULSE_SPARKLES = 6;
+
+/** How an edit changed a building (see the file comment). */
+export type BuildingPulse = "cleansed" | "cursed" | "changed";
 
 /** Which picture a building uses for each status. */
 export function spriteStateFor(status: BuildingStatus, file: AnalyzedFile | undefined): BuildingState {
@@ -38,12 +58,18 @@ export class BuildingEntity {
   readonly doorX: number;
   readonly doorY: number;
   status: BuildingStatus = "done";
+  /** The file as the code is now (replaced by `setFile` after an edit in the Workshop). */
+  file: AnalyzedFile | undefined;
   private lifeClock = Math.random();
+  /** A pulse waiting to be seen (it starts the first time the building is on screen). */
+  private armedPulse: BuildingPulse | null = null;
+  private pulse: { kind: BuildingPulse; age: number } | null = null;
 
   constructor(
     readonly building: Building,
-    readonly file: AnalyzedFile | undefined,
+    file: AnalyzedFile | undefined,
   ) {
+    this.file = file;
     this.x = (building.x + building.w / 2) * 16;
     this.y = (building.y + building.h) * 16;
     this.doorX = building.door.x * 16 + 8;
@@ -52,6 +78,15 @@ export class BuildingEntity {
 
   get path(): string {
     return this.building.path;
+  }
+
+  setFile(file: AnalyzedFile): void {
+    this.file = file;
+  }
+
+  /** Pulses (see the file comment) as soon as the building is on screen. */
+  pulseWhenSeen(kind: BuildingPulse): void {
+    this.armedPulse = kind;
   }
 
   /** Re-reads the save (cheap; called every step). */
@@ -67,7 +102,18 @@ export class BuildingEntity {
   drawable(theme: ThemeId, hero: { x: number; y: number }): Drawable {
     const sprite = this.sprite(theme);
     const seeThrough = hidesHero(sprite, this.x, this.y, hero);
-    return { y: this.y, draw: (g) => drawSprite(g, sprite, this.x, this.y, seeThrough ? { alpha: TALL_ALPHA } : undefined) };
+    const pulse = this.pulse;
+    const shudder = pulse?.kind === "cursed" ? (Math.floor(pulse.age * SHUDDER_HZ) % 2 === 0 ? SHUDDER_PX : -SHUDDER_PX) : 0;
+    const x = this.x + shudder;
+    return {
+      y: this.y,
+      draw: (g) => {
+        drawSprite(g, sprite, x, this.y, seeThrough ? { alpha: TALL_ALPHA } : undefined);
+        if (!pulse) return;
+        const flash = pulse.kind === "cursed" ? tinted(sprite, CURSE_TINT) : flashSprite(sprite);
+        drawSprite(g, flash, x, this.y, { alpha: PULSE_FLASH_ALPHA * (1 - pulse.age / PULSE_SEC) });
+      },
+    };
   }
 
   /** Skull + bug count, or a chest icon, bobbing over the roof. Drawn above the lighting. */
@@ -91,6 +137,7 @@ export class BuildingEntity {
     const sprite = this.sprite(theme);
     const left = this.x - sprite.ax;
     const top = this.y - sprite.ay;
+    this.updatePulse(dt, ctx, sprite);
     if (this.status === "cursed" && this.lifeClock >= MIASMA_EVERY_SEC) {
       this.lifeClock = 0;
       const px = left + 4 + Math.random() * (sprite.w - 8);
@@ -110,6 +157,33 @@ export class BuildingEntity {
     const b = this.building;
     for (const l of buildingLights(b.kind, spriteStateFor(this.status, this.file))) {
       if (dark || l.always) out.push({ x: this.x + l.dx, y: this.y + l.dy, radius: l.radius, color: l.color, strength: dark ? 1 : 0.6 });
+    }
+  }
+
+  /** Starts an armed pulse (with its burst of particles) and ages the running one. */
+  private updatePulse(dt: number, ctx: SceneContext, sprite: Sprite): void {
+    if (this.armedPulse) {
+      this.pulse = { kind: this.armedPulse, age: 0 };
+      this.armedPulse = null;
+      this.burst(ctx, this.pulse.kind, sprite);
+    }
+    if (!this.pulse) return;
+    this.pulse.age += dt;
+    if (this.pulse.age >= PULSE_SEC) this.pulse = null;
+  }
+
+  private burst(ctx: SceneContext, kind: BuildingPulse, sprite: Sprite): void {
+    const roof = sprite.h - 8;
+    if (kind === "cleansed") {
+      for (let i = 0; i < PULSE_STARS; i++) {
+        ctx.particles.emit({ x: this.x + (Math.random() - 0.5) * sprite.w, y: this.y, z: roof * Math.random(), vz: 24 + Math.random() * 30, gravity: 30, life: 1.1, sprite: uiSprite(i % 3 === 0 ? "star" : "sparkle", i), delay: i * 0.02 });
+      }
+    } else if (kind === "cursed") {
+      for (let i = 0; i < PULSE_MIASMA; i++) {
+        ctx.particles.emit({ x: this.x + (Math.random() - 0.5) * sprite.w, y: this.y, z: roof, vz: 10, vx: (Math.random() - 0.5) * 20, life: 1.6, sprite: uiSprite("miasma", i % 3), wobble: 3 });
+      }
+    } else {
+      ctx.particles.burst(PULSE_SPARKLES, this.x, this.y - roof / 2, 30, { life: 0.7, sprite: uiSprite("sparkle", 1), drag: 2 });
     }
   }
 

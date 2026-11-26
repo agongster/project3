@@ -8,15 +8,18 @@
  *   - the loop (fixed 60 Hz updates, one render per frame) and the
  *     transitions between scenes
  *   - the GameHandle the React UI uses (start / pause / resume / destroy / warp,
- *     and the finisher's answer)
+ *     the finisher's answer, and each new analysis after a forge)
  *   - the debug helpers that play-test scripts use (see debug.ts)
  *
  * The engine follows the save store live: a new look, hat, pet, trail,
- * weapon or scenery theme shows up immediately, even while paused.
+ * weapon or scenery theme shows up immediately, even while paused. It also
+ * follows the CODE live (`updateAnalysis`): the overworld keeps its layout
+ * but its buildings change state, and the dungeon the hero stands in
+ * re-forms around the edited file (scenes/dungeonReform.ts).
  */
 import { renderCharacter } from "@/game/art";
 import { playerStats, type PlayerStats } from "@/lib/game";
-import { repoKey as makeRepoKey, VIEW_H, VIEW_W, type GameEvent, type GameHandle, type GameOptions } from "./bridge";
+import { repoKey as makeRepoKey, VIEW_H, VIEW_W, type GameEvent, type GameHandle, type GameOptions, type WorkshopTarget } from "./bridge";
 import { Combo } from "./combat/combo";
 import { createLoop } from "./engine/loop";
 import { createInput } from "./engine/input";
@@ -28,15 +31,26 @@ import { HudWriter } from "./hud";
 import { createDebug, type GameDebug } from "./debug";
 import { DungeonScene } from "./scenes/dungeon";
 import { OverworldScene } from "./scenes/overworld";
-import { allDungeonsCleared } from "./scenes/progressView";
+import { rebuiltCaption } from "./scenes/dungeonReform";
+import { allDungeonsCleared, bugsLeft } from "./scenes/progressView";
 import type { Scene } from "./scenes/scene";
+import { workshopTargetFor } from "./scenes/workshopTarget";
 import type { GameServices } from "./services";
-import type { SaveData } from "@/lib/types";
+import type { AnalyzedFile, RepoAnalysis, SaveData } from "@/lib/types";
 
 export type { GameDebug } from "./debug";
 
 /** Only equipped items the player owns count (a hand-edited save can't sneak a pet in). */
 const ownedOrNull = (save: SaveData, id: string | null) => (id && save.owned.includes(id) ? id : null);
+
+/** The rebuilt dungeon's fade covers the screen this fast (s): a quick blink, not a door. */
+const REBUILD_FADE_SEC = 0.35;
+
+/** Files whose analysis object changed between two analyses (a forge replaces only the files it touched). */
+function changedFiles(before: RepoAnalysis, after: RepoAnalysis): Map<string, AnalyzedFile> {
+  const old = new Map(before.files.map((file) => [file.path, file]));
+  return new Map(after.files.filter((file) => old.get(file.path) !== file).map((file) => [file.path, file]));
+}
 
 /** Builds the whole game on `options.canvas`. Call `handle.start()` to begin and `handle.destroy()` when leaving. */
 export function createEngine(options: GameOptions): { handle: GameHandle; debug: GameDebug } {
@@ -54,6 +68,8 @@ export function createEngine(options: GameOptions): { handle: GameHandle; debug:
   const pet = new Pet();
   const trail = new Trail();
   const repoKey = makeRepoKey(options.analysis);
+  /** The repo as the code is now (see GameHandle.updateAnalysis). */
+  let analysis = options.analysis;
 
   let dungeon: DungeonScene | null = null;
   let paused = false;
@@ -79,13 +95,15 @@ export function createEngine(options: GameOptions): { handle: GameHandle; debug:
     audio,
     hud: new HudWriter(options.hud),
     input,
-    analysis: options.analysis,
+    get analysis() {
+      return analysis;
+    },
     repoKey,
     player,
     pet,
     trail,
     combo: new Combo(),
-    session: { brokenBushes: new Set(), victoryShown: allDungeonsCleared(save.get(), repoKey, options.analysis) },
+    session: { brokenBushes: new Set(), victoryShown: allDungeonsCleared(save.get(), repoKey, analysis) },
     stats: () => stats,
     theme: () => save.get().theme,
     emit: (event: GameEvent) => options.emit(event),
@@ -114,6 +132,30 @@ export function createEngine(options: GameOptions): { handle: GameHandle; debug:
       const path = dungeon.path;
       audio.sfx("door");
       transition.start("iris", from.x, from.y, () => switchScene(overworld, () => overworld.arriveFrom(path)));
+    },
+    rebuildDungeon(caption: string) {
+      if (transition.active || !dungeon) return;
+      const from = heroOnScreen();
+      const path = dungeon.path;
+      audio.sfx("door", { pitch: 1.4, volume: 0.6 });
+      transition.start(
+        "fade",
+        from.x,
+        from.y,
+        () => {
+          const next = new DungeonScene(services, path);
+          switchScene(next, () => {});
+          dungeon = next;
+          // A hero who fainted mid-edit gets back up in the new dungeon.
+          if (player.fainted) player.restore(stats.maxHp);
+          const file = analysis.files.find((f) => f.path === path);
+          next.announce(file ? rebuiltCaption(bugsLeft(save.get(), repoKey, file)) : caption);
+        },
+        REBUILD_FADE_SEC,
+      );
+    },
+    openWorkshop(target: WorkshopTarget) {
+      services.emitPausing({ type: "workshop", target });
     },
     fade(onCovered: () => void) {
       const from = heroOnScreen();
@@ -181,6 +223,21 @@ export function createEngine(options: GameOptions): { handle: GameHandle; debug:
       // Only a dungeon has dazed monsters; anywhere else there is nothing to answer.
       dungeon?.resolveFinisher(findingId, correct);
     },
+    spareFinisher(findingId: string) {
+      dungeon?.spareFinisher(findingId);
+    },
+    updateAnalysis(next: RepoAnalysis, fixedIds: readonly string[] = []) {
+      const changed = changedFiles(analysis, next);
+      analysis = next;
+      overworld.follow(changed);
+      const file = dungeon ? changed.get(dungeon.path) : undefined;
+      if (file) dungeon?.follow(file);
+      // Only counts while that dungeon waits to re-form; ids of other files match none of its monsters.
+      dungeon?.noteFixed(fixedIds);
+    },
+    workshopTarget() {
+      return workshopTargetFor(scene.workshopSituation());
+    },
     destroy() {
       loop.stop();
       input.destroy();
@@ -194,7 +251,7 @@ export function createEngine(options: GameOptions): { handle: GameHandle; debug:
         return;
       }
       // Only files with findings have a dungeon.
-      const file = options.analysis.files.find((f) => f.path === path);
+      const file = analysis.files.find((f) => f.path === path);
       if (scene === overworld && file && file.findings.length > 0) services.enterDungeon(path);
       else options.emit({ type: "toast", text: `No dungeon to warp to for "${path}".`, tone: "warn" });
     },

@@ -1,0 +1,80 @@
+/*
+ * The Workshop's popups: quick-open, the revert confirmation, the diff view
+ * and the help panel. Plain global CSS with the "ws-" prefix (see
+ * workshop.css).
+ */
+
+/* ───────────── Popups ───────────── */
+
+.ws-popup-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(18 13 36 / 0.7);
+}
+.ws-popup-top { align-items: flex-start; padding-top: 10vh; }
+.ws-popup { max-width: 100%; max-height: 100%; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; outline: none; font-size: 16px; }
+.ws-popup-head { display: flex; align-items: center; gap: 12px; }
+.ws-popup-head h2 { font-size: 13px; }
+.ws-popup-head .ws-faint-ink { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ws-quick-open { width: 560px; }
+.ws-quick-input { width: calc(100% - 8px); font-family: var(--ws-code-font); font-size: 15px; }
+.ws-quick-list { max-height: 50vh; display: flex; flex-direction: column; }
+.ws-quick-hit { display: flex; align-items: baseline; gap: 10px; padding: 4px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; }
+.ws-quick-hit-active { background: var(--color-gold); }
+.ws-quick-name { font-weight: 500; }
+
+.ws-confirm { width: 460px; }
+.ws-confirm-title { font-size: 13px; }
+.ws-confirm code { font-family: var(--ws-code-font); font-size: 0.85em; overflow-wrap: anywhere; }
+.ws-confirm-actions { display: flex; justify-content: flex-end; gap: 4px; }
+
+.ws-diff-popup { width: min(1000px, 92vw); height: min(720px, 86vh); }
+.ws-diff {
+  flex: 1;
+  min-height: 0;
+  background: var(--ws-bg);
+  color: var(--ws-text);
+  font-family: var(--ws-code-font);
+  font-size: 13px;
+  line-height: 1.55;
+  box-shadow: 0 0 0 3px var(--color-ink);
+  overflow: auto;
+  -webkit-font-smoothing: auto;
+}
+.ws-diff-row { display: flex; min-width: max-content; }
+.ws-diff-num { flex-shrink: 0; width: 5ch; padding-right: 8px; text-align: right; color: var(--ws-text-faint); user-select: none; }
+.ws-diff-mark { flex-shrink: 0; width: 2ch; text-align: center; user-select: none; }
+.ws-diff-text { white-space: pre; padding-right: 16px; font-family: inherit; }
+.ws-diff-added { background: rgb(126 200 80 / 0.18); }
+.ws-diff-added .ws-diff-mark { color: var(--color-leaf); }
+.ws-diff-removed { background: rgb(255 92 97 / 0.18); }
+.ws-diff-removed .ws-diff-mark { color: var(--ws-sev-boss); }
+.ws-diff-gap { padding: 2px 0 2px 12ch; color: var(--ws-text-faint); background: var(--ws-bg-deep); }
+
+/* ───────────── Help ───────────── */
+
+.ws-help { max-width: 560px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: left; }
+.ws-help-title { font-size: 15px; color: var(--color-gold); text-align: center; line-height: 1.5; }
+.ws-editor-empty .ws-help-title { text-shadow: 2px 2px 0 var(--ws-edge); }
+.ws-help-popup .ws-help-title { color: var(--color-ink); }
+.ws-help-steps { display: flex; flex-direction: column; gap: 10px; }
+.ws-help-steps li { display: flex; gap: 12px; align-items: flex-start; }
+.ws-help-num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-leaf);
+  color: var(--color-ink);
+  font-size: 11px;
+  box-shadow: 0 0 0 2px var(--ws-edge);
+}
+.ws-help-keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font-size: 14px; }

@@ -7,6 +7,7 @@
  * `leaveDungeon()`), which runs the iris transition and swaps them.
  */
 import type { SceneContext } from "./context";
+import type { HeroSituation } from "./workshopTarget";
 
 /**
  * One thing to draw in the y-sorted world layer. Objects whose base is
@@ -40,6 +41,8 @@ export interface Scene {
   render(g: CanvasRenderingContext2D): void;
   /** The game was un-paused (an overlay closed). */
   onResume(): void;
+  /** Where the hero is, for choosing where the Workshop opens (see workshopTarget.ts). */
+  workshopSituation(): HeroSituation;
   /** Free anything the scene holds (it will not be used again). */
   destroy(): void;
 }

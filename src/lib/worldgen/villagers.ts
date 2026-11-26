@@ -50,6 +50,7 @@ export const GAMEPLAY_TIPS: readonly string[] = [
   "Fancy a new look? The wardrobe on the plaza has you covered.",
   "The notice board by the fountain keeps score for the whole land.",
   "Cursed houses lead down into dungeons. Clean ones hide a treasure chest!",
+  "Press F to open the Workshop: fix a bug in the code itself and its monster is gone for good!",
 ];
 
 /** A village never has more villagers than this (validate.ts checks the same 3–6 range). */

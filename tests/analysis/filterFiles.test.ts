@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterFiles, MAX_FILE_BYTES, MAX_FILES, type TreeEntry } from "@/lib/repo/filterFiles";
+import { filterFiles, isOtherTextFile, MAX_FILE_BYTES, MAX_FILES, MAX_OTHER_FILE_BYTES, MAX_OTHER_FILES, type TreeEntry } from "@/lib/repo/filterFiles";
 
 const blob = (path: string, size = 100): TreeEntry => ({ path, type: "blob", mode: "100644", size });
 
@@ -51,5 +51,43 @@ describe("filterFiles", () => {
     expect(paths).not.toContain("pkg/sub/deep_148.py");
     // The result itself is sorted by path.
     expect(paths).toEqual([...paths].sort());
+  });
+
+  it("lists the other text files for the Workshop: docs, config, other languages, never binaries", () => {
+    const { otherFiles } = filterFiles([
+      blob("app.py"),
+      blob("README.md"),
+      blob("LICENSE"),
+      blob("Dockerfile"),
+      blob(".gitignore"),
+      blob("pyproject.toml"),
+      blob("docs/guide.rst"),
+      blob("web/app.ts"),
+      blob("kernels/attn.cu"),
+      blob("pkg/stub.pyi"),
+      blob("logo.png"),
+      blob("model.bin"),
+      blob("data.zip"),
+      blob("venv/notes.md"),
+      blob("huge.json", MAX_OTHER_FILE_BYTES + 1),
+      { path: "docs/link.md", type: "blob", mode: "120000", size: 10 },
+    ]);
+    expect(otherFiles.map((f) => f.path)).toEqual([".gitignore", "Dockerfile", "LICENSE", "README.md", "docs/guide.rst", "kernels/attn.cu", "pkg/stub.pyi", "pyproject.toml", "web/app.ts"]);
+  });
+
+  it("caps the other files too, closest to the root first", () => {
+    const deep = Array.from({ length: MAX_OTHER_FILES + 5 }, (_, i) => blob(`docs/pages/page_${String(i).padStart(3, "0")}.md`));
+    const { otherFiles } = filterFiles([blob("app.py"), ...deep, blob("README.md")]);
+    expect(otherFiles).toHaveLength(MAX_OTHER_FILES);
+    expect(otherFiles.map((f) => f.path)).toContain("README.md");
+  });
+
+  it("knows text files by extension or by well-known name", () => {
+    expect(isOtherTextFile("Makefile")).toBe(true);
+    expect(isOtherTextFile("sub/makefile")).toBe(true);
+    expect(isOtherTextFile("requirements-dev.txt")).toBe(true);
+    expect(isOtherTextFile("main.py")).toBe(false);
+    expect(isOtherTextFile("photo.jpeg")).toBe(false);
+    expect(isOtherTextFile(".env")).toBe(false);
   });
 });

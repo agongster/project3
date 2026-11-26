@@ -53,6 +53,8 @@ export function LoadingScreen({ target, services, onEnter, onError, onCancel }: 
 
   function cancel() {
     audio.sfx("uiBack");
+    // A world that finished loading but is never entered still holds a running lint worker: stop it.
+    if (state.status === "ready" && !enteredRef.current) state.loaded.workspace.dispose();
     onCancel();
   }
 

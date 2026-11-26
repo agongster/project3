@@ -21,6 +21,11 @@
  * It also draws the monsters, their telegraphs, name tags and badges,
  * reports the HUD's boss bar and how many monsters remain, offers the
  * "finish it with a fix" spots of dazed monsters, and takes the answer.
+ *
+ * When the code is edited in the Workshop, the dungeon scene asks it to
+ * `rewrite` the monsters whose bugs were fixed for real (they dissolve, see
+ * rewritten.ts) and to `settleNow` any defeat still in flight, so it is
+ * recorded under the finding's id from before the edit.
  */
 import { getProgress } from "@/lib/game";
 import type { AnalyzedFile, Dungeon } from "@/lib/types";
@@ -33,12 +38,13 @@ import type { Interactable } from "../../scenes/interactions";
 import type { Drawable, Light } from "../../scenes/scene";
 import { BossShow } from "./bossShow";
 import { BOSS_SLOWMO, bugCardDue, deathDuration, finishDeath, isDeathAnimating, lingerDuration, startDeath, updateDeathFx } from "./deaths";
-import { answerFinisher, declineUnanswered, drawFinisherRing, finisherSpot } from "./dazed";
+import { answerFinisher, declineUnanswered, drawFinisherRing, finisherSpot, spareFinisher } from "./dazed";
 import { applyContactDamage, separate, updateEngagement } from "./engagement";
 import { hazardDrawables } from "./hazards";
 import type { Monster } from "./monster";
 import { drawMonsterBadges, drawMonsterBody, drawMonsterShadow, monsterLight } from "./monsterDraw";
 import { NameTags } from "./nameTags";
+import { Rewrites } from "./rewritten";
 import { spawnsToCreate } from "./rewards";
 import { playPoof, SceneMonsterWorld } from "./sceneWorld";
 import { createBodies } from "./traits";
@@ -68,6 +74,8 @@ export class Director implements MonsterDirector {
   private readonly show = new BossShow();
   private readonly ledger = new DefeatLedger();
   private readonly leftovers: Leftovers;
+  /** Monsters whose bug was fixed in the code, dissolving (rewritten.ts). */
+  private readonly rewrites: Rewrites;
   /** Bosses whose intro already played during this engagement. */
   private readonly introduced = new Set<Monster>();
   private grace = ENTRY_GRACE_SEC;
@@ -80,6 +88,7 @@ export class Director implements MonsterDirector {
     this.world = new SceneMonsterWorld(ctx, dungeon.entrance);
     this.world.refresh(this.grace);
     this.leftovers = new Leftovers(ctx);
+    this.rewrites = new Rewrites(ctx);
     const findings = new Map(file.findings.map((f) => [f.id, f]));
     const defeated = getProgress(ctx.save.get(), ctx.repoKey).defeated;
     // Runes and echoes go on free floor of the real map (walls, pots and carvings as they are now).
@@ -111,6 +120,7 @@ export class Director implements MonsterDirector {
     this.show.update(ctx, dt);
     this.tags.update(dt, this.monsters, world.hero);
     this.leftovers.update(dt);
+    this.rewrites.update(dt);
     this.monsters = this.monsters.filter((m) => m.alive || m.dyingFor < deathDuration(m) + lingerDuration(m));
   }
 
@@ -134,6 +144,7 @@ export class Director implements MonsterDirector {
       });
     }
     hazardDrawables(this.world.hazards, this.ctx.time, out);
+    this.rewrites.drawables(out);
   }
 
   lights(out: Light[]): void {
@@ -142,6 +153,7 @@ export class Director implements MonsterDirector {
       if (light) out.push(light);
       if (m.alive) m.trait?.lights?.(m, out);
     }
+    this.rewrites.lights(out);
   }
 
   overlay(g: CanvasRenderingContext2D): void {
@@ -151,6 +163,7 @@ export class Director implements MonsterDirector {
       if (m.alive) m.trait?.drawOverlay?.(g, m, this.ctx.time);
     }
     this.leftovers.draw(g);
+    this.rewrites.overlay(g);
     this.show.draw(g, this.ctx);
   }
 
@@ -176,6 +189,44 @@ export class Director implements MonsterDirector {
     answerFinisher(this.monsters, findingId, correct);
   }
 
+  spareFinisher(findingId: string): void {
+    spareFinisher(this.monsters, findingId);
+  }
+
+  living(): { id: string; x: number; y: number; line: number }[] {
+    return this.monsters.filter((m) => m.alive).map((m) => ({ id: m.finding.id, x: m.x, y: m.y, line: m.finding.line }));
+  }
+
+  rewrite(fixedIds: ReadonlySet<string>): number {
+    const fixed = this.monsters.filter((m) => m.alive && fixedIds.has(m.finding.id));
+    for (const m of fixed) {
+      this.ctx.hittables.delete(m);
+      this.world.hazards.removeOwnedBy(m);
+      this.rewrites.start(m);
+    }
+    if (fixed.length > 0) this.monsters = this.monsters.filter((m) => !fixed.includes(m));
+    return new Set(fixed.map((m) => m.finding.id)).size;
+  }
+
+  settleNow(): void {
+    // A dazed monster was beaten; a squashing one is about to be recorded at its pop.
+    const due = this.monsters.filter((m) => m.dazed || (!m.alive && m.dyingFor < deathDuration(m) && this.ledger.reward(m).pays));
+    for (const m of due) {
+      recordFindingDefeated(this.ctx, m.finding, 0, m.criticalFix);
+      this.ctx.hittables.delete(m);
+      playPoof(this.ctx, m.x, m.y - 8);
+    }
+    if (due.length > 0) this.monsters = this.monsters.filter((m) => !due.includes(m));
+  }
+
+  updateEffects(dt: number): void {
+    this.rewrites.update(dt);
+  }
+
+  rewriting(): boolean {
+    return this.rewrites.active;
+  }
+
   onPlayerFainted(): void {
     // A dazed monster was beaten all the same: it goes down instead of starting over.
     for (const m of this.monsters) if (m.dazed) m.collapse();
@@ -199,6 +250,7 @@ export class Director implements MonsterDirector {
     for (const m of this.monsters) this.ctx.hittables.delete(m);
     this.world.hazards.clear();
     this.leftovers.clear();
+    this.rewrites.clear();
     this.monsters = [];
   }
 

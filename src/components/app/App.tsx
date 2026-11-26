@@ -7,6 +7,11 @@
  *
  * App owns the current Screen and the long-lived services (save, audio, HUD
  * store); each screen gets what it needs plus callbacks to move on.
+ *
+ * It also owns the lifetime of a world's workspace (its files and its Ruff
+ * worker): the workspace is disposed in the event that leaves the world, not
+ * in an effect cleanup, so React's development double-mount of the game
+ * screen can never dispose a workspace that is still being played.
  */
 import { useState } from "react";
 import { CreatorScreen } from "@/components/screens/CreatorScreen";
@@ -39,6 +44,12 @@ function AppFlow({ services }: { services: AppServices }) {
   /** First-time players design their hero before the first world loads. */
   const startWorld = (target: WorldTarget) => {
     setScreen(heroCreated ? { name: "loading", target } : { name: "creator", next: target });
+  };
+
+  /** Leaving the world: stop its lint worker, then back to the title. */
+  const leaveWorld = (loaded: LoadedWorld) => {
+    loaded.workspace.dispose();
+    showTitle();
   };
 
   const enterWorld = (loaded: LoadedWorld, bonusCoins: number) => {
@@ -79,7 +90,9 @@ function AppFlow({ services }: { services: AppServices }) {
           onCancel={() => showTitle()}
         />
       );
-    case "playing":
-      return <GameScreen loaded={screen.loaded} services={services} onExit={() => showTitle()} />;
+    case "playing": {
+      const { loaded } = screen;
+      return <GameScreen loaded={loaded} services={services} onExit={() => leaveWorld(loaded)} />;
+    }
   }
 }

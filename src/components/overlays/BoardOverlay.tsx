@@ -4,14 +4,16 @@
  * The town notice board: a friendly infographic of the repo analysis,
  * pinned up as paper notes on a wooden board, topped by up to three WANTED
  * posters (bounties on monsters, quoting the line of code they hide at).
+ * Its numbers follow the code as it is now: a bug fixed in the Workshop is
+ * no longer found, and the region bars count it as dealt with.
  */
-import { useMemo, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Modal, PixelBar, PixelPanel } from "@/components/ui/kit";
 import { getProgress } from "@/lib/game";
-import { chooseBounties } from "@/lib/game/bounties";
 import { useStore } from "@/lib/game/useStore";
 import type { AnalyzedFile } from "@/lib/types";
 import { mostCursedFiles, monstersBySeverity, regionRows, tidiestFiles } from "./parts/boardData";
+import { findFinding } from "./parts/codexData";
 import { BountyNotices } from "./parts/BountyNotices";
 import { GradeBadge } from "./parts/GradeBadge";
 import { MonsterIcon } from "./parts/MonsterIcon";
@@ -30,7 +32,7 @@ export default function BoardOverlay({ ctx }: OverlayProps<"board">) {
   const { stats, repo } = analysis;
   const regions = regionRows(analysis, progress);
   const monsterKinds = monstersBySeverity(analysis);
-  const bounties = useMemo(() => chooseBounties(analysis), [analysis]);
+  const { bounties } = ctx;
   const biggestSeverity = Math.max(1, ...SEVERITIES.map((severity) => stats.bySeverity[severity]));
 
   return (
@@ -40,7 +42,14 @@ export default function BoardOverlay({ ctx }: OverlayProps<"board">) {
       <div className="px-scroll grid min-h-0 flex-1 grid-cols-2 content-start gap-3 pr-1">
         {bounties.length > 0 && (
           <Note title="Wanted — bounties" wide>
-            <BountyNotices bounties={bounties} progress={progress} />
+            <BountyNotices
+              bounties={bounties}
+              progress={progress}
+              onFix={(bounty) => {
+                const finding = findFinding(analysis, bounty.findingId);
+                if (finding) ctx.openWorkshop({ path: finding.path, line: finding.line });
+              }}
+            />
           </Note>
         )}
 
@@ -100,10 +109,14 @@ export default function BoardOverlay({ ctx }: OverlayProps<"board">) {
                   <td className="tabular-nums">{row.files}</td>
                   <td className="tabular-nums">{row.bugs}</td>
                   <td className="py-1">
-                    {row.bugs === 0 ? (
+                    {row.bugs + row.fixed === 0 ? (
                       <span className="text-xs font-bold text-leaf-deep">Spotless!</span>
                     ) : (
-                      <PixelBar value={row.defeated / row.bugs} className="h-2" label={`${row.defeated} of ${row.bugs} squashed`} />
+                      <PixelBar
+                        value={(row.defeated + row.fixed) / (row.bugs + row.fixed)}
+                        className="h-2"
+                        label={row.fixed === 0 ? `${row.defeated} of ${row.bugs} squashed` : `${row.defeated} squashed and ${row.fixed} fixed in the code, of ${row.bugs + row.fixed}`}
+                      />
                     )}
                   </td>
                 </tr>

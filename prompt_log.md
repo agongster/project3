@@ -103,7 +103,15 @@ add extra subagents to implement monsters behaving like their bug, file shaping 
 we want to turn this into a full fledged gamified IDE. the user should be able to edit and view all code files but make it gamified.
 ```
 
-<!-- PROMPT-10-OUTCOME -->
+*Outcome: the orchestrating model designed "the Workshop" (SPEC.md section E) and wrote its interface (`src/lib/workspace/contract.ts`), choosing on its own that edits stay in the browser and export as a patch or zip rather than being pushed to GitHub. Four Opus 5.5 subagents then built it: the workspace core (`src/lib/workspace/`, `src/lib/game/forge.ts`: keep sources and the linter alive, save = "forge", match findings across edits so moved lines are not mistaken for fixes, quick fixes, formatting, export), the editor UI (`src/components/workshop/`, CodeMirror 6: explorer, monsters in the gutter, bug cards, the forge moment, grade and changes panels), quests and achievements for editing (`src/lib/game/quests*.ts`, `achievements.ts`, `src/components/workshop/quests/`), and the wiring into the game (`src/components/app/useWorkshop.ts`, `forgeFlow.ts`, `GameHandle.updateAnalysis`, the in-place dungeon rebuild in `src/game/scenes/dungeonReform.ts`).*
+
+**Prompt 11 (12:58)**
+
+```
+the main UI should still be the game as you built before, and it should secondarily be an IDE. i.e. it is primarily a game, and secondarily an IDE, as opposed to the other way around. please make sure this is met.
+```
+
+*Outcome: sent to the wiring subagent as binding rules and added to SPEC.md section E as rule 0: the app opens into the game exactly as before; the Workshop is one ordinary HUD button and the F key, never opens by itself and is never required; game actions stay the primary buttons in every overlay and "Fix it for real" is a secondary link; the title screen keeps its tagline; nothing calls it an IDE. Checked by the orchestrator in screenshots and by the bot that never opens the Workshop.*
 
 ## How the build was split up
 

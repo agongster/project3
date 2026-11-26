@@ -173,6 +173,7 @@ describe("repoHealth", () => {
     expect(health).toEqual({
       ratio: 1,
       defeated: 0,
+      fixed: 0,
       total: 0,
       dungeonsCleared: 0,
       dungeonsTotal: 0,
@@ -186,6 +187,7 @@ describe("repoHealth", () => {
     expect(repoHealth(analysis, emptyProgress())).toEqual({
       ratio: 0,
       defeated: 0,
+      fixed: 0,
       total: 3,
       dungeonsCleared: 0,
       dungeonsTotal: 2,

@@ -9,18 +9,21 @@
  *
  * This scene object lives for the whole game: when the hero visits a
  * dungeon and comes back, broken bushes, coins on the ground and villagers
- * are exactly where they were.
+ * are exactly where they were. When the code is edited in the Workshop the
+ * village keeps its layout; `follow` hands each changed building its new
+ * file, and the next time the overworld runs those buildings pulse as they
+ * change state (cursed ⇄ treasure).
  */
 import { getTheme } from "@/lib/game/catalog";
 import { THEME_COLORS } from "@/game/art";
 import { uiSprite } from "@/game/art/ui";
 import { getProgress } from "@/lib/game";
-import type { Prop, SaveData } from "@/lib/types";
+import type { AnalyzedFile, Prop, SaveData } from "@/lib/types";
 import { VIEW_H, VIEW_W } from "../bridge";
 import { Ambient } from "../engine/ambient";
 import { Lighting } from "../engine/lighting";
 import { GroundRenderer } from "../engine/tiles";
-import { BuildingEntity } from "../entities/buildings";
+import { BuildingEntity, type BuildingPulse } from "../entities/buildings";
 import { breakableDrawables, createBreakables, BREAKABLE_KINDS, type Breakable } from "../entities/breakables";
 import { Villager } from "../entities/npc";
 import { propDrawables, propLights } from "../entities/scenery";
@@ -30,9 +33,10 @@ import { SpeechBubbles } from "../ui/speechBubbles";
 import { MapView } from "../ui/minimap";
 import { SceneContext } from "./context";
 import { nearestInteractable, propInteractable, type Interactable } from "./interactions";
-import { allDungeonsCleared, bugsLeft, shortPath } from "./progressView";
+import { allDungeonsCleared, bugsLeft, shortPath, type BuildingStatus } from "./progressView";
 import type { Drawable, Light, Scene } from "./scene";
 import { FaintSequence, heroLight, renderShared, updateShared } from "./world";
+import type { HeroSituation } from "./workshopTarget";
 
 /** How dark the night theme gets away from lights (0–1). */
 const NIGHT_DARKNESS = 0.58;
@@ -63,6 +67,8 @@ export class OverworldScene implements Scene {
   private seenSave: SaveData | null = null;
   /** Whether the one-off greeting for a bug-free repo was already considered. */
   private greeted = false;
+  /** Buildings whose file was edited, with their status before, waiting to pulse (see `follow`). */
+  private readonly edited = new Map<string, BuildingStatus>();
 
   constructor(private readonly game: GameServices) {
     const world = game.options.world;
@@ -135,6 +141,7 @@ export class OverworldScene implements Scene {
       for (const b of this.buildings) b.refresh(ctx);
       this.checkVictory();
     }
+    this.pulseEdited();
     for (const b of this.buildings) {
       if (ctx.camera.sees(b.x - 40, b.y - 80, 80, 90)) b.emitLife(dt, ctx, game.theme());
     }
@@ -204,6 +211,44 @@ export class OverworldScene implements Scene {
     this.ctx.particles.clear();
   }
 
+  /**
+   * Files edited in the Workshop: their buildings get the new file now (the
+   * badge counts follow at once) and pulse the next time the overworld runs.
+   */
+  follow(changed: ReadonlyMap<string, AnalyzedFile>): void {
+    for (const b of this.buildings) {
+      const file = changed.get(b.path);
+      if (!file) continue;
+      if (!this.edited.has(b.path)) this.edited.set(b.path, b.status);
+      b.setFile(file);
+    }
+    // Re-check states and the victory on the next step, even if the save did not change.
+    this.seenSave = null;
+  }
+
+  workshopSituation(): HeroSituation {
+    const { player, save, repoKey } = this.game;
+    const buildings = this.buildings.map((b) => ({ door: { x: b.doorX, y: b.doorY }, path: b.path, firstLivingLine: this.firstLivingLine(b, save.get(), repoKey) }));
+    return { scene: "overworld", hero: { x: player.x, y: player.y }, buildings };
+  }
+
+  /** The edited buildings, now that their state is up to date: a pulse that says how they changed. */
+  private pulseEdited(): void {
+    if (this.edited.size === 0) return;
+    for (const b of this.buildings) {
+      const before = this.edited.get(b.path);
+      if (before !== undefined) b.pulseWhenSeen(pulseFor(before, b.status));
+    }
+    this.edited.clear();
+  }
+
+  /** Line of the first bug still alive in a building's file, or null. */
+  private firstLivingLine(b: BuildingEntity, save: SaveData, repoKey: string): number | null {
+    if (!b.file || b.status !== "cursed") return null;
+    const defeated = new Set(getProgress(save, repoKey).defeated);
+    return b.file.findings.find((finding) => !defeated.has(finding.id))?.line ?? null;
+  }
+
   // ───────────── interactions ─────────────
 
   private updateInteraction(): void {
@@ -233,7 +278,7 @@ export class OverworldScene implements Scene {
       case "claimable":
         return `Claim the prize of ${name}`;
       case "done":
-        return `Visit ${name}`;
+        return isCleanFile(b) ? `Read the code of ${name}` : `Visit ${name}`;
     }
   }
 
@@ -248,12 +293,11 @@ export class OverworldScene implements Scene {
         this.pendingChest = b.path;
         game.emitPausing({ type: "chest", source: b.status === "treasure" ? "clean-file" : "dungeon-clear", path: b.path });
         return;
-      case "done": {
-        const cleanFile = !b.file || b.file.findings.length === 0;
-        const detail = cleanFile ? `grade ${b.file?.quality.grade ?? "C"}` : "purified";
-        game.emit({ type: "toast", text: `${b.path} — ${detail}, treasure claimed ✓`, tone: "good" });
+      case "done":
+        // A clean file's treasure is claimed: what is left is good code to read, in the Workshop.
+        if (isCleanFile(b)) game.openWorkshop({ path: b.path });
+        else game.emit({ type: "toast", text: `${b.path} — purified, treasure claimed ✓`, tone: "good" });
         return;
-      }
     }
   }
 
@@ -302,4 +346,16 @@ export class OverworldScene implements Scene {
     game.session.victoryShown = true;
     game.emitPausing({ type: "victory" });
   }
+}
+
+/** A building whose file has no findings (never had, or all fixed in the Workshop). */
+function isCleanFile(b: BuildingEntity): boolean {
+  return !b.file || b.file.findings.length === 0;
+}
+
+/** How a building's edit looks: purified, newly cursed, or just a changed bug count. */
+function pulseFor(before: BuildingStatus, after: BuildingStatus): BuildingPulse {
+  if (before === "cursed" && after !== "cursed") return "cleansed";
+  if (before !== "cursed" && after === "cursed") return "cursed";
+  return "changed";
 }

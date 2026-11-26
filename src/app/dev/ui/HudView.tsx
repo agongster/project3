@@ -63,7 +63,7 @@ export function HudView({ services, busy, dark }: { services: AppServices; busy:
   return (
     <div className="flex h-full flex-col">
       <DevStage theme={theme} dark={dark} reserveBottom={CONTROLS_HEIGHT}>
-        {(scale) => <Hud hud={hud} save={save} feed={feed} health={devHealth(healthRatio)} scale={scale} interactive onOpen={(r) => feed.toast({ text: `open ${r.kind}`, tone: "info" })} />}
+        {(scale) => <Hud hud={hud} save={save} feed={feed} health={devHealth(healthRatio)} scale={scale} interactive onOpen={(r) => feed.toast({ text: `open ${r.kind}`, tone: "info" })} onWorkshop={() => feed.toast({ text: "open the Workshop", tone: "info" })} />}
       </DevStage>
       <div className="flex flex-wrap content-start items-center justify-center bg-night-soft px-2 py-1" style={{ height: CONTROLS_HEIGHT }}>
         <PixelButton small tone="berry" onClick={() => poke((h) => ({ hp: Math.max(0, h.hp - 1) }))}>Hurt</PixelButton>

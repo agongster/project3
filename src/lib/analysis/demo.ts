@@ -15,11 +15,13 @@
  *
  * The real linter runs on these files, so what the player fights is exactly
  * what Ruff reports. Tests in tests/analysis/demo.test.ts keep it that way.
+ * A few non-Python files (README, requirements, config) give the Workshop
+ * something besides Python to open offline.
  */
 import type { RepoAnalysis, RepoRef } from "@/lib/types";
-import { analyzeSources } from "./analyzeSources";
-import { AnalyzeError, abortedError, throwIfAborted } from "./errors";
-import { createLintClient, type LintClient } from "./lintClient";
+import { analyzeSources, type AnalysisMeta } from "./analyzeSources";
+import { abortedError } from "./errors";
+import { createLintClient, lintFiles, startedLinter, type LintClient } from "./lintClient";
 import type { RawDiagnostic } from "./normalize";
 import { progressEvent, type ProgressCallback } from "./progress";
 import { readmeBlurb } from "./readme";
@@ -445,13 +447,57 @@ if __name__ == "__main__":
   },
 ];
 
+// ─────────────────────────── Other files ───────────────────────────
+
+/**
+ * The demo's non-Python files, so the Workshop can show and edit a README
+ * and some config offline. They have no monsters (only Python is linted).
+ */
+export const DEMO_OTHER_FILES: readonly { path: string; text: string }[] = [
+  { path: "README.md", text: DEMO_README },
+  {
+    path: "requirements.txt",
+    text: `# Everything the shop needs to open its doors.
+rich>=13.0
+`,
+  },
+  {
+    path: "pyproject.toml",
+    text: `[project]
+name = "crumbleton-bakery"
+version = "0.3.1"
+description = "The friendliest bakery-and-potion shop in the kingdom."
+requires-python = ">=3.11"
+dependencies = ["rich>=13.0"]
+
+[tool.ruff]
+line-length = 100
+`,
+  },
+  {
+    path: "shop.yaml",
+    text: `# Opening hours and house rules of the Crumbleton Bakery & Potion Shop.
+shop:
+  name: Crumbleton Bakery & Potion Shop
+  opens: "07:00"
+  closes: "19:00"
+oven:
+  temperature_celsius: 180
+cauldron:
+  stir_clockwise: true
+  # Never leave it unattended after dusk.
+  max_bubbles: 99
+`,
+  },
+];
+
 // ────────────────────────── Fake loading ──────────────────────────
 
 /** Artificial pauses (ms) so the loading screen is visible for ~2–3 seconds. */
-const DEMO_DELAYS = { listing: 400, perDownload: 70, perLint: 40, building: 300 };
+export const DEMO_DELAYS = { listing: 400, perDownload: 70, perLint: 40, building: 300 };
 
 /** Waits `ms` milliseconds; rejects with the "aborted" error if the signal fires. */
-function pause(ms: number, signal?: AbortSignal): Promise<void> {
+export function pause(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(abortedError());
     const timer = setTimeout(() => {
@@ -466,52 +512,51 @@ function pause(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-function utf8Size(text: string): number {
+/** Size of a text in bytes when saved as UTF-8 (what GitHub would list). */
+export function utf8Size(text: string): number {
   return new TextEncoder().encode(text).length;
+}
+
+/**
+ * The demo's "listing" and "downloading" stages: there is nothing to fetch,
+ * so this only walks the loading screen through them, exactly like a real repo.
+ * @param sleep the pause between steps (tests pass an instant one)
+ */
+export async function pretendToDownloadDemo(onProgress: ProgressCallback, signal?: AbortSignal, sleep = pause): Promise<void> {
+  const total = DEMO_SOURCES.length;
+  onProgress(progressEvent("listing"));
+  await sleep(DEMO_DELAYS.listing, signal);
+  for (let i = 0; i <= total; i++) {
+    onProgress(progressEvent("downloading", i, total));
+    if (i < total) await sleep(DEMO_DELAYS.perDownload, signal);
+  }
+}
+
+/** Things the demo analysis talks to; tests replace them. */
+export interface DemoDeps {
+  createLintClient: () => Promise<LintClient>;
+  sleep: (ms: number, signal?: AbortSignal) => Promise<void>;
 }
 
 /**
  * Analyzes the demo kingdom with the real linter, pretending to download it
  * so the loading screen behaves exactly like it does for a real repo.
+ *
+ * This is the analysis alone (no edits, no Workshop) for the developer pages;
+ * the game opens the demo with `openWorkspace` (src/lib/workspace), which
+ * runs the same stages.
  */
-export async function analyzeDemo(
-  onProgress: ProgressCallback,
-  signal?: AbortSignal,
-  deps: { createLintClient?: () => Promise<LintClient> } = {},
-): Promise<RepoAnalysis> {
+export async function analyzeDemo(onProgress: ProgressCallback, signal?: AbortSignal, deps: Partial<DemoDeps> = {}): Promise<RepoAnalysis> {
+  const sleep = deps.sleep ?? pause;
   const linterPromise = (deps.createLintClient ?? createLintClient)();
-  linterPromise.catch(() => undefined); // handled below
-  const total = DEMO_SOURCES.length;
+  linterPromise.catch(() => undefined); // handled by startedLinter
 
   try {
-    onProgress(progressEvent("listing"));
-    await pause(DEMO_DELAYS.listing, signal);
-
-    for (let i = 0; i <= total; i++) {
-      onProgress(progressEvent("downloading", i, total));
-      if (i < total) await pause(DEMO_DELAYS.perDownload, signal);
-    }
-
-    let linter: LintClient;
-    try {
-      linter = await linterPromise;
-    } catch (error) {
-      console.error("Lintlands: the Ruff lint worker failed to start", error);
-      throw new AnalyzeError("linter_failed", "Couldn't start the bug detector. Try reloading the page.");
-    }
-
-    // Keyed by source text, like analyzeRepo: Ruff's output depends only on the text.
-    const diagnosticsBySource = new Map<string, RawDiagnostic[]>();
-    onProgress(progressEvent("linting", 0, total));
-    for (const [i, file] of DEMO_SOURCES.entries()) {
-      throwIfAborted(signal);
-      diagnosticsBySource.set(file.source, await linter.lint(file.source));
-      await pause(DEMO_DELAYS.perLint, signal);
-      onProgress(progressEvent("linting", i + 1, total));
-    }
-
+    await pretendToDownloadDemo(onProgress, signal, sleep);
+    const linter = await startedLinter(linterPromise);
+    const diagnosticsBySource = await lintFiles(DEMO_SOURCES, linter, onProgress, signal, () => sleep(DEMO_DELAYS.perLint, signal));
     onProgress(progressEvent("building"));
-    await pause(DEMO_DELAYS.building, signal);
+    await sleep(DEMO_DELAYS.building, signal);
     const analysis = analyzeDemoSources((source) => diagnosticsBySource.get(source) ?? []);
     onProgress(progressEvent("done"));
     return analysis;
@@ -526,8 +571,13 @@ export async function analyzeDemo(
  */
 export function analyzeDemoSources(lint: (source: string) => RawDiagnostic[]): RepoAnalysis {
   return analyzeSources(
-    { repo: DEMO_REPO, description: DEMO_DESCRIPTION, stars: 113, demo: true, warnings: [], readme: readmeBlurb(DEMO_README) },
+    demoMeta(),
     DEMO_SOURCES.map((file) => ({ path: file.path, size: utf8Size(file.source), source: file.source })),
     lint,
   );
+}
+
+/** Everything about the demo repo that is not per-file. */
+export function demoMeta(): AnalysisMeta {
+  return { repo: DEMO_REPO, description: DEMO_DESCRIPTION, stars: 113, demo: true, warnings: [], readme: readmeBlurb(DEMO_README) };
 }

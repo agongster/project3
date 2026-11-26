@@ -4,11 +4,14 @@
  * The notice board's WANTED posters (see src/lib/game/bounties.ts): each one
  * quotes the real line of code a monster hides at and names only the folder
  * and the line. An open bounty shows the monster as a black silhouette; once
- * it is defeated the poster reveals it and gets a red CLAIMED stamp.
+ * it is defeated (or its bug fixed in the code) the poster reveals it and
+ * gets a red CLAIMED stamp. An open poster offers "Fix it for real", which
+ * opens the Workshop where the monster hides.
  */
 import { bountyClue, isBountyClaimed, type Bounty } from "@/lib/game/bounties";
 import type { RepoProgress } from "@/lib/types";
 import { MonsterIcon } from "./MonsterIcon";
+import { WorkshopLink } from "./WorkshopLink";
 import { PixelSprite } from "./PixelSprite";
 import { uiIcon } from "./sprites";
 
@@ -17,17 +20,23 @@ const MUGSHOT_BOX = 48;
 /** Hides who the wanted monster is until it is caught. */
 const SILHOUETTE = { filter: "brightness(0)", opacity: 0.8 };
 
-export function BountyNotices({ bounties, progress }: { bounties: readonly Bounty[]; progress: RepoProgress }) {
+interface BountyNoticesProps {
+  bounties: readonly Bounty[];
+  progress: RepoProgress;
+  onFix: (bounty: Bounty) => void;
+}
+
+export function BountyNotices({ bounties, progress, onFix }: BountyNoticesProps) {
   return (
     <div className="grid grid-cols-3 gap-2">
       {bounties.map((bounty) => (
-        <WantedPoster key={bounty.findingId} bounty={bounty} claimed={isBountyClaimed(progress, bounty)} />
+        <WantedPoster key={bounty.findingId} bounty={bounty} claimed={isBountyClaimed(progress, bounty)} onFix={() => onFix(bounty)} />
       ))}
     </div>
   );
 }
 
-function WantedPoster({ bounty, claimed }: { bounty: Bounty; claimed: boolean }) {
+function WantedPoster({ bounty, claimed, onFix }: { bounty: Bounty; claimed: boolean; onFix: () => void }) {
   return (
     <article className="relative flex min-w-0 flex-col items-center gap-1 overflow-hidden bg-cream-deep/80 p-2 text-center shadow-[inset_0_0_0_2px_rgb(43_27_61_/_0.25)]">
       <h4 className="font-title text-[10px] tracking-widest text-berry">WANTED</h4>
@@ -40,6 +49,7 @@ function WantedPoster({ bounty, claimed }: { bounty: Bounty; claimed: boolean })
         <PixelSprite sprite={uiIcon("coin")} scale={2} />
         Reward: {bounty.reward} coins
       </p>
+      {!claimed && <WorkshopLink className="text-xs" onClick={onFix} />}
       {claimed && (
         <span
           aria-label="Claimed"

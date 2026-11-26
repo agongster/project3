@@ -1,0 +1,47 @@
+/*
+ * The door into the Workshop: the game's own iris wipe (the same curtain
+ * colour as the engine's door transition, src/game/engine/transition.ts),
+ * done in CSS because the engine is paused while it plays. A round hole in
+ * a full-window curtain shrinks to nothing (going in) or grows back (coming
+ * out), in pixel steps like every other animation of the game.
+ */
+.workshop-door {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The hole: its huge shadow is the curtain around it. */
+.workshop-door-hole {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 200vmax #130e1f;
+  animation-duration: var(--door-ms);
+  animation-timing-function: steps(8);
+  animation-fill-mode: both;
+}
+
+.workshop-door-in .workshop-door-hole { animation-name: workshop-door-close; }
+.workshop-door-out .workshop-door-hole { animation-name: workshop-door-open; }
+
+@keyframes workshop-door-close {
+  from { width: 160vmax; height: 160vmax; }
+  to { width: 0; height: 0; }
+}
+
+@keyframes workshop-door-open {
+  from { width: 0; height: 0; }
+  to { width: 160vmax; height: 160vmax; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workshop-door-hole { animation: none; }
+  .workshop-door-out { display: none; }
+}

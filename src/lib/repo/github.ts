@@ -1,6 +1,6 @@
 /**
  * Server-side GitHub client: turns "owner/repo" into a RepoListing (which
- * Python files exist at which exact commit).
+ * Python files, and which other text files, exist at which exact commit).
  *
  * Three REST calls per repo:
  *   1. GET /repos/{owner}/{repo}                    → default branch, description, stars
@@ -79,7 +79,7 @@ export async function fetchRepoListing(target: RepoTarget, options: GitHubOption
   const sha = await github.commitSha(`${repoPath}/commits/${encodeRef(ref)}`, `Couldn't find a branch or tag called “${ref}” in ${owner}/${repo}.`);
   const tree = await github.json<TreeResponse>(`${repoPath}/git/trees/${sha}?recursive=1`, MESSAGES.notFound, COMMIT_CACHE_SEC);
 
-  const { files, skipped } = filterFiles(tree.tree ?? []);
+  const { files, skipped, otherFiles } = filterFiles(tree.tree ?? []);
   if (files.length === 0) throw new RepoLookupError("no_python", MESSAGES.noPython);
 
   return {
@@ -87,6 +87,7 @@ export async function fetchRepoListing(target: RepoTarget, options: GitHubOption
     description: info.description ?? null,
     stars: info.stargazers_count ?? 0,
     files,
+    otherFiles,
     skipped,
     truncated: tree.truncated === true,
   };

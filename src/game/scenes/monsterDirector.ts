@@ -40,6 +40,21 @@ export interface MonsterDirector {
   interactables(): Interactable[];
   /** The finisher overlay's answer for a dazed monster (see GameHandle.resolveFinisher). */
   resolveFinisher(findingId: string, correct: boolean): void;
+  /** "Fix it for real" in the finisher: the dazed monster gets back up (see GameHandle.spareFinisher). */
+  spareFinisher(findingId: string): void;
+  /** Each monster still standing: its finding's id and line (to open the Workshop there), and where it is. */
+  living(): { id: string; x: number; y: number; line: number }[];
+  /**
+   * The bugs with these finding ids were fixed in the code: their monsters
+   * leave the fight and dissolve as "rewritten". Returns how many findings that was.
+   */
+  rewrite(fixedIds: ReadonlySet<string>): number;
+  /** Records at once every defeat still in flight (dazed or squashing), before the code's finding ids change. */
+  settleNow(): void;
+  /** Runs only the "rewritten" effects (while the dungeon holds still to re-form). */
+  updateEffects(dt: number): void;
+  /** True while a "rewritten" effect is still on screen. */
+  rewriting(): boolean;
   /** The hero fainted and is about to respawn at the entrance (calm monsters down, reset bosses...). */
   onPlayerFainted(): void;
   /** The scene is going away. */

@@ -6,8 +6,11 @@
  *
  * Space / Enter / E or a click: the first press finishes the line, the next
  * one moves on; after the last line the box closes (which resumes the game).
+ *
+ * A dungeon plaque's dialog also offers its code: "Edit this function" (or
+ * the F key) opens the Workshop on that definition's line.
  */
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useState, type MouseEvent } from "react";
 import { getAtlas, randomLook, renderCharacter } from "@/game/art";
 import { ArtSprite } from "@/components/hud/ArtSprite";
 import { ap, HUD_FONT_SIZE } from "@/components/hud/units";
@@ -23,6 +26,8 @@ const CHAR_MS = 28;
 const BLIP_EVERY = 3;
 /** Keys that complete / advance the dialogue. */
 const ADVANCE_KEYS = new Set([" ", "Enter", "e", "E"]);
+/** The Workshop's key: on a dialog with an "edit" button, it presses that button. */
+const EDIT_KEYS = new Set(["f", "F"]);
 /** Portraits are this many art pixels square. */
 const PORTRAIT_ART_PX = 36;
 
@@ -51,7 +56,7 @@ function voicePitch(speaker: string): number {
 }
 
 export default function DialogOverlay({ request, ctx }: OverlayProps<"dialog">) {
-  const { speaker, lines } = request;
+  const { speaker, lines, edit } = request;
   const theme = useStore(ctx.save, (s) => s.theme);
   const [lineIndex, setLineIndex] = useState(0);
   const [typed, setTyped] = useState(0);
@@ -81,7 +86,18 @@ export default function DialogOverlay({ request, ctx }: OverlayProps<"dialog">) 
     }
   };
 
+  const openEditor = () => {
+    if (!edit) return;
+    ctx.audio.sfx("uiSelect");
+    ctx.openWorkshop(edit.target);
+  };
+
   const onKey = useEffectEvent((event: KeyboardEvent) => {
+    if (edit && EDIT_KEYS.has(event.key) && !event.repeat) {
+      event.preventDefault();
+      event.stopPropagation();
+      return openEditor();
+    }
     const skip = event.key === "Escape";
     if (!ADVANCE_KEYS.has(event.key) && !skip) return;
     // Capture phase + stopPropagation: the paused engine never sees these keys.
@@ -122,12 +138,30 @@ export default function DialogOverlay({ request, ctx }: OverlayProps<"dialog">) 
             )}
           </div>
         </div>
+        {edit && <EditButton label={edit.label} onClick={openEditor} />}
         <span className="absolute font-bold text-ink-soft" style={{ right: ap(6), bottom: ap(3), fontSize: "0.8em" }}>
           {lines.length > 1 && `${lineIndex + 1}/${lines.length} `}
           {lineDone && <span className="anim-bob inline-block text-grape">{isLast ? "■" : "▼"}</span>}
         </span>
       </div>
     </div>
+  );
+}
+
+/** "Edit this function  F": pinned to the top-right corner of the box; a click doesn't also advance the dialog. */
+function EditButton({ label, onClick }: { label: string; onClick: () => void }) {
+  const press = (event: MouseEvent) => {
+    event.stopPropagation();
+    onClick();
+  };
+  return (
+    // Inline `position`: the pixel button's own CSS would otherwise put it back in the flow.
+    <button type="button" onClick={press} className="px-btn cream small" style={{ position: "absolute", right: ap(6), top: ap(-11), fontSize: "0.85em" }}>
+      {label}
+      <span className="text-ink-soft" style={{ fontSize: "0.8em" }}>
+        F
+      </span>
+    </button>
   );
 }
 

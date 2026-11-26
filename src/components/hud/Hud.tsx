@@ -41,9 +41,11 @@ interface Props {
   /** False while an overlay is open: the buttons hide so they can't be clicked through it. */
   interactive: boolean;
   onOpen: (request: OverlayRequest) => void;
+  /** Opens the Workshop at the code where the hero is. */
+  onWorkshop: () => void;
 }
 
-export function Hud({ hud, save, feed, health, scale, interactive, onOpen }: Props) {
+export function Hud({ hud, save, feed, health, scale, interactive, onOpen, onWorkshop }: Props) {
   return (
     <div className="pointer-events-none absolute inset-0 select-none leading-tight text-cream" style={{ fontSize: HUD_FONT_SIZE }}>
       <StatusPanel hud={hud} save={save} health={health} />
@@ -52,7 +54,7 @@ export function Hud({ hud, save, feed, health, scale, interactive, onOpen }: Pro
       <BannerView feed={feed} />
       <WeaponPanel hud={hud} save={save} />
       <PromptBubble hud={hud} />
-      {interactive && <HudButtons onOpen={onOpen} />}
+      {interactive && <HudButtons onOpen={onOpen} onWorkshop={onWorkshop} />}
     </div>
   );
 }

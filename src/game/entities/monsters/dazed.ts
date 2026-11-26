@@ -7,11 +7,13 @@
  *     ├─ hero stands close and presses E ─► `finisher` event: the game pauses,
  *     │    the overlay asks, the UI answers with game.resolveFinisher(id, correct)
  *     │    ─► collapse(correct): a right fix is a critical fix (juicier death, double pay)
+ *     │    or, "Fix it for real" ─► game.spareFinisher: it gets back up with a
+ *     │    sliver of health, and the player fixes its bug in the Workshop
  *     ├─ hero keeps hitting (after a short grace) ─► ordinary death
  *     └─ nobody does anything for DAZE_SEC ─► ordinary death
  *
- * Every branch ends in `Monster.collapse`, so a dazed monster always dies,
- * and dies exactly once.
+ * Every other branch ends in `Monster.collapse`, so a dazed monster that is
+ * not spared always dies, and dies exactly once.
  */
 import type { SceneContext } from "../../scenes/context";
 import type { Interactable } from "../../scenes/interactions";
@@ -50,6 +52,18 @@ export function finisherSpot(ctx: SceneContext, m: Monster): Interactable {
 export function answerFinisher(monsters: readonly Monster[], findingId: string, correct: boolean): void {
   const m = monsters.find((candidate) => candidate.dazed && candidate.finisherOpened && candidate.finding.id === findingId);
   m?.collapse(correct);
+}
+
+/**
+ * The player picked "Fix it for real" instead of a fix: the monster gets
+ * back up with this share of its health, so the Workshop has a bug left to fix.
+ */
+const SPARED_HP_SHARE = 0.2;
+
+/** The finisher's third answer: the dazed monster is spared and stands up again (see SPARED_HP_SHARE). */
+export function spareFinisher(monsters: readonly Monster[], findingId: string): void {
+  const m = monsters.find((candidate) => candidate.dazed && candidate.finisherOpened && candidate.finding.id === findingId);
+  m?.recover(Math.ceil(m.maxHp * SPARED_HP_SHARE));
 }
 
 /**

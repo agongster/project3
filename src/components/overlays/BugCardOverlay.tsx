@@ -3,7 +3,8 @@
 /**
  * Boss defeated! A trophy card for the finding the boss embodied: the
  * monster, the real code it came from, and how to fix it in real life.
- * "View in Codex" swaps to the codex with this finding selected.
+ * "Fix it for real" opens the Workshop on that line; "View in Codex" swaps
+ * to the codex with this finding selected.
  */
 import type { CSSProperties } from "react";
 import { KeyCap, Modal, PixelButton } from "@/components/ui/kit";
@@ -14,6 +15,7 @@ import { isConfirmKey, useKeyDown, useReady, useTicker } from "./parts/hooks";
 import { MonsterIcon } from "./parts/MonsterIcon";
 import { SEVERITY_INFO } from "./parts/monsterText";
 import { TraitLine } from "./parts/codex/TraitLine";
+import { WorkshopLink } from "./parts/WorkshopLink";
 import type { OverlayProps } from "./types";
 
 const MONSTER_BOX = 128;
@@ -81,6 +83,7 @@ export default function BugCardOverlay({ request, ctx }: OverlayProps<"bugCard">
       </div>
 
       <footer className="flex items-center justify-end gap-2 px-4 pb-4">
+        <WorkshopLink className="mr-auto" onClick={() => ctx.openWorkshop({ path: finding.path, line: finding.line })} />
         <PixelButton tone="sky" onClick={viewInCodex}>
           View in Codex
         </PixelButton>

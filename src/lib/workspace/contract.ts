@@ -54,7 +54,12 @@ export interface FileText {
 
 // ───────────────────────── Checking while typing ─────────────────────────
 
-/** A 1-based position range in a file's text. Columns count characters, not bytes. */
+/**
+ * A 1-based position range in a file's text. A column is the JavaScript
+ * string index within the line plus one (so it counts UTF-16 code units, like
+ * every editor API in the browser), and `endCol` is exclusive: the range
+ * stops just before it.
+ */
 export interface TextRange {
   line: number;
   col: number;
@@ -74,7 +79,11 @@ export interface QuickFix {
   title: string;
   /** Applied together, last edit first, so earlier positions stay valid. */
   edits: TextEdit[];
-  /** False when Ruff marks the fix as possibly changing behaviour ("unsafe"). */
+  /**
+   * False when the fix might change what the code does ("unsafe"). Ruff's
+   * WebAssembly build does not say, so this comes from a cautious list of
+   * rules whose fixes are known to be safe (`SAFE_FIX_RULES`).
+   */
   safe: boolean;
 }
 
@@ -120,11 +129,24 @@ export interface ForgeReport {
   introduced: Finding[];
   /** Findings present in both versions, matched up. Ids may differ when lines moved. */
   kept: KeptFinding[];
+  /**
+   * Grade and number of findings before and after. `findingCount` counts
+   * every finding in the text (a dungeon shows at most a capped selection).
+   * Meaningless when `linted` is false.
+   *
+   * A text with a syntax error cannot be linted for anything else, so while
+   * a file is broken it is treated as still having the findings of its last
+   * readable version: breaking code never counts as fixing it.
+   */
   before: { grade: Grade; score: number; findingCount: number };
   after: { grade: Grade; score: number; findingCount: number };
   /** True when the file had findings before and has none now. */
   purified: boolean;
-  /** The file as the world now sees it (also already placed in `workspace.analysis`). */
+  /**
+   * The file as the world now sees it (also already placed in
+   * `workspace.analysis`). Its `fixedFindings` are the original findings that
+   * are fixed in the saved text, which is what rewards are paid for.
+   */
   file: AnalyzedFile | null;
 }
 
@@ -159,7 +181,15 @@ export interface Workspace {
    */
   read(path: string): Promise<FileText>;
 
-  /** Lints `source` as if it were the file at `path`, without saving anything. Python files only. */
+  /**
+   * Lints `source` as if it were the file at `path`, without saving anything.
+   * Python files only (other paths reject).
+   *
+   * The editor calls this on every pause in typing, so answers could arrive
+   * out of order. They never do: if a newer check for the same path was
+   * requested meanwhile, the older call rejects with `SupersededError` (test
+   * with `isSuperseded`), so a result that resolves is always for the newest text.
+   */
   check(path: string, source: string): Promise<LiveCheck>;
 
   /** Returns `source` formatted by Ruff's formatter. Rejects if the text has a syntax error. */
@@ -169,6 +199,8 @@ export interface Workspace {
    * Saves `source` as the new text of `path`: remembers it in localStorage,
    * re-analyzes the file, puts the result into `analysis` and reports what
    * changed. Forging text equal to the current saved text reports no changes.
+   * All or nothing: if the text cannot be analyzed the call rejects with a
+   * message for the player and nothing is saved, so the editor keeps the text.
    */
   forge(path: string, source: string): Promise<ForgeReport>;
 
