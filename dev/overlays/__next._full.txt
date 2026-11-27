@@ -1,0 +1,39 @@
+1:"$Sreact.fragment"
+2:"/project3/_next/static/chunks/3qfy96eoyh-ek.js"
+3:I[39756,["$2"],"default"]
+4:"/project3/_next/static/chunks/3qhc_qxafx_ne.js"
+5:I[58298,["$2","$4"],"default"]
+6:I[37457,["$2"],"default"]
+c:I[47257,["$2"],"ClientPageRoot"]
+d:"/project3/_next/static/chunks/2zs5c9lj9yzw2.js"
+e:"/project3/_next/static/chunks/3lo0e2yz50p76.js"
+f:"/project3/_next/static/chunks/0plbopeeaf63x.js"
+10:"/project3/_next/static/chunks/2d_-aau9p_plq.js"
+11:"/project3/_next/static/chunks/0p1d55th7qbsk.js"
+12:"/project3/_next/static/chunks/1ngjo1jcgkvfl.js"
+13:"/project3/_next/static/chunks/2pscko75xwl73.js"
+14:"/project3/_next/static/chunks/335d29vvqq70d.js"
+15:I[903,["$2","$d","$e","$f","$10","$11","$12","$13","$14"],"default"]
+18:I[97367,["$2"],"OutletBoundary"]
+19:"$Sreact.suspense"
+1b:"ViewportBoundary"
+1c:I[97367,["$2"],"$1b"]
+1e:"MetadataBoundary"
+1f:I[97367,["$2"],"$1e"]
+21:I[68027,["$2"],"default",1]
+:HL["/project3/_next/static/chunks/317q50b-2jd0t.css","style"]
+:HL["/project3/_next/static/media/0461c21301ee96b8-s.p.0fxeqrss3ag9h.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["/project3/_next/static/media/29e2a75af8e45044-s.p.2kjei9psvcorz.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["/project3/_next/static/chunks/2odwsh7sxcn4f.css","style"]
+a:X
+b:[["children",{"s":"__PAGE__","h":512,"d":{"r":["$","$1","c",{"children":[["$","$Lc",null,{"Component":"$15","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@16","$@17"]}}],[["$","link","0",{"rel":"stylesheet","href":"/project3/_next/static/chunks/2odwsh7sxcn4f.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/project3/_next/static/chunks/2zs5c9lj9yzw2.js","async":true,"nonce":"$undefined"}],["$","script","script-1",{"src":"/project3/_next/static/chunks/3lo0e2yz50p76.js","async":true,"nonce":"$undefined"}],["$","script","script-2",{"src":"/project3/_next/static/chunks/0plbopeeaf63x.js","async":true,"nonce":"$undefined"}],["$","script","script-3",{"src":"/project3/_next/static/chunks/2d_-aau9p_plq.js","async":true,"nonce":"$undefined"}],["$","script","script-4",{"src":"/project3/_next/static/chunks/0p1d55th7qbsk.js","async":true,"nonce":"$undefined"}],["$","script","script-5",{"src":"/project3/_next/static/chunks/1ngjo1jcgkvfl.js","async":true,"nonce":"$undefined"}],["$","script","script-6",{"src":"/project3/_next/static/chunks/2pscko75xwl73.js","async":true,"nonce":"$undefined"}],["$","script","script-7",{"src":"/project3/_next/static/chunks/335d29vvqq70d.js","async":true,"nonce":"$undefined"}]],["$","$L18",null,{"children":["$","$19",null,{"name":"Next.MetadataOutlet","children":"$@1a"}]}]]}],"p":false,"v":null}}]]
+9:[["children",{"s":"overlays","h":512,"d":{"r":["$","$1","c",{"children":[null,["$","$L3",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L6",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}],"p":false,"v":"$a"},"c":"$Qb"}]]
+7:[["children",{"s":"dev","h":512,"d":{"r":["$","$1","c",{"children":[null,"$L8"]}],"p":false,"v":null},"c":"$Q9"}]]
+0:{"P":null,"c":["","dev","overlays",""],"q":"","i":false,"t":{"t":{"s":"","h":528,"d":{"r":["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/project3/_next/static/chunks/317q50b-2jd0t.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/project3/_next/static/chunks/3qfy96eoyh-ek.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","className":"dnsarW_variable ZZuxDa_variable h-full","children":["$","body",null,{"className":"h-full","children":["$","$L3",null,{"parallelRouterKey":"children","error":"$5","errorStyles":[],"errorScripts":[["$","script","script-0",{"src":"/project3/_next/static/chunks/3qhc_qxafx_ne.js","async":true,"nonce":"$undefined"}]],"template":["$","$L6",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[[["$","title",null,{"children":"404: This page could not be found."}],["$","div",null,{"style":{"fontFamily":"system-ui,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\"","height":"100vh","textAlign":"center","display":"flex","flexDirection":"column","alignItems":"center","justifyContent":"center"},"children":["$","div",null,{"children":[["$","style",null,{"dangerouslySetInnerHTML":{"__html":"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}"}}],["$","h1",null,{"className":"next-error-h1","style":{"display":"inline-block","margin":"0 20px 0 0","padding":"0 23px 0 0","fontSize":24,"fontWeight":500,"verticalAlign":"top","lineHeight":"49px"},"children":404}],["$","div",null,{"style":{"display":"inline-block"},"children":["$","h2",null,{"style":{"fontSize":14,"fontWeight":400,"lineHeight":"49px","margin":0},"children":"This page could not be found."}]}]]}]}]],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}]}]]}],"p":false,"v":null},"c":"$Q7"},"h":{"r":["$","$1","h",{"children":[null,["$","$L1c",null,{"children":"$L1d"}],["$","$L1f",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$19",null,{"name":"Next.Metadata","children":"$L20"}]}],null]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"p":false,"v":null}},"m":"$undefined","G":["$21",[["$","link","0",{"rel":"stylesheet","href":"/project3/_next/static/chunks/317q50b-2jd0t.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]]],"S":true,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"OWWl7pb1hY2TbynIcSeSK"}
+8:E{"digest":"NEXT_HTTP_ERROR_FALLBACK;404"}
+a:C
+16:{}
+17:"$b:0:1:d:r:props:children:0:props:serverProvidedParams:params"
+1d:[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]
+1a:null
+20:[["$","title","0",{"children":"Lintlands — turn a GitHub repo into a pixel-art world"}],["$","meta","1",{"name":"description","content":"Paste a Python repo. Explore it as a cozy pixel world, squash its bugs in dungeons, and collect treasure from clean code."}]]
