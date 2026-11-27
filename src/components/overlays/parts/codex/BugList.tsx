@@ -23,7 +23,7 @@ const ROW_ICON_BOX = 32;
 const STATE_TAG: Readonly<Record<Exclude<BugStatus, "alive">, { label: string; background: string }>> = {
   subdued: { label: "Subdued", background: "#2a6f8a" },
   fixed: { label: "Fixed", background: "var(--color-leaf-deep)" },
-  sealed: { label: "Sealed", background: "#6f6a7d" },
+  sealed: { label: "Ignored", background: "#6f6a7d" },
 };
 
 /** The badge on a file's header, by its dungeon's state. */

@@ -139,6 +139,14 @@ use opus 5.5 subagents for all of these.
 
 *Integration by the orchestrator: three leftovers between subagents (a label colour for quiet buildings, one float text, one import), and one addition of its own: pressing E on a glowing line opens that line's bug card at once (`Workshop.tsx`). Checked with `tsc`, ESLint, 1,211 unit tests, a bot that plays the demo and `karpathy/nanoGPT` to the victory screen by fighting and then fixing or sealing every line, a second bot that never opens the Workshop (every dungeon quiet, none purified, no victory), and the static export. Not reviewed by a second agent. Consequence the owner was told about: the game can no longer be finished without the Workshop.*
 
+**Prompt 13 (21:06)**
+
+```
+"seal scroll" and "forge" are kind of unclear. find better wording for these that make it clearer to the user what it does. also UI reloads after fixing a bug, which is disruptive.
+```
+
+*Outcome (done by the orchestrating model itself, no subagents): on screen "Forge" is now **Save**, "Seal scroll" is **Ignore this bug** (a sealed bug reads "ignored"), and, changed along with it, "Use the fix scroll" is **Auto-fix**; the code keeps the names `forge` and `seal`. The "reload" was reproduced with a script: after fixing one bug while other monsters were alive, the dungeon was rebuilt and the hero was put back at the entrance, 256 px away. Now the room stays as it is (`src/game/scenes/dungeonReform.ts`, `dungeon.ts`, `Director.follow` in `src/game/entities/monsters/director.ts`): the hero keeps their place, living monsters follow their bug to its new line, and a bug that is new to the room waits until the room is done. Checked with unit tests, a script that fixes each bug right after subduing its monster (two demo dungeons: hero moved 0 px every time, chest at the end), and the play-through bots.*
+
 ## How the build was split up
 
 The orchestrating model (Fable 5.2) wrote these files itself before any subagent started, so that every subagent coded against the same contracts:

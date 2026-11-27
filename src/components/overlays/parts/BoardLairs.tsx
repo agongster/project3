@@ -26,7 +26,7 @@ const STATE_WORDS: Readonly<Record<FindingState, { label: string; className: str
   alive: { label: "Lurking", className: "text-berry" },
   subdued: { label: "Subdued", className: "text-[#2a6f8a]" },
   fixed: { label: "Fixed", className: "text-leaf-deep" },
-  sealed: { label: "Sealed", className: "text-ink-soft" },
+  sealed: { label: "Ignored", className: "text-ink-soft" },
 };
 
 interface BoardLairsProps {

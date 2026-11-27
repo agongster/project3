@@ -34,7 +34,7 @@ export function BugsTab({ python, findings, status, dirty, onJump }: BugsTabProp
     return (
       <div className="ws-sheet-note ws-all-clear">
         <p className="font-title">All clear!</p>
-        <p>{dirty ? "No monsters in this code. Forge it to make it real." : "No monsters in this file."}</p>
+        <p>{dirty ? "No monsters in this code. Save it to make it real." : "No monsters in this file."}</p>
       </div>
     );
   }
@@ -61,7 +61,7 @@ export function BugsTab({ python, findings, status, dirty, onJump }: BugsTabProp
                 <span className="ws-bug-row-line">
                   L{finding.line}
                   {live.quickFix && (
-                    <span className="ws-scroll-mark" title="A fix scroll is available">
+                    <span className="ws-scroll-mark" title="Auto-fix available">
                       ✦
                     </span>
                   )}

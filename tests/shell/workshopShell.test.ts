@@ -73,8 +73,8 @@ describe("victoryTakeaway", () => {
   });
 
   it("gently reminds that seals are not fixes", () => {
-    expect(victoryTakeaway({ fixed: 2, sealed: 3 })).toBe("You fixed 2 for real, and 3 bugs are only sealed with # noqa. Come back and fix them properly some day!");
-    expect(victoryTakeaway({ fixed: 2, sealed: 1 })).toContain("1 bug is only sealed");
-    expect(howDealtWith({ sealed: 1 })).toBe("fixed or sealed");
+    expect(victoryTakeaway({ fixed: 2, sealed: 3 })).toBe("You fixed 2 for real, and 3 bugs are only ignored with # noqa. Come back and fix them properly some day!");
+    expect(victoryTakeaway({ fixed: 2, sealed: 1 })).toContain("1 bug is only ignored");
+    expect(howDealtWith({ sealed: 1 })).toBe("fixed or ignored");
   });
 });

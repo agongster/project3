@@ -225,17 +225,17 @@ function descriptionOf(spec: QuestSpec, check: QuestCheck): string {
         : `Reach a score of ${goal} (now ${check.score}): docstrings, type hints and fewer bugs all help.`;
     }
     case "purify":
-      return spec.bugs === 1 ? "Fix its last bug in the editor (a seal won't do)." : `Fix all ${spec.bugs} of its bugs in the editor (seals won't do).`;
+      return spec.bugs === 1 ? "Fix its last bug in the editor (ignoring it won't do)." : `Fix all ${spec.bugs} of its bugs in the editor (ignoring them won't do).`;
     case "tidy":
       switch (spec.task) {
         case "fixAny":
-          return "Any file will do: edit a bug away and forge.";
+          return "Any file will do: edit a bug away and save.";
         case "documentAny":
           return "Anywhere in the repo. Every docstring lights a lantern.";
         case "squash":
           return "Fights count here! Any dungeon will do.";
         case "comment":
-          return "Add a helpful # comment on a line of its own, then forge.";
+          return "Add a helpful # comment on a line of its own, then save.";
       }
   }
 }

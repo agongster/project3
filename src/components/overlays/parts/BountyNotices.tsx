@@ -21,10 +21,10 @@ import { lookFromId, uiIcon } from "./sprites";
 const MUGSHOT_BOX = 48;
 /** Hides who the wanted monster is until it is caught. */
 const SILHOUETTE = { filter: "brightness(0)", opacity: 0.8 };
-/** The stamp across a closed poster: red ink for a capture, grey for a seal. */
+/** The stamp across a closed poster: red ink for a capture, grey for a bug that was ignored. */
 const STAMP: Readonly<Record<Exclude<BountyState, "open">, { label: string; className: string }>> = {
   captured: { label: "CAPTURED", className: "border-berry text-berry" },
-  sealed: { label: "SEALED", className: "border-ink-soft text-ink-soft" },
+  sealed: { label: "IGNORED", className: "border-ink-soft text-ink-soft" },
 };
 
 interface BountyNoticesProps {

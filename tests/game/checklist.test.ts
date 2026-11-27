@@ -102,8 +102,8 @@ describe("buildChecklist with bugs fixed or sealed in the code", () => {
 
   it("ticks a sealed bug but says it was only sealed", () => {
     const sealedList = buildChecklist(edited, { ...emptyProgress(), defeated: [unused.id], sealed: [bareExcept.id] });
-    expect(sealedList).toContain("- [x] `potions/brew.py:7` — **E722** Bare except — Do not use bare `except` — _sealed with `# noqa`_");
-    expect(sealedList).toContain("**2 of 4** bugs dealt with in Lintlands (50%): 1 fixed in the code, 1 sealed");
+    expect(sealedList).toContain("- [x] `potions/brew.py:7` — **E722** Bare except — Do not use bare `except` — _ignored with `# noqa`_");
+    expect(sealedList).toContain("**2 of 4** bugs dealt with in Lintlands (50%): 1 fixed in the code, 1 ignored");
   });
 
   it("points at the Workshop's patch", () => {

@@ -115,9 +115,9 @@ export function forgePreview(saved: readonly MatchableFinding[], live: readonly 
 
 /** "ready to forge: 2 fixes · 1 new", or a calmer line when the bugs did not change. */
 export function forgePreviewText(preview: ForgePreview, dirty: boolean): string {
-  if (!dirty) return "All forged";
+  if (!dirty) return "All saved";
   const parts: string[] = [];
   if (preview.fixes > 0) parts.push(`${preview.fixes} ${preview.fixes === 1 ? "fix" : "fixes"}`);
   if (preview.fresh > 0) parts.push(`${preview.fresh} new`);
-  return parts.length === 0 ? "Unsaved changes" : `Ready to forge: ${parts.join(" · ")}`;
+  return parts.length === 0 ? "Unsaved changes" : `Ready to save: ${parts.join(" · ")}`;
 }

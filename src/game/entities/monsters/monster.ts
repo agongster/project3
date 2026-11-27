@@ -161,7 +161,8 @@ export class Monster implements Hittable {
 
   constructor(
     spawn: MonsterSpawn,
-    readonly finding: Finding,
+    /** Replaced when an edit moves the bug to another line (its id changes with it; see Director.follow). */
+    public finding: Finding,
     readonly brain: Brain,
     private readonly world: MonsterWorld,
     options: MonsterOptions = {},

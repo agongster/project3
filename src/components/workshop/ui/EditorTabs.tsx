@@ -58,7 +58,7 @@ export function EditorTabs({ tabs, active, dirty, onSelect, onClose }: EditorTab
               onClick={(event) => onSelect(path, event.detail === 0)}
             >
               {clip(fileName(path), MAX_TAB_LABEL)}
-              {unsaved && <span className="ws-dirty-dot" aria-label="unforged typing" />}
+              {unsaved && <span className="ws-dirty-dot" aria-label="unsaved typing" />}
             </button>
             <button type="button" className="ws-tab-close" tabIndex={-1} aria-label={`Close ${fileName(path)}`} onClick={() => onClose(path)}>
               ×

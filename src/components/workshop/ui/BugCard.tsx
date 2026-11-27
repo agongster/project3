@@ -112,12 +112,12 @@ export function BugCard({ findings, anchor, fixReady, onUseFix, sealPlan, onUseS
           <div className="ws-scroll-buttons">
             {quickFix && (
               <PixelButton tone={quickFix.safe ? "gold" : "rose"} small disabled={!fixReady} onClick={() => onUseFix(quickFix)} data-autofocus>
-                Use the fix scroll <KeyCap>Enter</KeyCap>
+                Auto-fix <KeyCap>Enter</KeyCap>
               </PixelButton>
             )}
             {seal.ok && (
-              <PixelButton tone="cream" small disabled={!fixReady} onClick={() => onUseSeal(live)} title={`Adds "${sealComment(finding.code)}" to line ${seal.line}`}>
-                Seal scroll
+              <PixelButton tone="cream" small disabled={!fixReady} onClick={() => onUseSeal(live)} title={`Adds "${sealComment(finding.code)}" to line ${seal.line}, so the checker skips this bug`}>
+                Ignore this bug
               </PixelButton>
             )}
           </div>
@@ -127,7 +127,7 @@ export function BugCard({ findings, anchor, fixReady, onUseFix, sealPlan, onUseS
               {!quickFix.safe && <span className="ws-unsafe"> · unsafe: may change what the code does, read it after</span>}
             </p>
           ) : (
-            <p className="ws-faint-ink">No fix scroll for this one: fix it by hand, then Forge.</p>
+            <p className="ws-faint-ink">No auto-fix for this one: fix it by hand, then Save.</p>
           )}
           <SealNote plan={seal} code={finding.code} />
         </div>
@@ -150,15 +150,15 @@ export function BugCard({ findings, anchor, fixReady, onUseFix, sealPlan, onUseS
 }
 
 /**
- * What the seal scroll does (it is quieter than the fix scroll on purpose:
+ * What "Ignore this bug" does (it is quieter than Auto-fix on purpose:
  * cream, second, "no reward"), or, for a syntax error, a plain word on why
- * it can't be sealed.
+ * it can't be ignored. In the code this is a "seal" (src/lib/game/seal.ts).
  */
 function SealNote({ plan, code }: { plan: SealPlan; code: string }) {
   if (!plan.ok) return <p className="ws-seal-note">{plan.reason}</p>;
   return (
     <p className="ws-seal-note">
-      Seal scroll: adds <code>{sealComment(code)}</code>. The monster goes, but the bug is only accepted, not fixed: no reward.
+      Ignore: adds <code>{sealComment(code)}</code>, so the checker skips this line. The monster leaves, but the bug stays in the code: no reward.
     </p>
   );
 }

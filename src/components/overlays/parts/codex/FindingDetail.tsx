@@ -23,7 +23,7 @@ const STATUS_LINE: Record<BugStatus, { text: string; className: string }> = {
   alive: { text: "Still lurking in the code, and its monster still fights.", className: "font-bold text-berry" },
   subdued: { text: "Subdued! Its monster waits on its glowing line: fix the line in the Workshop to finish it.", className: "font-bold text-[#2a6f8a]" },
   fixed: { text: "Fixed in the code ✓ You rewrote this line in the Workshop, so its monster is gone for good.", className: "font-bold text-leaf-deep" },
-  sealed: { text: "Sealed with # noqa: accepted as it is. It counts as dealt with, but it was not fixed.", className: "font-bold text-ink-soft" },
+  sealed: { text: "Ignored with # noqa: the checker skips this line. It counts as dealt with, but the bug is still in the code.", className: "font-bold text-ink-soft" },
 };
 
 interface FindingDetailProps {

@@ -20,6 +20,8 @@ Also add: the deployed URL and the demo-video link once they exist.
 
 **TODO (April): write this section yourself.**
 
+Lintlands is a 2D pixel art dungeon crawler integrated with a user-provided Github repo. 
+
 ---
 
 ## AI-generated documentation
@@ -77,14 +79,17 @@ A monster is one lint finding, and it takes two steps to beat it for good.
 | **Alive** | The bug is in the code and its monster fights. | Nothing yet |
 | **Subdued** | You won the fight. The monster dozes as a pale wisp over its line of code, which glows on the floor. | Coins and XP; the dungeon can go *quiet* |
 | **Fixed** | The bug is gone from the saved code. The line turns gold. | Repo Health, the fix reward, the victory |
-| **Sealed** | A seal scroll added `# noqa: CODE` to the line: the bug is accepted, not fixed. | Repo Health and the victory, but no reward |
+| **Ignored** | "Ignore this bug" added `# noqa: CODE` to the line, so the checker skips it: the bug is still in the code. | Repo Health and the victory, but no reward |
 
 - Stand on a subdued monster's glowing line and press **E**: the Workshop opens on exactly that line. Fixing a line without fighting first is allowed.
 - A dungeon is **quiet** when nothing in it is left to fight; its **end door** (in the last room) opens then, and the entrance works at all times. It is **purified** when its file has no bug left; only then does its chest appear.
-- **Repo Health** counts fixed and sealed bugs; subdued ones show as a lighter part of the bar. The victory screen needs every bug fixed or sealed, so the game cannot be finished by fighting alone.
-- **Nobody gets stuck:** every bug card in the Workshop offers Ruff's own fix scroll when Ruff has one, and always a seal scroll. The one exception is a syntax error, which cannot be sealed and has to be repaired by hand.
+- **Repo Health** counts fixed and ignored bugs; subdued ones show as a lighter part of the bar. The victory screen needs every bug fixed or ignored, so the game cannot be finished by fighting alone.
+- **Nobody gets stuck:** every bug card in the Workshop has an **Auto-fix** button when Ruff offers a fix, and always **Ignore this bug**. The one exception is a syntax error, which cannot be ignored and has to be repaired by hand.
+- **The room stays put.** After a saved fix the dungeon is not rebuilt: the hero keeps their place, the fixed monster dissolves, the others fight on. A bug that is new to the room (fixing one can let another in under the cap of 10 monsters per file) waits until the room is done.
 
-The rules live in `src/lib/game/progress.ts` (`findingState`, `isDungeonQuiet`, `isDungeonPurified`) and `src/lib/game/seal.ts`.
+The rules live in `src/lib/game/progress.ts` (`findingState`, `isDungeonQuiet`, `isDungeonPurified`), `src/lib/game/seal.ts` and `src/game/scenes/dungeonReform.ts`.
+
+**Two words differ between the screen and the code.** The player sees **Save** and **Ignore**; the code calls them `forge` and `seal` (so `forge` is never confused with the game's own save file in `localStorage`).
 
 **Bosses and champions.** A boss exists only where the code has a serious finding: a hardcoded secret, `eval`/`exec`/shell/pickle/SQL built from strings, a turned-off certificate check, or code Python cannot compile (`src/lib/analysis/rules.ts`). Some repos have several, some have none. A building that hides one carries a horned-skull badge and a pennant, and the maps and the notice board list them. A dungeon with at least four monsters and no boss crowns its toughest monster as a **champion** (`src/lib/game/champions.ts`). Ordinary monsters also vary: colour family by lint rule, small seeded differences in looks, and for about half of them one modifier such as Swift, Sturdy or Tiny (`monsterLooks.ts`, `monsterModifiers.ts`).
 
@@ -93,10 +98,10 @@ The rules live in `src/lib/game/progress.ts` (`findingState`, `isDungeonQuiet`, 
 Lintlands is a game first. The Workshop is a room inside it: press **E** on a glowing line, or **F** (or the Workshop button next to Bag and Codex) to open the file you are in or facing in a code editor.
 
 - **Typing changes nothing.** While you type, live Ruff findings appear as monster sprites in the gutter.
-- **Forge (Ctrl/Cmd+S) is the game move.** The file is re-linted and the world follows: bugs that are gone are *fixed for real* (their monsters dissolve; each pays double, once), new bugs become new monsters with no penalty, and the file's grade and dungeon update. A file whose last bug is fixed turns into a treasure house.
+- **Save (Ctrl/Cmd+S) is the game move** (`forge` in the code). The file is re-linted and the world follows: bugs that are gone are *fixed for real* (their monsters dissolve; each pays double, once), new bugs become new monsters with no penalty, and the file's grade and dungeon update. A file whose last bug is fixed turns into a treasure house.
 - **All text files open**; only Python files have monsters.
 - **Edits stay in the browser** (localStorage, per commit). Nothing is written to GitHub. The Changes tab downloads a patch (`git apply` accepts it) or a zip.
-- **Quests** come from the repo's own code ("Document `take_order()`"), plus a streak for forges that fix without breaking, and achievements.
+- **Quests** come from the repo's own code ("Document `take_order()`"), plus a streak for saves that fix without breaking, and achievements.
 
 How it fits together: `src/lib/workspace/contract.ts` is the interface (`read`, `check`, `forge`, `revert`, `exportPatch`…), `src/lib/game/forge.ts` pays the rewards, and `GameHandle.updateAnalysis` in `src/game/bridge.ts` lets the running game follow the code without restarting.
 
@@ -133,7 +138,7 @@ How it fits together: `src/lib/workspace/contract.ts` is the interface (`read`, 
 | `src/components/app/`, `screens/`, `hud/`, `character/` | React shell: title, hero creator (`character/LookEditor.tsx` with its tabs, presets and undo), loading screen, HUD |
 | `src/components/overlays/` | Chest reveal, Wishing Well, bag, codex, notice board, pause, wardrobe, victory |
 | `src/components/loading/` | "Bug Catch", the loading mini-game |
-| `src/components/workshop/` | The Workshop: the in-game code editor (CodeMirror 6), its explorer, bug cards, forge moment and side panel; `quests/` holds the quest board |
+| `src/components/workshop/` | The Workshop: the in-game code editor (CodeMirror 6), its explorer, bug cards, the "Saved!" summary and side panel; `quests/` holds the quest board |
 | `src/app/dev/*` | Developer pages, available only with `npm run dev` (a deployed site answers 404): `/dev/art`, `/dev/art2`, `/dev/audio`, `/dev/engine`, `/dev/ui`, `/dev/overlays`, `/dev/loading`, `/dev/analysis` |
 | `tests/` | Vitest unit tests |
 

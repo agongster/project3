@@ -29,12 +29,13 @@
  *
  * When the code is edited in the Workshop, the dungeon scene asks it to
  * `rewrite` the monsters whose bugs were fixed for real (they dissolve, see
- * rewritten.ts) and to `settleNow` any defeat still in flight, so it is
- * recorded under the finding's id from before the edit.
+ * rewritten.ts), to `settleNow` any defeat still in flight, so it is
+ * recorded under the finding's id from before the edit, and to `follow` the
+ * bugs that only moved to another line: their monsters fight on.
  */
 import { getProgress } from "@/lib/game";
 import { championOf, championTitle } from "@/lib/game/champions";
-import type { AnalyzedFile, Dungeon, FileOutline } from "@/lib/types";
+import type { AnalyzedFile, Dungeon, FileOutline, Finding } from "@/lib/types";
 import type { HudState } from "../../bridge";
 import type { SceneContext } from "../../scenes/context";
 import { recordFindingDefeated } from "../../scenes/defeat";
@@ -224,6 +225,11 @@ export class Director implements MonsterDirector {
     }
     if (fixed.length > 0) this.monsters = this.monsters.filter((m) => !fixed.includes(m));
     return new Set(fixed.map((m) => m.finding.id)).size;
+  }
+
+  follow(renamed: ReadonlyMap<string, Finding>): void {
+    // One pass, by the id each monster had before it: a bug that moved onto another's old id is not moved twice.
+    for (const m of this.monsters) m.finding = renamed.get(m.finding.id) ?? m.finding;
   }
 
   settleNow(): void {

@@ -161,9 +161,9 @@ export default function BoardOverlay({ ctx }: OverlayProps<"board">) {
   );
 }
 
-/** "2 fixed, 1 sealed and 3 subdued, of 9": the region bar's label. */
+/** "2 fixed, 1 ignored and 3 subdued, of 9": the region bar's label. */
 function regionLabel(row: RegionRow): string {
-  const sealed = row.sealed > 0 ? `, ${row.sealed} sealed` : "";
+  const sealed = row.sealed > 0 ? `, ${row.sealed} ignored` : "";
   return `${row.fixed} fixed${sealed} and ${row.subdued} subdued, of ${row.bugs + row.fixed + row.sealed}`;
 }
 

@@ -145,8 +145,8 @@ export default function QuestsDevPage() {
   }
 
   const actions: { label: string; tone: string; run: () => void }[] = [
-    { label: "Forge: fix a bug", tone: "leaf", run: () => { const forged = fixAnyBug(analysis); if (forged) settle(forged.analysis, forged.report); } },
-    { label: "Forge: add a bug", tone: "berry", run: () => { const forged = addBug(analysis, bugSerial); setBugSerial(bugSerial + 1); settle(forged.analysis, forged.report); } },
+    { label: "Save: fix a bug", tone: "leaf", run: () => { const forged = fixAnyBug(analysis); if (forged) settle(forged.analysis, forged.report); } },
+    { label: "Save: add a bug", tone: "berry", run: () => { const forged = addBug(analysis, bugSerial); setBugSerial(bugSerial + 1); settle(forged.analysis, forged.report); } },
     { label: "Fight: defeat a monster", tone: "rose", run: () => defeatMonsters(1) },
     { label: `Wish ×${WISHES_PER_CLICK}`, tone: "grape", run: () => settle(analysis, null, { ...demo.store.get(), stats: { ...demo.store.get().stats, wishes: demo.store.get().stats.wishes + WISHES_PER_CLICK } }) },
     { label: "Show every toast", tone: "gold", run: () => setNews(everyKindOfNews(analysis, demo.store.get(), demo.key)) },

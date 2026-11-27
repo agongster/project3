@@ -27,7 +27,7 @@ export function DiffView({ path, original, saved, onClose }: DiffViewProps) {
     <Popup label={`Changes to ${path}`} onClose={onClose} className="ws-diff-popup">
       <header className="ws-popup-head">
         <h2 className="font-title">Changes</h2>
-        <span className="ws-faint-ink">{clip(path, 80)} · original → forged</span>
+        <span className="ws-faint-ink">{clip(path, 80)} · original → saved</span>
         <PixelButton tone="cream" small onClick={onClose} data-autofocus>
           Close
         </PixelButton>

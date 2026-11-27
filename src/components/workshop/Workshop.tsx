@@ -92,7 +92,7 @@ export default function Workshop(props: WorkshopProps) {
     editor,
     audio,
     onForged,
-    initialTick: welcomeBack > 0 ? `Welcome back: your unforged typing in ${welcomeBack} ${welcomeBack === 1 ? "file" : "files"} is still here` : null,
+    initialTick: welcomeBack > 0 ? `Welcome back: your unsaved typing in ${welcomeBack} ${welcomeBack === 1 ? "file" : "files"} is still here` : null,
   });
   const liveFindings = check.live?.check.findings ?? null;
   const sync = useEditorSync({ editor, session, active, buffer, live: check.live });

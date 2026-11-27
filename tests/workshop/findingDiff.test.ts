@@ -50,9 +50,9 @@ describe("forgePreview", () => {
   });
 
   it("words the status line", () => {
-    expect(forgePreviewText({ fixes: 2, fresh: 1 }, true)).toBe("Ready to forge: 2 fixes · 1 new");
-    expect(forgePreviewText({ fixes: 1, fresh: 0 }, true)).toBe("Ready to forge: 1 fix");
+    expect(forgePreviewText({ fixes: 2, fresh: 1 }, true)).toBe("Ready to save: 2 fixes · 1 new");
+    expect(forgePreviewText({ fixes: 1, fresh: 0 }, true)).toBe("Ready to save: 1 fix");
     expect(forgePreviewText({ fixes: 0, fresh: 0 }, true)).toBe("Unsaved changes");
-    expect(forgePreviewText({ fixes: 3, fresh: 0 }, false)).toBe("All forged");
+    expect(forgePreviewText({ fixes: 3, fresh: 0 }, false)).toBe("All saved");
   });
 });

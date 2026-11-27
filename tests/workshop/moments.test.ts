@@ -77,7 +77,7 @@ describe("describeForge", () => {
     const moment = describeForge(report({ path: "a.py", fixed: [fixed, sealed] }), { coins: 0, xp: 0, lines: [], paidFixes: [], sealedIds: [sealed.id] });
     expect(moment.banished.map((m) => m.id)).toEqual([fixed.id]);
     expect(moment.sealed.map((m) => m.id)).toEqual([sealed.id]);
-    expect(sealedText(moment.sealed[0])).toBe("Key Thief sealed at line 4 — accepted with # noqa, no reward");
+    expect(sealedText(moment.sealed[0])).toBe("Key Thief ignored at line 4 — skipped with # noqa, no reward");
     const onlySealed = describeForge(report({ path: "a.py", fixed: [sealed] }), { coins: 0, xp: 0, lines: [], sealedIds: [sealed.id] });
     expect(onlySealed.quiet).toBe(false);
     expect(onlySealed.banished).toEqual([]);

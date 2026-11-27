@@ -54,7 +54,7 @@ export const SUBDUED_LESSON = {
   banner: { title: "SUBDUED!", subtitle: "its bug is still in the code" },
   toasts: [
     { text: "Stand on its glowing line, press E", detail: "the Workshop opens right on that line" },
-    { text: "Fix the line, then Forge (Ctrl/Cmd+S)", detail: "that defeats the monster for good" },
+    { text: "Fix the line, then Save (Ctrl/Cmd+S)", detail: "that defeats the monster for good" },
   ],
 } as const;
 

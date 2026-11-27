@@ -96,14 +96,14 @@ export function TopBar(props: TopBarProps) {
           aria-busy={busy}
           onMouseDown={keepFocus}
           onClick={props.onForge}
-          title={`Forge: save and update the world (${forgeText})`}
+          title={`Save: stores your code, checks it again and updates the world (${forgeText})`}
           data-ws-primary
         >
-          {busy ? "Forging…" : "Forge"} <ShortcutKeys command="forge" />
+          {busy ? "Saving…" : "Save"} <ShortcutKeys command="forge" />
         </PixelButton>
         {dirtyCount > 1 && (
-          <PixelButton tone="cream" small onMouseDown={keepFocus} onClick={props.onForgeAll} title={`Forge every file with unforged typing (${forgeAllText})`}>
-            Forge all {dirtyCount} <ShortcutKeys command="forgeAll" />
+          <PixelButton tone="cream" small onMouseDown={keepFocus} onClick={props.onForgeAll} title={`Save every file with unsaved typing (${forgeAllText})`}>
+            Save all {dirtyCount} <ShortcutKeys command="forgeAll" />
           </PixelButton>
         )}
         <PixelButton tone="sky" small disabled={!canPolish} onMouseDown={keepFocus} onClick={props.onPolish} title={`Polish: format the code with Ruff (${polishText})`}>
@@ -112,7 +112,7 @@ export function TopBar(props: TopBarProps) {
         <PixelButton tone="cream" small onClick={props.onHelp} aria-label="How the Workshop works" title="How the Workshop works">
           ?
         </PixelButton>
-        <PixelButton tone="rose" small onClick={props.onBack} title={dirtyCount > 0 ? "Your unforged typing stays here for next time" : "Back to the world"}>
+        <PixelButton tone="rose" small onClick={props.onBack} title={dirtyCount > 0 ? "Your unsaved typing stays here for next time" : "Back to the world"}>
           Back to the world <ShortcutKeys command="back" />
         </PixelButton>
       </div>

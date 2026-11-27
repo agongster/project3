@@ -143,7 +143,7 @@ describe("when Ruff or its worker fails", () => {
     const storage = new MemoryStorage();
     const workspace = await openDemo(storage, touchyClient);
     const before = workspace.analysis.get();
-    await expect(workspace.forge(RECIPES, "poison = 1\n")).rejects.toThrow("wasn't forged");
+    await expect(workspace.forge(RECIPES, "poison = 1\n")).rejects.toThrow("wasn't saved");
     expect(workspace.analysis.get()).toBe(before);
     expect(workspace.changes()).toEqual([]);
     expect(storage.data.size).toBe(0);

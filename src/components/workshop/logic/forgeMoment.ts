@@ -133,7 +133,7 @@ export function creptInText(monster: MomentMonster, reverted = false): string {
 
 /** The plain line for a bug that was sealed instead of fixed: no fanfare, no coins. */
 export function sealedText(monster: MomentMonster): string {
-  return `${monster.name} sealed at line ${monster.line} — accepted with # noqa, no reward`;
+  return `${monster.name} ignored at line ${monster.line} — skipped with # noqa, no reward`;
 }
 
 /** Grade letters from worst to best, to tell an improvement from a drop. */

@@ -93,11 +93,11 @@ export function useForging({ workspace, session, editor, audio, onForged, initia
         moments.push(describeForge(report, onForged?.(report, text)));
       }
       const label = paths.length === 1 ? fileName(paths[0]) : `${paths.length} files`;
-      present(false, mergeMoments(moments), `Forged ${label} ✓`);
+      present(false, mergeMoments(moments), `Saved ${label} ✓`);
     } catch (error) {
       audio.sfx("error");
       // Nothing was saved (a forge is all or nothing): the typing stays unforged, and the workspace's message says why.
-      say(error instanceof Error ? error.message : "The forge failed, so nothing was saved.", "warn");
+      say(error instanceof Error ? error.message : "Saving failed, so nothing was changed.", "warn");
     } finally {
       setBusy(false);
     }

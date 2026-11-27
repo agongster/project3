@@ -74,7 +74,7 @@ export function WorkshopPopups(props: WorkshopPopupsProps) {
         <Popup label="Revert file" onClose={onClose} className="ws-confirm">
           <h2 className="font-title ws-confirm-title">Revert this file?</h2>
           <p>
-            <code>{clip(popup.path, 80)}</code> goes back to the text in the repo. Your forged edits to it, and any unforged typing, are thrown away.
+            <code>{clip(popup.path, 80)}</code> goes back to the text in the repo. Your saved edits to it, and any unsaved typing, are thrown away.
           </p>
           <p className="ws-faint-ink">Its bugs come back as monsters (no penalty).</p>
           <div className="ws-confirm-actions">

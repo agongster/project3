@@ -56,9 +56,9 @@ export function ForgeMomentCard({ shown, onDone }: { shown: ShownMoment; onDone:
   const xp = moment.rewards?.xp ?? 0;
 
   return (
-    <aside className="ws-moment px-panel anim-slide-up" aria-label="Forge results">
+    <aside className="ws-moment px-panel anim-slide-up" aria-label="Save results">
       <header className="ws-moment-head">
-        <span className="font-title ws-moment-title">{shown.reverted ? "Reverted" : "Forged!"}</span>
+        <span className="font-title ws-moment-title">{shown.reverted ? "Reverted" : "Saved!"}</span>
         <span className="ws-moment-path">{clip(moment.paths.join(", "), MAX_LINE_LENGTH)}</span>
         <button type="button" className="ws-x" aria-label="Dismiss" onClick={onDone}>
           ×
@@ -101,7 +101,7 @@ export function ForgeMomentCard({ shown, onDone }: { shown: ShownMoment; onDone:
           {sealedText(monster)}
         </p>
       ))}
-      {moment.sealed.length > MAX_LISTED && <p className="ws-sealed">…and {moment.sealed.length - MAX_LISTED} more sealed</p>}
+      {moment.sealed.length > MAX_LISTED && <p className="ws-sealed">…and {moment.sealed.length - MAX_LISTED} more ignored</p>}
 
       {moment.creptIn.slice(0, MAX_LISTED).map((monster) => (
         <p key={monster.id} className="ws-crept">

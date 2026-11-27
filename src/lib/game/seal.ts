@@ -1,5 +1,8 @@
 /**
- * SEAL SCROLLS: nobody gets stuck (SPEC.md F1). Any finding but a syntax
+ * SEALS, which the player sees as the "Ignore this bug" button and the
+ * word "ignored" (the code keeps the shorter word seal).
+ *
+ * Nobody gets stuck (SPEC.md F1). Any finding but a syntax
  * error can be dealt with in one click by marking its line as accepted with
  * Ruff's own suppression comment:
  *
@@ -9,8 +12,8 @@
  * counts as dealt with (health, purifying, victory) but it is SEALED, not
  * fixed, and pays no fix reward. Two pure jobs live here:
  *
- *   planSeal(text, finding, line)   the one edit the seal scroll makes
- *   splitSealed(gone, text)         after a forge: which of the findings
+ *   planSeal(text, finding, line)   the one edit "Ignore this bug" makes
+ *   splitSealed(gone, text)         after a save: which of the findings
  *                                   gone from the code were sealed, and
  *                                   which were really fixed
  *
@@ -41,11 +44,11 @@ export function sealComment(code: string): string {
 /** What the seal scroll would do: one edit, or why it can't. */
 export type SealPlan = { ok: true; edit: TextEdit; line: number } | { ok: false; reason: string };
 
-export const CANT_SEAL_SYNTAX = "A syntax error can't be sealed: Python can't read the file at all, so it has to be fixed by hand.";
-export const ALREADY_SEALED = "This line already carries a seal for this rule. Forge to make it count.";
-const CANT_SEAL_HERE = "This line can't take a seal comment. Fix it by hand instead.";
+export const CANT_SEAL_SYNTAX = "A syntax error can't be ignored: Python can't read the file at all, so it has to be fixed by hand.";
+export const ALREADY_SEALED = "This line already has a # noqa for this rule. Save to make it count.";
+const CANT_SEAL_HERE = "This line can't take a # noqa comment. Fix it by hand instead.";
 /** Shown while the live check is still catching up with the typing. */
-export const CANT_SEAL_STALE = "Checking the code… the seal scroll is ready in a moment.";
+export const CANT_SEAL_STALE = "Checking the code… Ignore is ready in a moment.";
 
 // ───────────────────────────── Scanning lines ─────────────────────────────
 

@@ -138,7 +138,7 @@ export default function CodexOverlay({ request, ctx }: OverlayProps<"codex">) {
 function healthSummary(health: RepoHealth): string {
   const parts = [
     `${health.fixed} fixed`,
-    ...(health.sealed > 0 ? [`${health.sealed} sealed`] : []),
+    ...(health.sealed > 0 ? [`${health.sealed} ignored`] : []),
     ...(health.subdued > 0 ? [`${health.subdued} subdued`] : []),
   ];
   return `${parts.join(" · ")} · of ${health.total}`;

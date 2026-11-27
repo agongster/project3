@@ -10,11 +10,11 @@ export const ALL_FIXED_TAKEAWAY = "Every bug is fixed in the code itself! Your p
 
 export function victoryTakeaway(health: Pick<RepoHealth, "fixed" | "sealed">): string {
   if (health.sealed === 0) return ALL_FIXED_TAKEAWAY;
-  const seals = health.sealed === 1 ? "1 bug is only sealed" : `${health.sealed} bugs are only sealed`;
-  return `You fixed ${health.fixed} for real, and ${seals} with # noqa. Come back and fix them properly some day!`;
+  const ignored = health.sealed === 1 ? "1 bug is only ignored" : `${health.sealed} bugs are only ignored`;
+  return `You fixed ${health.fixed} for real, and ${ignored} with # noqa. Come back and fix them properly some day!`;
 }
 
-/** "fixed" or "fixed or sealed": how the bugs left the code, for the victory headline. */
+/** "fixed" or "fixed or ignored": how the bugs were dealt with, for the victory headline. */
 export function howDealtWith(health: Pick<RepoHealth, "sealed">): string {
-  return health.sealed === 0 ? "fixed" : "fixed or sealed";
+  return health.sealed === 0 ? "fixed" : "fixed or ignored";
 }

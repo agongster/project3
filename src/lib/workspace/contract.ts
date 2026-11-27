@@ -17,6 +17,8 @@
  *    the saved progress change in one place only: `forge`, the player's
  *    deliberate "save" (Ctrl/Cmd+S). Half-typed code is full of temporary
  *    errors, and it would be unfair and noisy to turn those into monsters.
+ *    (The player sees `forge` as the Save button; the code keeps the word
+ *    forge so it is never confused with the game's own save file.)
  *
  * 2. **Edits live in the browser.** Nothing is written back to GitHub. The
  *    saved text of every changed file is kept in localStorage per commit

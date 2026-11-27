@@ -12,7 +12,7 @@ import { fitLabel } from "./treemap";
 export const CAPTION_SEC = 2.8;
 const FADE_SEC = 0.25;
 /** The ribbon's top edge, this far above the bottom of the screen (px). */
-const BOTTOM_GAP_PX = 46;
+const BOTTOM_GAP_PX = 60;
 /** Room around the text inside the ribbon (px). */
 const PAD_X = 6;
 const PAD_Y = 3;

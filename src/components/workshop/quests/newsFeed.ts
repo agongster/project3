@@ -62,7 +62,7 @@ export function toastFor(item: QuestNewsItem): Omit<NewsToast, "id" | "leaving">
       return { tone: "quest", head: "Quest complete!", text: item.quest.title, icon: questIcon(item.quest), reward: item.quest.reward };
     case "streak":
       if (item.streak < MIN_STREAK_TO_ANNOUNCE) return null;
-      return { tone: "streak", head: `Clean forge ×${item.streak}`, text: "Fixed, and not one new bug. Keep it up!", icon: STREAK_ICON, reward: item.reward };
+      return { tone: "streak", head: `Clean save ×${item.streak}`, text: "Fixed, and not one new bug. Keep it up!", icon: STREAK_ICON, reward: item.reward };
     case "streakLost":
       if (item.streak < MIN_STREAK_TO_ANNOUNCE) return null;
       return { tone: "calm", head: `Streak ×${item.streak} reset`, text: "A new bug slipped in. No harm done: it is just a new monster.", icon: STREAK_ICON };

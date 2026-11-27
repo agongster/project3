@@ -178,10 +178,10 @@ export function addToTally(tally: VisitTally, report: ForgeReport, outcome: Pick
   };
 }
 
-/** A real fix is the headline; a visit that only sealed says so plainly. */
+/** A real fix is the headline; a visit that only ignored bugs says so plainly. */
 function titleFor(tally: VisitTally): string {
   if (tally.introduced > 0) return tally.fixed + tally.sealed === 0 ? "NEW MONSTERS!" : "THE CODE CHANGED!";
-  return tally.fixed > 0 ? "FIXED FOR REAL!" : "SEALED";
+  return tally.fixed > 0 ? "FIXED FOR REAL!" : "IGNORED";
 }
 
 function plural(count: number, one: string, many: string): string {
@@ -192,7 +192,7 @@ function plural(count: number, one: string, many: string): string {
 export function returnBanner(tally: VisitTally): { title: string; subtitle: string } | null {
   const parts: string[] = [];
   if (tally.fixed > 0) parts.push(`${plural(tally.fixed, "bug", "bugs")} fixed for real`);
-  if (tally.sealed > 0) parts.push(`${plural(tally.sealed, "bug", "bugs")} sealed`);
+  if (tally.sealed > 0) parts.push(`${plural(tally.sealed, "bug", "bugs")} ignored`);
   if (tally.introduced > 0) parts.push(`${plural(tally.introduced, "new monster", "new monsters")}`);
   if (tally.purified.length > 0) parts.push(`${plural(tally.purified.length, "dungeon", "dungeons")} purified`);
   if (parts.length === 0) return null;

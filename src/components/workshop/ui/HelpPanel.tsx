@@ -10,9 +10,9 @@ import { ShortcutKeys } from "./bits";
 
 const STEPS = [
   { title: "Type freely", text: "Edit any file. Monsters appear in the gutter as you type, but nothing in the world changes yet." },
-  { title: "Forge to make it real", text: "Forge saves the file and re-checks it. Bugs you fixed are defeated for good; new ones just join the dungeon." },
-  { title: "Fix to finish them", text: "A monster beaten in a fight is only subdued: fixing its line finishes it and pays a reward. Ruff's fix scrolls can even do it for you." },
-  { title: "Stuck? Seal it", text: "Every bug card also has a seal scroll: it marks the line as accepted with # noqa. The monster goes, but a seal pays nothing." },
+  { title: "Save to make it real", text: "Save stores the file and checks it again. Bugs you fixed are defeated for good; new ones just join the dungeon." },
+  { title: "Fix to finish them", text: "A monster beaten in a fight is only subdued: fixing its line finishes it and pays a reward. Auto-fix on a bug card can even do it for you." },
+  { title: "Stuck? Ignore it", text: "Every bug card also has Ignore this bug: it adds # noqa so the checker skips that line. The monster leaves, but ignoring pays nothing." },
 ];
 
 export function HelpPanel({ onDismiss, dismissLabel }: { onDismiss: () => void; dismissLabel: string }) {
@@ -31,7 +31,7 @@ export function HelpPanel({ onDismiss, dismissLabel }: { onDismiss: () => void; 
       </ol>
       <p className="ws-help-keys">
         <span>
-          <ShortcutKeys command="forge" /> Forge
+          <ShortcutKeys command="forge" /> Save
         </span>
         <span>
           <ShortcutKeys command="quickOpen" /> Open a file

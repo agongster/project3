@@ -40,7 +40,7 @@ export function linePrompt(state: FindingState, line: number): string | null {
     case "fixed":
       return `Read line ${line}`;
     case "sealed":
-      return `Read line ${line} (sealed)`;
+      return `Read line ${line} (ignored)`;
   }
 }
 

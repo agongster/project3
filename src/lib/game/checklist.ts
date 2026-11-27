@@ -10,7 +10,7 @@
  *
  *   # Bug checklist: octocat/potions
  *
- *   Commit `a1b2c3d` on `main` · **2 of 4** bugs dealt with in Lintlands (50%): 1 fixed in the code, 1 sealed · 1 subdued in the game, waiting for a fix · 2 files
+ *   Commit `a1b2c3d` on `main` · **2 of 4** bugs dealt with in Lintlands (50%): 1 fixed in the code, 1 ignored · 1 subdued in the game, waiting for a fix · 2 files
  *
  *   ## `potions/brew.py` (2/3)
  *
@@ -28,7 +28,7 @@ import type { AnalyzedFile, Finding, RepoAnalysis, RepoProgress } from "@/lib/ty
 const SHORT_SHA_LENGTH = 7;
 
 const FOOTER =
-  "_Exported from Lintlands. A ticked box means the bug is gone from the code: fixed, or sealed with `# noqa` where it says so. A monster subdued in the game is still a bug in the code until you fix it for real!_";
+  "_Exported from Lintlands. A ticked box means the bug is gone from the code: fixed, or ignored with `# noqa` where it says so. A monster subdued in the game is still a bug in the code until you fix it for real!_";
 /** Added when some bugs were fixed or sealed in the Workshop: where the edits themselves are. */
 const PATCH_NOTE = "Your fixes live in Lintlands' Workshop: download them as a patch (or a zip) from its Changes tab.";
 
@@ -37,7 +37,7 @@ const STATE_MARK: Readonly<Record<FindingState, string>> = {
   alive: "",
   subdued: " — _subdued in the game: now fix it in the code_",
   fixed: " — _fixed in the code_",
-  sealed: " — _sealed with `# noqa`_",
+  sealed: " — _ignored with `# noqa`_",
 };
 
 /**
@@ -91,11 +91,11 @@ function fileSection(file: AnalyzedFile, progress: RepoProgress): string[] {
   return lines;
 }
 
-/** "2 of 4 bugs dealt with in Lintlands (50%): 1 fixed in the code, 1 sealed · 1 subdued in the game, waiting for a fix". */
+/** "2 of 4 bugs dealt with in Lintlands (50%): 1 fixed in the code, 1 ignored · 1 subdued in the game, waiting for a fix". */
 function tally(analysis: RepoAnalysis, progress: RepoProgress): string {
   const health = repoHealth(analysis, progress);
   const dealt = health.fixed + health.sealed;
-  const how = [`${health.fixed} fixed in the code`, ...(health.sealed > 0 ? [`${health.sealed} sealed`] : [])].join(", ");
+  const how = [`${health.fixed} fixed in the code`, ...(health.sealed > 0 ? [`${health.sealed} ignored`] : [])].join(", ");
   const waiting = health.subdued > 0 ? ` · ${health.subdued} subdued in the game, waiting for a fix` : "";
   return `**${dealt} of ${health.total}** bugs dealt with in Lintlands (${Math.round(health.ratio * 100)}%): ${how}${waiting}`;
 }

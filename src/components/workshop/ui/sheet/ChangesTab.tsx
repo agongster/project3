@@ -28,7 +28,7 @@ export function ChangesTab({ changes, dirtyCount, busy, onOpen, onDiff, onRevert
   return (
     <div className="ws-changes">
       {changes.length === 0 ? (
-        <p className="ws-sheet-note">No forged changes yet. Edit a file and press Forge: it shows up here.</p>
+        <p className="ws-sheet-note">No saved changes yet. Edit a file and press Save: it shows up here.</p>
       ) : (
         <ul className="ws-change-list">
           {changes.map((change) => (
@@ -53,7 +53,7 @@ export function ChangesTab({ changes, dirtyCount, busy, onOpen, onDiff, onRevert
       )}
       {dirtyCount > 0 && (
         <p className="ws-sheet-note">
-          {dirtyCount} {dirtyCount === 1 ? "file has" : "files have"} unforged typing, not part of the export until forged.
+          {dirtyCount} {dirtyCount === 1 ? "file has" : "files have"} unsaved typing, not part of the export until saved.
         </p>
       )}
       <div className="ws-export">

@@ -126,7 +126,7 @@ describe("the HUD's words", () => {
     const alive = makeFinding("a.py", 4);
     const analysis = makeAnalysis([{ ...makeFile("a.py", { findings: [subdued, alive] }), fixedFindings: [fixedBug, sealedBug], realFixes: 2 }]);
     const health = repoHealth(analysis, { ...emptyProgress(), defeated: [subdued.id], sealed: [sealedBug.id] });
-    expect(healthTooltip(health)).toBe("Repo Health 50%: 1 fixed, 1 sealed, 1 subdued (fix their lines!), 1 still fighting");
+    expect(healthTooltip(health)).toBe("Repo Health 50%: 1 fixed, 1 ignored, 1 subdued (fix their lines!), 1 still fighting");
     expect(healthTooltip(repoHealth(makeAnalysis([makeFile("clean.py")]), emptyProgress()))).toBe("Repo Health 100%: Ruff found no bugs here");
   });
 });
@@ -135,7 +135,7 @@ describe("pressing E on a carved line", () => {
   it("offers to fix a subdued line and to read a healed or sealed one, nothing on a fighting one", () => {
     expect(linePrompt("subdued", 22)).toBe("Fix line 22 in the Workshop");
     expect(linePrompt("fixed", 22)).toBe("Read line 22");
-    expect(linePrompt("sealed", 22)).toBe("Read line 22 (sealed)");
+    expect(linePrompt("sealed", 22)).toBe("Read line 22 (ignored)");
     expect(linePrompt("alive", 22)).toBeNull();
   });
 

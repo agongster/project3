@@ -69,7 +69,7 @@ export function newsLine(item: QuestNewsItem): string | null {
     case "quest":
       return `Quest complete: ${item.quest.title}`;
     case "streak":
-      return item.streak >= 2 ? `Clean forge ×${item.streak}! +${item.reward.coins} bonus coins` : null;
+      return item.streak >= 2 ? `Clean save ×${item.streak}! +${item.reward.coins} bonus coins` : null;
     case "streakLost":
       return `Streak of ${item.streak} reset: a new bug appeared (no other penalty)`;
     case "achievement":

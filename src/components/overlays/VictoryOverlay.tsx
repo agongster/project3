@@ -51,8 +51,8 @@ export default function VictoryOverlay({ ctx }: OverlayProps<"victory">) {
 
   const stats = [
     { value: `${health.fixed}/${health.total}`, label: "fixed in the code" },
-    // Seals get their own line, only once there are some.
-    ...(health.sealed === 0 ? [] : [{ value: `${health.sealed}/${health.total}`, label: "sealed with # noqa" }]),
+    // Ignored bugs get their own line, only once there are some.
+    ...(health.sealed === 0 ? [] : [{ value: `${health.sealed}/${health.total}`, label: "ignored with # noqa" }]),
     { value: `${health.dungeonsPurified}/${health.dungeonsTotal}`, label: "dungeons purified" },
     { value: `${health.chestsOpened}/${health.chestsTotal}`, label: "chests opened" },
     { value: save.coins.toLocaleString(), label: "coins saved up" },

@@ -21,7 +21,7 @@ export const MESSAGES = {
   binary: "This file looks like binary data, so the Workshop can't open it.",
   garbled: "This file isn't UTF-8 text, so the Workshop can't open it.",
   pythonOnly: "Only Python files are checked for bugs.",
-  notLinted: "The bug detector couldn't read this text, so it wasn't forged. Your text is still in the editor: change it a little and try again.",
+  notLinted: "The bug detector couldn't read this text, so it wasn't saved. Your text is still in the editor: change it a little and try again.",
   notChecked: "The bug detector couldn't read this text.",
   notFormatted: "The formatter can't tidy this code while it has a syntax error. Fix that first (look for the Glitch King), then try again.",
   closed: "This world was closed.",

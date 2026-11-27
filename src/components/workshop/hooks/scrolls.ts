@@ -40,7 +40,7 @@ export function scrollActions({ editor, active, live, audio, say, done }: Scroll
     ready.applyEdits(fix.edits);
     done();
     audio.sfx("equip");
-    say("Fix scroll used! Forge to make it real");
+    say("Auto-fix applied. Save to make it real");
   }
 
   function sealPlan(target: LiveFinding): SealPlan {
@@ -55,7 +55,7 @@ export function scrollActions({ editor, active, live, audio, say, done }: Scroll
     ready.applyEdits([plan.edit]);
     done();
     audio.sfx("uiSelect");
-    say("Sealed with # noqa. Forge to make it count (no reward: a real fix pays)");
+    say("Ignored with # noqa. Save to make it count (no reward: a real fix pays)");
   }
 
   return { applyFix, sealPlan, applySeal };

@@ -119,8 +119,8 @@ describe("the banner after a visit", () => {
     const tally = forge(forge(EMPTY_TALLY, 2, 0), 1, 1, { purified: true });
     expect(returnBanner(tally)).toEqual({ title: "THE CODE CHANGED!", subtitle: "3 bugs fixed for real · 1 new monster · 1 dungeon purified" });
     expect(returnBanner(forge(EMPTY_TALLY, 1, 0))).toEqual({ title: "FIXED FOR REAL!", subtitle: "1 bug fixed for real" });
-    expect(returnBanner(forge(EMPTY_TALLY, 1, 0, { sealed: 2 }))).toEqual({ title: "FIXED FOR REAL!", subtitle: "1 bug fixed for real · 2 bugs sealed" });
-    expect(returnBanner(forge(EMPTY_TALLY, 0, 0, { sealed: 1 }))).toEqual({ title: "SEALED", subtitle: "1 bug sealed" });
+    expect(returnBanner(forge(EMPTY_TALLY, 1, 0, { sealed: 2 }))).toEqual({ title: "FIXED FOR REAL!", subtitle: "1 bug fixed for real · 2 bugs ignored" });
+    expect(returnBanner(forge(EMPTY_TALLY, 0, 0, { sealed: 1 }))).toEqual({ title: "IGNORED", subtitle: "1 bug ignored" });
     expect(returnBanner(forge(EMPTY_TALLY, 0, 2))?.title).toBe("NEW MONSTERS!");
   });
 

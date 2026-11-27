@@ -16,7 +16,7 @@
  */
 import type { HudState } from "../bridge";
 import { Director } from "../entities/monsters/director";
-import type { AnalyzedFile, Dungeon } from "@/lib/types";
+import type { AnalyzedFile, Dungeon, Finding } from "@/lib/types";
 import type { SceneContext } from "./context";
 import type { Interactable } from "./interactions";
 import type { Drawable, Light } from "./scene";
@@ -49,6 +49,12 @@ export interface MonsterDirector {
    * leave the fight and dissolve as "rewritten". Returns how many findings that was.
    */
   rewrite(fixedIds: ReadonlySet<string>): number;
+  /**
+   * The code was edited and some bugs moved to another line (old id → the
+   * finding now): their monsters, which fight on, now stand for the finding
+   * under its new id and line.
+   */
+  follow(renamed: ReadonlyMap<string, Finding>): void;
   /** Records at once every defeat still in flight (dazed or squashing), before the code's finding ids change. */
   settleNow(): void;
   /** Runs only the "rewritten" effects (while the dungeon holds still to re-form). */

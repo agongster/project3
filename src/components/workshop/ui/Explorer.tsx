@@ -174,11 +174,11 @@ export const Explorer = memo(function Explorer({ entries, analysis, save, repoKe
               </span>
               <span className="ws-row-name">{clip(node.name, MAX_NAME_LENGTH)}</span>
               {edited && (
-                <span className="ws-edited" title="Edited and forged">
+                <span className="ws-edited" title="Edited and saved">
                   ✎
                 </span>
               )}
-              {isDirty && <span className="ws-dirty-dot" title="Unforged typing" />}
+              {isDirty && <span className="ws-dirty-dot" title="Unsaved typing" />}
               {badge && <BadgeView badge={badge} />}
             </div>
           );

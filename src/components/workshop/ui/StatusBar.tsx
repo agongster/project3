@@ -53,8 +53,8 @@ export function StatusBar({ hasFile, checkStatus, forgeText, tick, cursor, langu
         )}
       </span>
       {dirtyCount > 0 && (
-        <span className="ws-kept-note" title="Unforged typing is kept for your next visit; Forge to make it part of the world">
-          {dirtyCount === 1 ? "1 unforged file" : `${dirtyCount} unforged files`}, kept if you leave
+        <span className="ws-kept-note" title="Unsaved typing is kept for your next visit; Save to make it part of the world">
+          {dirtyCount === 1 ? "1 unsaved file" : `${dirtyCount} unsaved files`}, kept if you leave
         </span>
       )}
       {hasFile && (

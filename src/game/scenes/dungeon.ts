@@ -16,8 +16,10 @@
  *
  * When the file is edited in the Workshop while the hero is inside, the
  * engine calls `follow`; once the game runs again the dungeon RE-FORMS
- * (dungeonReform.ts): fixed and sealed monsters dissolve, then the room is
- * purified on the spot or rebuilt from the new code.
+ * (dungeonReform.ts): fixed and ignored monsters dissolve, and the room
+ * stays exactly as it is while it still has something to do. It is
+ * purified on the spot when the file has no bug left, and rebuilt from the
+ * new code only once it is done and the file has more bugs.
  */
 import { DUNGEON } from "@/game/art";
 import { getProgress, isDungeonPurified, isDungeonQuiet, recordDungeonQuiet } from "@/lib/game";
@@ -37,7 +39,7 @@ import { PrizeChest } from "./dungeonChest";
 import { drawRoomNames, plaqueInteractable, roomLineAt } from "./dungeonRooms";
 import { Cleanse } from "./dungeonCleanse";
 import { EndDoor } from "./dungeonEndDoor";
-import { REFORM_SEC, WALK_OUT_CAPTION, WALK_OUT_SEC, followEdit, reformCaption, reformOutcome, settledCaption, type ReformOutcome } from "./dungeonReform";
+import { REFORM_SEC, WALK_OUT_CAPTION, WALK_OUT_SEC, followEdit, nextWaveCaption, reformCaption, reformOutcome, settledCaption, type ReformOutcome } from "./dungeonReform";
 import { FloorCode } from "./floorCode";
 import { createMonsterDirector, type MonsterDirector } from "./monsterDirector";
 import type { Drawable, Light, Scene } from "./scene";
@@ -58,8 +60,6 @@ export class DungeonScene implements Scene {
   readonly kind = "dungeon";
   readonly ctx: SceneContext;
   readonly dungeon: Dungeon;
-  /** The file as the hero first saw this dungeon; replaced when it is purified on the spot by an edit. */
-  private file: AnalyzedFile;
   private readonly ground: GroundRenderer;
   private readonly scenery: Prop[];
   /** Torches are lit separately: their light shows whether the dungeon is still cursed. */
@@ -86,7 +86,15 @@ export class DungeonScene implements Scene {
   /** The edited file and the ids of its findings fixed for real or sealed, waiting for the game to run again. */
   private pending: { file: AnalyzedFile; fixedIds: Set<string>; sealedIds: Set<string> } | null = null;
   /** The re-forming in progress (see dungeonReform.ts). */
-  private reform: { age: number; file: AnalyzedFile; outcome: ReformOutcome } | null = null;
+  private reform: { age: number; outcome: ReformOutcome } | null = null;
+  /**
+   * The file as this room knows it: the code as it is now, with only the
+   * bugs that live here (each has a monster or a line in the room). After
+   * an edit the file itself can hold more (`waiting` of them): bugs new to
+   * the room, which get their monsters when the dungeon is next built.
+   */
+  private room: AnalyzedFile;
+  private waiting = 0;
   /** Seconds until a purified dungeon with nothing left to give walks the hero out (null: not scheduled). */
   private walkOutIn: number | null = null;
 
@@ -96,7 +104,7 @@ export class DungeonScene implements Scene {
   ) {
     const file = game.analysis.files.find((f) => f.path === path);
     if (!file) throw new Error(`No analyzed file for dungeon ${path}`);
-    this.file = file;
+    this.room = file;
     this.dungeon = game.options.makeDungeon(file);
     const ctx = (this.ctx = new SceneContext(game, this.dungeon));
     this.ground = new GroundRenderer(this.dungeon);
@@ -112,7 +120,8 @@ export class DungeonScene implements Scene {
     this.floorCode = new FloorCode(ctx, this.dungeon, file);
     this.chest = new PrizeChest(ctx, this.dungeon, path);
     if (this.purified) this.chest.place();
-    this.endDoor = new EndDoor(ctx, this.dungeon, { file: () => this.file, leave: () => this.leave(), say: (text) => this.announce(text) });
+    // The end door goes by the bugs of this room: one still waiting in the code does not keep it shut.
+    this.endDoor = new EndDoor(ctx, this.dungeon, { file: () => this.room, leave: () => this.leave(), say: (text) => this.announce(text) });
     this.interactables = [
       ...this.scenery.map((p) => (p.kind === "plaque" ? plaqueInteractable(ctx, game, this.dungeon, p) : propInteractable(ctx, p))).filter((i): i is Interactable => i !== null),
       this.exitInteractable(),
@@ -263,16 +272,22 @@ export class DungeonScene implements Scene {
     const pending = this.pending;
     if (!pending) return;
     this.pending = null;
-    const outcome = reformOutcome(pending.file, getProgress(game.save.get(), game.repoKey));
-    const { renamed, fixed, sealed } = followEdit(this.file, pending.file, pending.fixedIds, pending.sealedIds);
+    const { renamed, fixed, sealed, waiting } = followEdit(this.room.findings, pending.file, pending.fixedIds, pending.sealedIds);
     this.director.rewrite(new Set([...fixed, ...sealed]));
-    // The save already knows the moved findings by their new ids: the lines and wisps follow them at once.
+    // The save already knows the moved findings by their new ids: the monsters, lines and wisps follow them at once.
+    this.director.follow(renamed);
     this.floorCode.follow(renamed, fixed, sealed);
-    this.reform = { age: 0, file: pending.file, outcome };
+    this.room = { ...pending.file, findings: [...renamed.values()] };
+    this.waiting = waiting.length;
+    // Nothing in this room changed (the edit was elsewhere, or the file was already pure): no pause, no caption.
+    const untouched = fixed.size + sealed.size === 0;
+    if (untouched && (this.room.findings.length > 0 || this.purified)) return;
+    const outcome = reformOutcome(pending.file, this.room.findings);
+    this.reform = { age: 0, outcome };
     this.caption.show(reformCaption(this.path, fixed.size, sealed.size));
     game.audio.sfx(fixed.size > 0 ? "revealRare" : "uiSelect");
-    // Nothing can be hit while the room re-forms (a blow now would land on a monster of the old code).
-    ctx.hittables.clear();
+    // Before a rebuild nothing can be hit (a blow now would land on a monster of the old dungeon).
+    if (outcome === "rebuild") ctx.hittables.clear();
   }
 
   /** The room holds still and shimmers while the fixed monsters dissolve; then it purifies or re-forms. */
@@ -291,9 +306,9 @@ export class DungeonScene implements Scene {
     this.patchHud();
     if (reform.age < REFORM_SEC || this.director.rewriting()) return;
     this.reform = null;
-    if (reform.outcome === "purify") this.purifyByCode(reform.file);
-    else if (reform.outcome === "settle") this.settle(reform.file);
-    else this.game.rebuildDungeon(reformCaption(this.path, 0));
+    if (reform.outcome === "purify") this.purifyByCode();
+    else if (reform.outcome === "settle") this.settle();
+    else this.game.rebuildDungeon(nextWaveCaption(this.path));
   }
 
   /** Sparkles rising from random floor tiles on screen: the room is being rewritten. */
@@ -312,8 +327,7 @@ export class DungeonScene implements Scene {
    * sparkle wave, then the prize chest). If this file's one chest was
    * opened before, there is nothing to give, and the hero is walked out.
    */
-  private purifyByCode(file: AnalyzedFile): void {
-    this.file = file;
+  private purifyByCode(): void {
     const { ctx, game } = this;
     this.quiet = true;
     this.purified = true;
@@ -329,10 +343,13 @@ export class DungeonScene implements Scene {
     this.chest.drop();
   }
 
-  /** Still quiet after the edit: the room stays as it is, with the lines that were dealt with healed or sealed where they lie. */
-  private settle(file: AnalyzedFile): void {
-    this.file = file;
-    this.caption.show(settledCaption(file.findings.length));
+  /**
+   * The room still has something to do: it stays exactly as it is. The
+   * hero keeps their place, the other monsters fight on, and the lines that
+   * were dealt with lie healed (or turned to stone) where they are.
+   */
+  private settle(): void {
+    this.caption.show(settledCaption(this.director.remaining(), this.room.findings.length, this.waiting));
   }
 
   private updateWalkOut(dt: number): void {
@@ -394,13 +411,11 @@ export class DungeonScene implements Scene {
 
   private patchHud(): void {
     const remaining = this.quiet ? 0 : this.director.remaining();
-    // While the room re-forms, the count is already the new code's.
-    const file = this.reform?.file ?? this.file;
     this.game.hud.patch({
       scene: "dungeon",
       // The room the hero stands in names the code it stands for: "orders.py · def take_order()".
       location: locationLabel(this.dungeon, Math.floor(this.game.player.x / 16), Math.floor(this.game.player.y / 16)),
-      dungeon: { path: this.path, remaining, total: this.dungeon.monsters.length, toFix: file.findings.length },
+      dungeon: { path: this.path, remaining, total: this.dungeon.monsters.length, toFix: this.room.findings.length },
       boss: this.director.boss(),
     });
   }
